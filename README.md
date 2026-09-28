@@ -5,9 +5,11 @@ em 28/09/2026. O aplicativo antigo em Next/Cloudflare está preservado na branch
 legacy-next-cloudflare; ele não é a base desta implementação.
 
 O módulo Comercial do FiltroAPP é a origem funcional da extração. A primeira
-etapa traz sua biblioteca de regras e cria frontend e API executáveis em um
-repositório próprio. As telas, a persistência e as integrações ainda serão
-extraídas. Não use este esqueleto para propostas reais.
+etapa trouxe sua biblioteca de regras e criou frontend e API executáveis em um
+repositório próprio. Os arquivos das telas e seus recursos visuais já foram
+copiados e compilam, mas as rotas comerciais permanecem inativas até a
+autenticação, a persistência e os endpoints próprios estarem prontos.
+Não use este esqueleto para propostas reais.
 
 ## Executar localmente
 
@@ -17,8 +19,9 @@ Requer Node.js e npm compatíveis com as dependências declaradas.
 2. Em um terminal, execute npm run dev:api.
 3. Em outro terminal, execute npm run dev:web.
 4. Abra http://localhost:5174. A página mostra o estado da API local.
-5. Execute npm run check para compilar frontend e regras, rodar os 16 cenários
-   de referência do cálculo e verificar a sintaxe da API.
+5. Execute npm run check para compilar frontend e regras, verificar os bundles
+   das telas extraídas, rodar os 16 cenários de referência do cálculo e
+   verificar a sintaxe da API.
 
 O backend escuta em 127.0.0.1:4300 por padrão. As variáveis de exemplo estão
 em backend/.env.example e frontend/.env.example. Nenhuma credencial de produção
@@ -26,7 +29,8 @@ em backend/.env.example e frontend/.env.example. Nenhuma credencial de produçã
 
 ## Estrutura
 
-- frontend: React e Vite, com origem própria.
+- frontend: React e Vite, com origem própria e arquivos das telas comerciais
+  extraídos em src/pages/comercial.
 - backend: Express, com a rota de saúde /api/health.
 - shared/comercial: regras copiadas do módulo Comercial atual do FiltroAPP,
   com os cenários de referência do cálculo em test/goldens.

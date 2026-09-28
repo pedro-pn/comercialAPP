@@ -1,0 +1,4311 @@
+/* ==========================================================================
+   Módulo Comercial — identidade portada
+   ==========================================================================
+
+   Exceção de identidade portada do Princípio VI (emenda 1.9.0), declarada no
+   plan.md da feature 009. As quatro alíneas, e como este arquivo as atende:
+
+   (a) TODO seletor daqui vive sob `.com-root`. Nada escapa para o resto do
+       app, e `base.css` não alcança o interior. Regra sem `.com-root` neste
+       arquivo é bug.
+
+   (b) A paleta é UM bloco único de custom properties prefixadas `--com-*`,
+       logo abaixo. Hex solto espalhado pelos seletores não atende a alínea —
+       usar `var(--com-*)` sempre.
+
+   (c) NENHUM comportamento é dispensado. Campo inválido, drag and drop,
+       navegação em URL, tutorial e ausência de scroll horizontal continuam
+       obrigatórios, e vêm das classes compartilhadas do `base.css`, não daqui.
+
+   (d) Reavaliar quando o módulo deixar de ser porte.
+
+   -------------------------------------------------------------------------
+   Sobre os nomes: por FUNÇÃO, nunca por cor.
+
+   A referência nomeia por cor e as cores mentem. No `globals.css` congelado
+   há dois blocos `:root` conflitantes: o da linha 26 é azul e é CÓDIGO MORTO;
+   o da linha 56 vence por cascata e é verde. O resultado é que `--blue` vale
+   `#2f6446`, que é verde, e `--navy` vale `#214b35`, que também é verde.
+   Quatro nomes para duas cores.
+
+   Nome funcional sobrevive a troca de paleta; nome de cor vira mentira no
+   primeiro ajuste. E o mantenedor sinalizou que esta identidade pode virar o
+   padrão do app — com a paleta em bloco único e nomeada por função, a
+   promoção é renomear tokens, não reescrever CSS.
+   ========================================================================== */
+
+.com-root {
+  /* --- Paleta (bloco único, alínea b) ------------------------------------ */
+
+  /* Verde escuro da marca: cabeçalho de documento, rodapé, logotipo.
+     Era `--navy` e `--green-dark` na referência — o mesmo #214b35. */
+  --com-marca-forte: #214b35;
+
+  /* Verde de ação: botão primário, etapa ativa, links.
+     Era `--blue` e `--green` — o mesmo #2f6446. Sim, `--blue` era verde. */
+  --com-acao: #2f6446;
+
+  /* Fundo suave da ação: caixas de destaque, estado concluído. */
+  --com-acao-suave: #e8f0eb;
+
+  --com-texto: #1f2923;
+  --com-texto-fraco: #66736b;
+  --com-borda: #d9e2dc;
+  --com-fundo: #f3f6f4;
+  --com-superficie: #ffffff;
+
+  /* Vermelho de acento da referência. NÃO é o vermelho de campo inválido:
+     aquele vem de `--rd` do `base.css`, porque estado de erro é
+     comportamento compartilhado, não identidade do módulo. */
+  --com-erro: #c8131c;
+
+  /* --- Medidas ----------------------------------------------------------- */
+  --com-raio: 10px;
+  --com-raio-controle: 7px;
+  --com-espaco: 16px;
+
+  /* --- Base -------------------------------------------------------------- */
+  background: var(--com-fundo);
+  color: var(--com-texto);
+
+  /* Nenhuma página do módulo pode rolar horizontalmente (Princípio II).
+     Isto é rede de segurança, não solução: o conteúdo tem de caber por
+     desenho. Se algo aqui está sendo cortado, conserte o filho. */
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+/* ==========================================================================
+   Primitivas responsivas
+
+   Existem porque a referência NÃO tem layout mobile: são 39 regras de
+   `min-width` em pixel, a pior `.preview{min-width:390px}`, que sozinha
+   estoura qualquer celular. O porte não repete isso.
+
+   A passada de ajuste fino é a etapa E8.5, no fim. Ela só é barata se as
+   telas nascerem com estas primitivas — senão vira reescrita de layout e
+   custa o dobro.
+   ========================================================================== */
+
+/* Filho de flex/grid encolhe. Sem isto, conteúdo largo empurra o contêiner
+   e o estouro aparece na página inteira, longe de onde foi causado. */
+.com-root :where(.com-col, .com-row, .com-grid) > * {
+  min-width: 0;
+}
+
+.com-root .com-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--com-espaco);
+}
+
+.com-root .com-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--com-espaco);
+  min-width: 0;
+}
+
+/* Grade de cards que cabe em qualquer largura.
+   `min(100%, N)` é o que impede o piso fixo de estourar a viewport — é a
+   forma exigida pela constitution, e a que falta na referência. */
+.com-root .com-grid {
+  display: grid;
+  gap: var(--com-espaco);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+}
+
+.com-root .com-grid-2 {
+  display: grid;
+  gap: var(--com-espaco);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+}
+
+/* Tabela larga rola DENTRO do próprio contêiner, nunca na página. */
+.com-root .com-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--com-borda);
+  border-radius: var(--com-raio-controle);
+  max-width: 100%;
+}
+
+.com-root .com-table-wrap > table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+/* Valor monetário, rótulo longo, status: quebram ou truncam, mas NUNCA
+   alargam o contêiner. `nowrap` sem `max-width` é o que corta borda de card
+   em celular. */
+.com-root .com-truncar {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.com-root .com-quebrar {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* `.com-tabs`, `.com-tabs-scroll` e `.com-secoes` foram removidas em 13/08:
+   nenhum `.tsx` as aplicava. O comentário delas afirmava resolver os dois
+   estouros conhecidos — a tira de 5 seções e os 7 indicadores —, e não
+   resolvia coisa alguma, porque as classes não chegavam a existir na tela.
+   Uma revisão do planejamento leu esse comentário como prova de que a T104
+   estava feita. Ela está, mas por outro caminho: os dois blocos REFLUEM em
+   grade, não rolam. Ver `.com-kpis` e `.com-workflow-nav`. */
+
+/* ==========================================================================
+   Superfícies
+   ========================================================================== */
+
+/* Porte de `.cost-card`: borda #d2ded6 (não a borda genérica), raio 10 e a
+   sombra verde discreta. */
+.com-root .com-painel {
+  background: var(--com-superficie);
+  border: 1px solid #d2ded6;
+  border-radius: 10px;
+  padding: 22px;
+  margin-bottom: 18px;
+  box-shadow: 0 8px 25px #173d280d;
+  min-width: 0;
+}
+
+.com-root .com-secao-titulo {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--com-espaco);
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--com-borda);
+  padding-bottom: 20px;
+  margin-bottom: 24px;
+}
+
+.com-root .com-secao-titulo h2 {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 400;
+  /* Verde escuro — era `var(--green-dark)`. Eu tinha deixado na cor de texto. */
+  color: var(--com-marca-forte);
+}
+
+.com-root .com-secao-titulo p {
+  margin: 0;
+  color: var(--com-texto-fraco);
+}
+
+.com-root .com-secao-acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Cabeçalho de sub-bloco — usa `strong` + `span` em vez de `h2` + `p` porque
+   não é um título de seção, é um rótulo dentro dela. Os dois são INLINE por
+   padrão, então sem isto o subtítulo gruda no fim do título na mesma linha. */
+.com-root .com-secao-titulo > div > strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--com-marca-forte);
+  font-size: 15px;
+}
+
+.com-root .com-secao-titulo > div > span {
+  display: block;
+  color: var(--com-texto-fraco);
+  line-height: 1.45;
+}
+
+/* ==========================================================================
+   Ações
+   ========================================================================== */
+
+.com-root .com-btn {
+  border: 0;
+  border-radius: var(--com-raio-controle);
+  padding: 11px 16px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  max-width: 100%;
+}
+
+.com-root .com-btn-primario {
+  background: var(--com-acao);
+  color: #fff;
+}
+
+.com-root .com-btn-primario:disabled {
+  background: #b7c0cc;
+  cursor: not-allowed;
+}
+
+/* `.ghost` da referência: branco com borda, texto na cor do texto. Dentro da
+   barra superior ele muda — borda #cbd9cf e texto verde escuro. */
+.com-root .com-btn-fantasma {
+  background: var(--com-superficie);
+  border: 1px solid var(--com-borda);
+  color: var(--com-texto);
+}
+
+.com-root .com-btn-fantasma:disabled {
+  opacity: 0.4;
+}
+
+/* `.add` — botão de acrescentar item, em verde suave. */
+.com-root .com-btn-add {
+  background: var(--com-acao-suave);
+  color: var(--com-marca-forte);
+  border: 0;
+  border-radius: var(--com-raio-controle);
+  padding: 11px 16px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 13px;
+}
+
+/* Foco visível — acessibilidade não entra na exceção de identidade. */
+.com-root :where(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid var(--com-acao);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   Mobile
+
+   Sem `min-width` em pixel de contêiner em lugar nenhum deste arquivo — é a
+   regra que a referência quebra 39 vezes.
+   ========================================================================== */
+
+@media (max-width: 700px) {
+  .com-root .com-secao-titulo {
+    flex-direction: column;
+  }
+
+  .com-root .com-btn {
+    width: 100%;
+  }
+}
+
+/* ==========================================================================
+   Menu de entrada, diálogos e a tela de custos
+   ========================================================================== */
+
+.com-root .com-secao-corpo {
+  /* padding, borda e sombra vêm de `.com-painel` */
+  margin: 0 0 18px;
+}
+
+/* O menu não tem baseline (desvio nº 9). Adota a largura do diálogo de modo,
+   `min(940px, 100%)`, que é o precedente mais próximo na referência — e a
+   mesma grade de duas colunas das opções dele. */
+.com-root .com-menu {
+  width: min(940px, 100%);
+  margin: 0 auto 18px;
+}
+
+.com-root .com-menu .com-grid {
+  grid-template-columns: 1fr 1fr;
+}
+
+@media (max-width: 760px) {
+  .com-root .com-menu .com-grid { grid-template-columns: 1fr; }
+}
+
+/* O menu do módulo não existe na referência (desvio nº 9), então ele empresta
+   o padrão de cartão do diálogo `.mode-options`: mesma borda, mesmo fundo,
+   mesmo emblema redondo. É a peça mais próxima que a referência tem. */
+.com-root .com-cartao {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  align-items: center;
+  padding: 20px;
+  text-align: left;
+  border: 1px solid #d6e1d9;
+  border-radius: 11px;
+  background: #f8fbf9;
+  color: var(--com-texto);
+  cursor: pointer;
+  font: inherit;
+  min-width: 0;
+}
+
+.com-root .com-cartao:hover:not(:disabled) {
+  border-color: var(--com-acao);
+  background: var(--com-acao-suave);
+}
+
+.com-root .com-cartao:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.com-root .com-cartao strong { font-size: 16px; color: var(--com-marca-forte); min-width: 0; }
+
+.com-root .com-cartao b {
+  font-size: 20px;
+  color: var(--com-acao);
+  font-style: normal;
+}
+
+.com-root .com-cartao-icone {
+  grid-row: 1 / 3;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--com-marca-forte);
+  color: #fff;
+}
+
+.com-root .com-cartao-descricao {
+  font-size: 12px;
+  color: var(--com-texto-fraco);
+  line-height: 1.35;
+  min-width: 0;
+}
+
+/* --- Diálogos -------------------------------------------------------------
+
+   Porte fiel de `.proposal-mode-overlay` / `.proposal-mode-card` /
+   `.mode-options` do `globals.css` congelado. Baseline:
+   `contracts/baseline/CUSTO-modo-1440.png`.
+
+   Todos os valores saem do BLOCO ATIVO (linha 56 em diante). O bloco da
+   linha 26 é código morto — ler dele produz o diálogo azul, que nunca
+   existiu na tela.
+   -------------------------------------------------------------------------- */
+
+.com-root .com-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  /* Lavagem verde escura, não cinza neutro. */
+  background: linear-gradient(135deg, #173b29e8, #214b35f5);
+  backdrop-filter: blur(7px);
+  overflow-y: auto;
+}
+
+.com-root .com-modo-card {
+  width: min(940px, 100%);
+  background: var(--com-superficie);
+  border: 1px solid #ffffff55;
+  border-radius: 22px;
+  padding: 38px;
+  box-shadow: 0 28px 80px #06122580;
+  /* Texto à ESQUERDA — a referência não centraliza. */
+  text-align: left;
+}
+
+.com-root .com-modo-logo {
+  display: block;
+  width: 210px;
+  height: auto;
+  margin-bottom: 18px;
+}
+
+.com-root .com-modo-card h1 {
+  margin: 6px 0 8px;
+  font-size: 34px;
+  font-weight: 400;
+  color: var(--com-acao);
+}
+
+.com-root .com-modo-card > p {
+  margin: 0 0 20px;
+  color: var(--com-texto-fraco);
+}
+
+.com-root .com-eyebrow {
+  font-size: 9px;
+  letter-spacing: 2px;
+  font-weight: 800;
+  color: var(--com-acao);
+}
+
+.com-root .com-modo-opcoes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  /* A margem de baixo faltava, e o que vinha depois — o recado de erro, que tem
+     `margin: 0` — encostava nos cartões. */
+  margin: 4px 0 18px;
+}
+
+.com-root .com-modo-opcoes.com-modo-tres {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* O cartão de opção do diálogo tem layout PRÓPRIO: o emblema redondo ocupa
+   as duas linhas da grade, à esquerda do título e da descrição. */
+.com-root .com-modo-opcoes > button {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  align-items: center;
+  /* **`align-content: start` alinha os títulos dos dois cartões.**
+     Os cartões têm a mesma altura (a grade os estica), mas as descrições não
+     têm o mesmo número de linhas — "Reserva o próximo número e inicia um
+     levantamento por fases." quebra em duas, a outra não. Sem isto, o `normal`
+     da grade distribui a sobra ESTICANDO as linhas, e o título do cartão de
+     descrição curta desce alguns pixels: os dois ficam tortos um em relação ao
+     outro, e o olho vê antes de saber por quê. */
+  align-content: start;
+  padding: 20px;
+  text-align: left;
+  border: 1px solid #d6e1d9;
+  border-radius: 11px;
+  background: #f8fbf9;
+  color: var(--com-texto);
+  font: inherit;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.com-root .com-modo-opcoes > button:hover:not(:disabled) {
+  border-color: var(--com-acao);
+  background: #edf5ef;
+}
+
+.com-root .com-modo-opcoes > button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.com-root .com-modo-opcoes b {
+  grid-row: 1 / 3;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  /* `inline-flex` com centro nos dois eixos, e o conteúdo é um SVG: a caixa do
+     glifo não entra mais na conta. O `font-size` saiu junto — não há texto para
+     dimensionar, e ele só servia para a versão em caractere, que não centrava. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--com-marca-forte);
+  color: #fff;
+  font-style: normal;
+  font-weight: 400;
+}
+
+.com-root .com-modo-opcoes strong {
+  color: var(--com-marca-forte);
+  font-size: 16px;
+  min-width: 0;
+}
+
+.com-root .com-modo-opcoes span {
+  color: var(--com-texto-fraco);
+  font-size: 12px;
+  line-height: 1.35;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.com-root .com-revisao-entrada {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid #d6e1d9;
+  border-radius: 11px;
+  background: #f8fbf9;
+}
+
+/* **Sem a margem de baixo, senão o botão ao lado desce 17px.**
+   `.com-root .field-group` tem `margin-bottom: 17px`, pensado para formulário
+   empilhado. Aqui a linha é `align-items: flex-end`, que alinha a borda da
+   MARGEM — então o campo termina 17px acima do botão, e o "Carregar revisão"
+   aparece torto em relação ao campo que ele preenche. */
+.com-root .com-revisao-entrada .field-group {
+  flex: 1 1 200px;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.com-root .com-levantamentos-entrada {
+  display: grid;
+  gap: 12px;
+  max-height: min(390px, 45vh);
+  margin-top: 18px;
+  padding: 14px;
+  overflow-y: auto;
+  border: 1px solid #d6e1d9;
+  border-radius: 11px;
+  background: #f8fbf9;
+}
+
+.com-root .com-levantamentos-entrada > p {
+  margin: 0;
+  color: var(--com-texto-fraco);
+  font-size: 13px;
+}
+
+.com-root .com-levantamentos-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.com-root .com-levantamentos-cabecalho > div {
+  display: grid;
+  gap: 2px;
+}
+
+.com-root .com-levantamentos-cabecalho span {
+  color: var(--com-texto-fraco);
+  font-size: 11px;
+}
+
+.com-root .com-levantamentos-lista {
+  display: grid;
+  gap: 8px;
+}
+
+.com-root .com-levantamentos-lista > button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--com-borda);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--com-texto);
+  text-align: left;
+  cursor: pointer;
+}
+
+.com-root .com-levantamentos-lista > button:hover {
+  border-color: var(--com-acao);
+  background: #edf5ef;
+}
+
+.com-root .com-levantamentos-lista span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.com-root .com-levantamentos-lista small {
+  color: var(--com-texto-fraco);
+  overflow-wrap: anywhere;
+}
+
+.com-root .com-levantamentos-lista b {
+  flex: none;
+  color: var(--com-acao);
+  font-size: 14px;
+}
+
+.com-root .com-autosave {
+  color: var(--com-texto-fraco);
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.com-root .com-autosave.is-salvando,
+.com-root .com-autosave.is-pendente {
+  color: var(--com-acao);
+}
+
+.com-root .com-autosave.is-erro {
+  color: #b83232;
+}
+
+.com-root .com-autosave-proposta {
+  margin: 0 0 8px;
+  text-align: right;
+}
+
+/* --- Tira de seções ------------------------------------------------------ */
+
+.com-root .com-secoes {
+  max-width: 1100px;
+  margin: 0 auto 14px;
+  padding: 12px;
+  background: var(--com-superficie);
+  border: 1px solid var(--com-borda);
+  border-radius: var(--com-raio);
+}
+
+.com-root .com-secao-aba {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 0;
+  background: transparent;
+  color: var(--com-texto-fraco);
+  font: inherit;
+  padding: 6px 10px;
+  border-radius: var(--com-raio-controle);
+  cursor: pointer;
+  min-width: 0;
+}
+
+.com-root .com-secao-aba b {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--com-borda);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.com-root .com-secao-aba.is-ativa { color: var(--com-acao); font-weight: 700; }
+
+.com-root .com-secao-aba.is-ativa b {
+  background: var(--com-acao);
+  border-color: var(--com-acao);
+  color: #fff;
+}
+
+.com-root .com-obrigatorios { font-size: 11px; color: var(--com-texto-fraco); }
+
+.com-root .com-placeholder {
+  margin: 0;
+  padding: 28px;
+  border: 1px dashed var(--com-borda);
+  border-radius: var(--com-raio-controle);
+  color: var(--com-texto-fraco);
+  text-align: center;
+}
+
+/* --- Rodapé-guia --------------------------------------------------------- */
+
+/* Porte de `.cost-actions`: SEM cartão branco. É só uma linha espaçada —
+   eu tinha inventado um painel com borda que a referência não tem. */
+.com-root .com-rodape {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 0;
+}
+
+.com-root .com-rodape .com-btn-primario {
+  font-size: 15px;
+  padding: 14px 20px;
+}
+
+.com-root .com-rodape-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.com-root .com-codigo-vinculado {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  color: var(--com-marca-forte);
+}
+
+.com-root .com-codigo-vinculado small {
+  font-size: 9px;
+  letter-spacing: 1.2px;
+  color: var(--com-texto-fraco);
+}
+
+.com-root .com-codigo-vinculado strong { font-size: 18px; }
+
+.com-root .com-codigo-vinculado .com-autosave {
+  max-width: 190px;
+  margin-top: 2px;
+  text-align: center;
+}
+
+@media (max-width: 700px) {
+  .com-root .com-menu,
+  .com-root .com-secao-corpo { padding: 15px; }
+
+  .com-root .com-modo-card { padding: 20px; }
+
+  .com-root .com-rodape { flex-direction: column; align-items: stretch; }
+
+  .com-root .com-modo-opcoes.com-modo-tres { grid-template-columns: 1fr; }
+
+  .com-root .com-rodape-acoes,
+  .com-root .com-levantamentos-cabecalho,
+  .com-root .com-levantamentos-lista > button {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+/* ==========================================================================
+   Chrome da referência — desvio nº 10
+
+   Decisão do mantenedor em 03/08: dentro da raiz do módulo, o chrome é o do
+   comercialAPP, não o `Shell`/`TopBar` do filtroAPP. O motivo é estratégico —
+   o filtroAPP inteiro vai se parecer com o comercialAPP, então este chrome é
+   prévia do padrão que vem, não corpo estranho.
+
+   Porte de `.cost-topbar` e `.cost-hero` do bloco ATIVO do `globals.css`.
+   O caminho de volta ao hub vive na marca, que já era link na referência.
+   ========================================================================== */
+
+.com-root.com-app {
+  --com-topbar-height: 50px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.com-root .com-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  height: var(--com-topbar-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 3vw;
+  background: #fff;
+  border-bottom: 1px solid #dce6df;
+  box-shadow: 0 4px 18px #1838250a;
+}
+
+.com-root .com-marca {
+  display: inline-flex;
+  min-width: 180px;
+  align-items: center;
+  gap: 11px;
+  text-decoration: none;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  min-width: 0;
+}
+
+/* 184px de largura, altura automática com teto de 52 — NÃO 48x38.
+   `.cost-brand img{width:48px}` existe, mas `.brand>img{width:184px}` vem
+   depois com a mesma especificidade e vence. Portar a primeira regra que se
+   acha é o erro que a ferramenta `contracts/valor-efetivo.mjs` existe para
+   evitar. */
+.com-root .com-marca img {
+  display: block;
+  width: 152px;
+  height: auto;
+  max-height: 34px;
+  object-fit: contain;
+}
+
+.com-root .com-topbar-acoes {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.com-root .com-usuario {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  border: 1px solid #cbd9cf;
+  border-radius: 8px;
+  background: #f7faf8;
+  color: var(--com-texto-fraco);
+  font-size: 9px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.com-root .com-usuario b { overflow-wrap: anywhere; }
+
+.com-root .com-topbar .com-btn-fantasma {
+  border-color: #cbd9cf;
+  color: var(--com-marca-forte);
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+.com-root .com-topbar .com-btn-fantasma:hover:not(:disabled) {
+  border-color: var(--com-acao);
+  background: #edf5ef;
+}
+
+/* --- Faixa de identidade -------------------------------------------------- */
+
+.com-root .com-hero {
+  position: sticky;
+  top: var(--com-topbar-height);
+  z-index: 30;
+  isolation: isolate;
+  overflow: hidden;
+  display: block;
+  padding: 12px 4vw 14px;
+  color: #fff;
+  background: linear-gradient(125deg, #173b29 0%, #2f6446 72%, #3d7655 100%);
+  box-shadow: 0 12px 30px #173d283d;
+}
+
+/* Em 18/08, custos e proposta passaram a compartilhar uma barra superior de
+   50px. A faixa de custos continua fixa, mas os indicadores precisam consumir
+   o mínimo de altura para preservar a área de trabalho do formulário. */
+.com-root .com-hero-custos { padding: 6px 3vw 8px; }
+.com-root .com-hero-custos .com-hero-titulo { gap: 10px; margin-bottom: 3px; }
+.com-root .com-hero-custos .com-resumo { margin-top: 3px; }
+.com-root .com-hero-custos .com-resumo-titulo { margin-bottom: 3px; }
+.com-root .com-hero-custos .com-kpis { gap: 6px; }
+.com-root .com-hero-custos .com-kpi { padding: 3px 7px; }
+.com-root .com-hero-custos .com-kpi > span { font-size: 10px; }
+.com-root .com-hero-custos .com-kpi > strong { margin-top: 1px; font-size: 12px; }
+.com-root .com-hero-custos .com-kpi-margem input { padding-block: 2px; }
+
+/* Os dois elementos decorativos que dão identidade à faixa, e que eu tinha
+   deixado de fora — sem eles o hero é só um retângulo verde:
+
+   ::before  anel concêntrico gigante saindo pela direita, com dois halos
+   ::after   a faixa de marca de 3px no rodapé: azul, lavanda, VERMELHO e
+             transparente. É o detalhe mais reconhecível da identidade. */
+/* O anel concêntrico existe nos DOIS heros da referência. */
+.com-root .com-hero::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  right: -5%;
+  bottom: -190%;
+  width: 34%;
+  aspect-ratio: 1;
+  border: 2px solid #ffffff24;
+  border-radius: 50%;
+  box-shadow: 0 0 0 34px #ffffff0b, 0 0 0 68px #ffffff08;
+}
+
+/* SÓ no hero de custos. Conferido na fonte: `.cost-hero::after` tem a faixa
+   de marca; `.hero::after`, o da proposta, tem o anel concêntrico e mais nada.
+   Aplicá-la aos dois punha uma listra azul, lavanda e vermelha numa tela onde
+   a referência não tem listra nenhuma. */
+.com-root .com-hero-custos::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    #1b4f86 0 18%,
+    #aaa5b4 18% 31%,
+    var(--com-erro) 31% 42%,
+    #ffffff22 42% 100%
+  );
+}
+
+/* Eyebrow, título e descrição ficam na MESMA linha — é
+   `.cost-hero-title{display:flex;align-items:center;gap:18px}`. Eu tinha
+   empilhado os três. */
+.com-root .com-hero-titulo {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-bottom: 12px;
+  min-width: 0;
+}
+
+.com-root .com-hero .com-eyebrow {
+  color: #b9d6c3;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 2px;
+}
+
+.com-root .com-hero h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 400;
+  color: #fff;
+  overflow-wrap: anywhere;
+}
+
+.com-root .com-hero p {
+  margin: 0;
+  color: #d9e8de;
+  max-width: 780px;
+  font-size: 13px;
+}
+
+/* --- Navegação das seções, no padrão da referência ----------------------- */
+
+.com-root .com-workflow-nav {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 7px;
+  margin: 0 0 18px;
+  padding: 9px;
+  background: #f8faf8ef;
+  border: 1px solid #d5e1d8;
+  border-radius: 12px;
+  box-shadow: 0 10px 24px #173d2812;
+  backdrop-filter: blur(8px);
+}
+
+.com-root .com-workflow-nav button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--com-texto-fraco);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.com-root .com-workflow-nav button.is-ativa {
+  background: var(--com-marca-forte);
+  color: #fff;
+  box-shadow: 0 7px 18px #173d2830;
+}
+
+.com-root .com-workflow-nav button > span { min-width: 0; overflow-wrap: anywhere; }
+
+/* --- Conteúdo ------------------------------------------------------------ */
+
+/* ATENÇÃO à combinação com `.com-app`, que é flex column: `margin: auto` num
+   ITEM DE FLEX não centraliza um bloco que estica — ele faz o item encolher
+   para o conteúdo e centralizar nos DOIS eixos. O resultado era conteúdo com
+   metade da largura e um vão vertical enorme abaixo do hero.
+   Por isso: largura explícita e margem só na horizontal. */
+.com-root .com-conteudo {
+  width: 100%;
+  max-width: 1450px;
+  margin: 0 auto;
+  padding: 26px 4vw 60px;
+}
+
+@media (max-width: 900px) {
+  /* A tira de 5 seções é um dos dois pontos de estouro conhecidos. Vira duas
+     colunas e depois uma — nunca rolagem horizontal de página. */
+  .com-root .com-workflow-nav { grid-template-columns: repeat(2, 1fr); }
+  .com-root.com-app { --com-topbar-height: 54px; }
+}
+
+@media (max-width: 600px) {
+  .com-root .com-topbar { height: auto; padding: 6px 12px; flex-wrap: wrap; }
+  .com-root .com-marca { min-width: 0; }
+  .com-root .com-marca img { width: 128px; }
+  .com-root .com-hero::before { right: -18%; bottom: -80%; width: 65%; }
+  .com-root .com-hero { position: relative; top: auto; padding: 16px 20px 18px; }
+  .com-root .com-hero-titulo { display: block; }
+  .com-root .com-hero h1 { margin: 5px 0; }
+  .com-root .com-conteudo { padding: 14px; }
+  .com-root .com-workflow-nav { grid-template-columns: 1fr; }
+}
+
+/* ==========================================================================
+   Histórico de propostas — porte de `app/historico/page.tsx` (T084)
+   ========================================================================== */
+
+.com-root.com-history-page { min-height: 100vh; }
+
+.com-root .com-history-topbar {
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 5vw;
+  background: var(--com-superficie);
+  border-bottom: 1px solid var(--com-borda);
+}
+
+.com-root .com-history-topbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.com-root .com-history-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 34px 6vw;
+  color: var(--com-superficie);
+  background: linear-gradient(125deg, var(--com-marca-forte), var(--com-acao));
+}
+
+.com-root .com-history-hero::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  right: -7%;
+  bottom: -110%;
+  width: 42%;
+  aspect-ratio: 1;
+  border: 2px solid color-mix(in srgb, var(--com-superficie) 13%, transparent);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 34px color-mix(in srgb, var(--com-superficie) 4%, transparent),
+    0 0 0 68px color-mix(in srgb, var(--com-superficie) 3%, transparent);
+}
+
+.com-root .com-history-hero .com-eyebrow {
+  color: color-mix(in srgb, var(--com-superficie) 72%, var(--com-acao-suave));
+  font-size: 11px;
+  letter-spacing: 2px;
+}
+
+.com-root .com-history-hero h1 {
+  margin: 8px 0 5px;
+  color: var(--com-superficie);
+  font-size: 34px;
+  font-weight: 400;
+}
+
+.com-root .com-history-hero p {
+  margin: 0;
+  color: color-mix(in srgb, var(--com-superficie) 78%, var(--com-acao-suave));
+}
+
+.com-root .com-history-count {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex: none;
+}
+
+.com-root .com-history-count strong { font-size: 32px; }
+
+.com-root .com-history-count span {
+  color: color-mix(in srgb, var(--com-superficie) 72%, var(--com-acao-suave));
+  font-size: 11px;
+}
+
+.com-root .com-history-content {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 28px 4vw 60px;
+}
+
+.com-root .com-history-search {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.com-root .com-history-search input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--com-borda);
+  border-radius: var(--com-raio-controle);
+  padding: 12px 14px;
+  background: var(--com-superficie);
+  color: var(--com-texto);
+  font: inherit;
+}
+
+.com-root .com-history-sections {
+  display: grid;
+  gap: 28px;
+}
+
+.com-root .com-history-section {
+  min-width: 0;
+}
+
+.com-root .com-history-section-title {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.com-root .com-history-section-title h2 {
+  margin: 0;
+  color: var(--com-marca-forte);
+  font-size: 18px;
+}
+
+.com-root .com-history-section-title p {
+  margin: 3px 0 0;
+  color: var(--com-texto-fraco);
+  font-size: 11px;
+}
+
+.com-root .com-history-section-title > strong {
+  display: grid;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  place-items: center;
+  border-radius: 18px;
+  background: var(--com-acao-suave);
+  color: var(--com-marca-forte);
+  font-size: 12px;
+}
+
+.com-root .com-history-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  background: var(--com-superficie);
+  border: 1px solid var(--com-borda);
+  border-radius: var(--com-raio);
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--com-marca-forte) 5%, transparent);
+}
+
+.com-root .com-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.com-root .com-history-table th {
+  padding: 12px 13px;
+  border-bottom: 1px solid var(--com-borda);
+  color: var(--com-texto-fraco);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.com-root .com-history-table td {
+  min-width: 0;
+  padding: 13px;
+  border-bottom: 1px solid var(--com-borda);
+  vertical-align: top;
+}
+
+.com-root .com-history-table tbody tr:last-child td { border-bottom: 0; }
+.com-root .com-history-table td:nth-child(1) { min-width: 115px; }
+.com-root .com-history-table td:nth-child(2) { min-width: 230px; }
+.com-root .com-history-table td:nth-child(3) { min-width: 190px; }
+.com-root .com-history-table td:nth-child(5) { min-width: 250px; }
+
+.com-root .com-history-cost-table td:nth-child(2) { min-width: 210px; }
+.com-root .com-history-cost-table td:nth-child(3) { min-width: 245px; }
+.com-root .com-history-cost-table td:nth-child(4) { min-width: 135px; }
+.com-root .com-history-cost-table td:nth-child(5) { min-width: 150px; }
+
+.com-root .com-history-table :where(strong, span, small) { display: block; }
+
+.com-root .com-history-table small {
+  margin-top: 4px;
+  color: var(--com-texto-fraco);
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.com-root .com-history-documento + .com-history-documento { margin-top: 8px; }
+
+.com-root .com-history-pdf-link {
+  display: inline-flex;
+  margin: 5px 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--com-marca-forte);
+  font: inherit;
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.com-root .com-history-pdf-link:hover:not(:disabled) { text-decoration: underline; }
+.com-root .com-history-pdf-link:disabled { opacity: 0.6; cursor: progress; }
+
+.com-root .com-history-status {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 5px;
+  flex-wrap: wrap;
+}
+
+.com-root .com-history-status span {
+  display: inline-flex;
+  padding: 4px 7px;
+  border-radius: 12px;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.com-root .com-history-status .is-ok {
+  background: var(--com-acao-suave);
+  color: var(--com-marca-forte);
+}
+
+.com-root .com-history-status .is-fail,
+.com-root .com-history-error-message {
+  background: color-mix(in srgb, var(--com-erro) 10%, var(--com-superficie));
+  color: var(--com-erro);
+}
+
+.com-root .com-history-status .is-pending {
+  background: var(--com-fundo);
+  color: var(--com-texto-fraco);
+}
+
+.com-root .com-history-table .com-history-error { color: var(--com-erro); }
+
+.com-root .com-history-error-message {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--com-erro);
+  border-radius: var(--com-raio-controle);
+}
+
+.com-root .com-history-empty {
+  padding: 50px;
+  text-align: center;
+  background: var(--com-superficie);
+  border: 1px solid var(--com-borda);
+  border-radius: var(--com-raio);
+  color: var(--com-texto-fraco);
+}
+
+.com-root .com-history-empty-compact { padding: 24px; }
+
+@media (max-width: 700px) {
+  .com-root .com-history-topbar { padding: 10px 18px; flex-wrap: wrap; }
+  .com-root .com-history-topbar .com-marca img { width: 145px; }
+  .com-root .com-history-topbar-actions { width: 100%; justify-content: flex-start; }
+  .com-root .com-history-topbar-actions .com-btn { width: auto; }
+  .com-root .com-history-hero { align-items: flex-start; padding: 26px 20px; }
+  .com-root .com-history-hero h1 { font-size: 28px; }
+  .com-root .com-history-count { display: none; }
+  .com-root .com-history-content { padding: 18px 14px 40px; }
+  .com-root .com-history-search { flex-wrap: wrap; }
+  .com-root .com-history-search input { flex-basis: 100%; }
+  .com-root .com-history-search .com-btn { width: auto; }
+  .com-root .com-history-empty { padding: 36px 18px; }
+}
+
+/* ==========================================================================
+   Campos — porte de `.field` da referência
+
+   O `.field-group` do filtroAPP entrega o comportamento (marcação vermelha,
+   mensagem, aria) e é ele que a alínea (c) exige. O que muda aqui é só a
+   APARÊNCIA: proporções, cores de borda e peso do rótulo, para bater com a
+   referência. Nenhum estado de erro é redefinido — `.field-invalid` continua
+   vencendo, porque é comportamento e não identidade.
+   ========================================================================== */
+
+.com-root .field-group {
+  gap: 7px;
+  margin-bottom: 17px;
+  min-width: 0;
+}
+
+.com-root .field-group label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--com-texto);
+}
+
+.com-root .field-group input,
+.com-root .field-group select,
+.com-root .field-group textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+  border: 1px solid #c8d5cc;
+  border-radius: 6px;
+  padding: 11px;
+  background: #fff;
+  color: var(--com-texto);
+  font: inherit;
+}
+
+.com-root .field-group textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.com-root .field-group input:disabled,
+.com-root .field-group input[readonly] {
+  background: #f2f5f3;
+  color: var(--com-texto-fraco);
+}
+
+/* Grade de campos, no padrão `.cost-form-grid` — dentro dela o campo não
+   carrega margem própria. */
+.com-root .com-form-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+}
+
+.com-root .com-form-grid .field-group { margin: 0; }
+
+.com-root .com-viajantes-cargos {
+  display: grid;
+  gap: 8px;
+}
+
+.com-root .com-viajantes-cargos label {
+  display: grid;
+  align-items: center;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) 82px auto;
+}
+
+.com-root .com-viajantes-cargos input { min-width: 0; }
+.com-root .com-viajantes-cargos small { color: var(--com-texto-fraco); }
+
+/* Nota de rodapé de seção — as duas linhas explicativas embaixo de Premissas. */
+.com-root .com-nota {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--com-texto-fraco);
+  overflow-wrap: anywhere;
+}
+
+/* ==========================================================================
+   Faixa "Resumo em tempo real" — os 7 indicadores dentro do hero
+
+   Porte de `.cost-header-summary` + `.cost-kpis`. Os indicadores vivem sobre
+   o gradiente verde, então usam superfícies translúcidas em vez de fundo
+   sólido: `#ffffff12` com borda `#ffffff24`.
+   ========================================================================== */
+
+.com-root .com-resumo { margin-top: 14px; }
+
+.com-root .com-resumo-titulo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.com-root .com-resumo-titulo strong { font-size: 12px; }
+.com-root .com-resumo-titulo small { font-size: 10px; color: #c7ddce; }
+
+.com-root .com-kpis {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.com-root .com-kpi {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid #ffffff24;
+  border-radius: 8px;
+  background: #ffffff12;
+}
+
+.com-root .com-kpi > span { font-size: 11px; color: #c8dbce; }
+
+.com-root .com-kpi > strong {
+  margin-top: 3px;
+  font-size: 13px;
+  color: #fff;
+}
+
+/* Lucro positivo em verde claro, negativo em vermelho claro. É a informação
+   mais importante da faixa — margem negativa tem de saltar aos olhos. */
+.com-root .com-kpi-positivo { background: #2c785238; }
+.com-root .com-kpi-positivo > strong { color: #a7e5be; }
+.com-root .com-kpi-negativo > strong { color: #ffb2b2; }
+
+/* O valor da proposta é o único com fundo sólido — é o número que fecha. */
+.com-root .com-kpi-final {
+  background: var(--com-marca-forte);
+  border-color: var(--com-marca-forte);
+}
+
+.com-root .com-kpi-final > span { color: #617268; }
+.com-root .com-kpi-final > strong { color: #fff; }
+
+/* Editor de margem: o único campo editável fora das seções. */
+.com-root .com-kpi-margem {
+  justify-content: center;
+  gap: 3px;
+  border-color: #ffffff2e;
+  background: #ffffff14;
+  box-shadow: inset 0 1px #ffffff0d;
+  color: #fff;
+}
+
+.com-root .com-kpi-margem > div { display: flex; align-items: center; gap: 4px; }
+
+.com-root .com-kpi-margem input {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid #c8d5cc;
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: #fff;
+  color: var(--com-marca-forte);
+  font: inherit;
+  font-weight: 700;
+}
+
+.com-root .com-kpi-margem b { font-size: 11px; font-style: normal; }
+.com-root .com-kpi-margem small { font-size: 9px; color: #c8dbce; }
+
+/* Campo que ocupa a linha inteira da grade de formulário. */
+.com-root .com-form-wide { grid-column: 1 / -1; }
+
+@media (max-width: 1100px) {
+  .com-root .com-kpis { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 760px) {
+  .com-root .com-kpis { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 480px) {
+  .com-root .com-kpis { grid-template-columns: 1fr; }
+}
+
+/* ==========================================================================
+   Confirmação de escopo, avisos e visão geral de fases
+   ========================================================================== */
+
+/* Âmbar enquanto ninguém decidiu, verde depois de confirmado — é aviso e
+   depois registro. Porte de `.scope-confirmation`. */
+.com-root .com-confirmacao {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 0 0 16px;
+  padding: 13px 15px;
+  border: 1px solid #e1c68e;
+  border-radius: 10px;
+  background: #fff9ec;
+}
+
+.com-root .com-confirmacao > div { display: flex; flex-direction: column; min-width: 0; }
+.com-root .com-confirmacao > div strong { color: #76561f; font-size: 12px; }
+.com-root .com-confirmacao > div span { color: #76561f; font-size: 11px; }
+
+.com-root .com-confirmacao > label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  color: #76561f;
+  font-size: 10px;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.com-root .com-confirmacao.is-confirmada {
+  border-color: #9fc4ab;
+  background: #edf7f0;
+}
+
+.com-root .com-confirmacao.is-confirmada > div strong,
+.com-root .com-confirmacao.is-confirmada > div span,
+.com-root .com-confirmacao.is-confirmada > label {
+  color: var(--com-marca-forte);
+}
+
+.com-root .com-aviso {
+  margin-bottom: 10px;
+  padding: 11px 13px;
+  border-radius: 8px;
+  background: #fff1f1;
+  color: #9d2d2d;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.com-root .com-visao-geral {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0 10px;
+}
+
+.com-root .com-visao-geral article {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--com-borda);
+  border-radius: 10px;
+  background: linear-gradient(145deg, #f7faf8, #edf4ef);
+}
+
+.com-root .com-visao-geral span {
+  color: var(--com-texto-fraco);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.com-root .com-visao-geral strong {
+  margin: 4px 0 2px;
+  color: var(--com-marca-forte);
+  font-size: 20px;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.com-root .com-visao-geral small {
+  color: var(--com-texto-fraco);
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.com-root .com-nota-regra {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 10px 0 16px;
+  padding: 12px 14px;
+  border: 1px solid #c6d8ca;
+  border-radius: 8px;
+  background: #f7faf8;
+}
+
+.com-root .com-nota-regra strong { color: var(--com-marca-forte); font-size: 11px; }
+.com-root .com-nota-regra span { color: var(--com-texto-fraco); font-size: 11px; }
+
+.com-root .com-fases {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  margin-bottom: 16px;
+}
+
+.com-root .com-fase {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--com-borda);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.com-root .com-fase header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 6px;
+}
+
+.com-root .com-fase header strong { color: var(--com-marca-forte); font-size: 13px; }
+.com-root .com-fase header span { font-size: 11px; color: var(--com-texto-fraco); }
+.com-root .com-fase-pendente { color: #9d2d2d !important; font-weight: 700; }
+
+@media (max-width: 760px) {
+  .com-root .com-visao-geral { grid-template-columns: 1fr; }
+  .com-root .com-confirmacao > label { align-items: flex-start; }
+}
+
+/* ==========================================================================
+   Cartão de fase — porte de `.phase-card`
+   ========================================================================== */
+
+/* Fases empilham em coluna: cada uma é um bloco de edição, não um cartão de
+   resumo. A grade de cards da versão anterior espremia os formulários. */
+.com-root .com-fases { display: flex; flex-direction: column; gap: 14px; }
+
+.com-root .com-fase-card {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #c8d9cd;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #fbfdfc, #f4f8f5);
+}
+
+.com-root .com-fase-card-topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.com-root .com-fase-identidade {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.com-root .com-fase-indice {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--com-marca-forte);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.com-root .com-fase-identidade label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.com-root .com-fase-identidade small {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--com-texto-fraco);
+}
+
+.com-root .com-fase-identidade input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #c8d5cc;
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: #fff;
+  color: var(--com-texto);
+  font: inherit;
+}
+
+.com-root .com-fase-acoes { display: flex; gap: 7px; flex-wrap: wrap; }
+.com-root .com-fase-acoes .com-btn { padding: 8px 12px; font-size: 11px; }
+
+.com-root .com-fase-conteudo { min-width: 0; }
+
+/* Cenários de jornada por linha da equipe. */
+.com-root .com-jornadas {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--com-borda);
+}
+.com-root .com-jornadas > header {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 9px;
+}
+.com-root .com-jornadas > header strong { color: var(--com-marca-forte); }
+.com-root .com-jornadas > header small { color: var(--com-texto-fraco); }
+.com-root .com-jornadas-lista { display: grid; gap: 8px; }
+.com-root .com-jornada-card {
+  overflow: hidden;
+  border: 1px solid #d4e0d7;
+  border-radius: 9px;
+  background: #fff;
+}
+.com-root .com-jornada-card > summary {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(240px, 1.5fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  color: var(--com-marca-forte);
+  cursor: pointer;
+  list-style-position: inside;
+}
+.com-root .com-jornada-card > summary > span:first-of-type {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.com-root .com-jornada-card > summary small,
+.com-root .com-jornada-resumo { color: var(--com-texto-fraco); font-size: 10px; }
+.com-root .com-jornada-resultado { font-size: 11px; font-weight: 800; white-space: nowrap; }
+.com-root .com-jornada-corpo {
+  padding: 14px;
+  border-top: 1px solid #dce6df;
+  background: #f9fbfa;
+}
+.com-root .com-jornada-dias {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 12px;
+}
+.com-root .com-jornada-dia {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #dbe5de;
+  border-radius: 8px;
+  background: #fff;
+}
+.com-root .com-jornada-dia > strong {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--com-marca-forte);
+  font-size: 11px;
+}
+.com-root .com-jornada-dia .com-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.com-root .com-jornada-acoes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+.com-root .com-jornada-acoes small { color: var(--com-texto-fraco); }
+
+/* O título inteiro abre/recolhe a seção; a seta acompanha o estado. */
+.com-root .com-cabecalho-retratil { margin-bottom: 0; }
+.com-root .com-cabecalho-retratil > h2 { width: 100%; margin: 0; }
+.com-root .com-cabecalho-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--com-marca-forte);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.com-root .com-cabecalho-toggle:hover { background: var(--com-acao-suave); }
+.com-root .com-cabecalho-toggle:focus-visible {
+  outline: 2px solid var(--com-acao);
+  outline-offset: 4px;
+}
+.com-root .com-cabecalho-texto {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.com-root .com-cabecalho-texto small {
+  color: var(--com-texto-fraco);
+  font-size: 12px;
+  font-weight: 400;
+}
+.com-root .com-cabecalho-texto strong { overflow-wrap: anywhere; }
+.com-root .com-retratil-seta {
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  margin: 0 6px 4px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+}
+.com-root .com-cabecalho-toggle[aria-expanded="true"] .com-retratil-seta {
+  transform: rotate(225deg);
+  margin-bottom: -4px;
+}
+.com-root .com-fase-conteudo { padding-top: 14px; }
+.com-root .com-retratil-acoes { justify-content: flex-end; margin: 12px 0; }
+/* Circuitos existentes começam recolhidos e mantêm nome/volume no resumo. */
+.com-root .com-circuito-corpo {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #d7e2da;
+}
+
+.com-root .com-btn-perigo {
+  background: #fbe8e8;
+  color: #b83232;
+  border: 1px solid #f0cccc;
+}
+
+.com-root .com-btn-perigo:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.com-root .com-conflito-card { width: min(620px, 100%); }
+
+.com-root .com-conflito-acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 22px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 600px) {
+  .com-root .com-conflito-acoes .com-btn { width: 100%; }
+  .com-root .com-jornada-card > summary { grid-template-columns: 1fr; }
+  .com-root .com-jornada-dias { grid-template-columns: 1fr; }
+  .com-root .com-jornada-acoes { align-items: stretch; flex-direction: column; }
+  .com-root .com-jornada-acoes .com-btn { width: 100%; }
+}
+
+.com-root .com-fase-paineis {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  margin-bottom: 12px;
+}
+
+.com-root .com-fase-painel {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--com-borda);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.com-root .com-fase-painel > header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 12px;
+}
+
+.com-root .com-fase-painel > header strong {
+  color: var(--com-marca-forte);
+  font-size: 12px;
+}
+
+.com-root .com-fase-painel > header small {
+  color: var(--com-texto-fraco);
+  font-size: 11px;
+}
+
+/* Cabeçalho e célula valem para QUALQUER tabela do módulo — estavam presos a
+   `.com-fase-painel`, e a tabela de insumos ficava crua. Escopo errado é o
+   mesmo erro de sempre, só que em CSS: a regra existe e não alcança. */
+.com-root .com-table-wrap th {
+  background: #f4f6f8;
+  text-align: left;
+  padding: 9px;
+  color: #556173;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.com-root .com-table-wrap td {
+  padding: 8px 9px;
+  border-top: 1px solid var(--com-borda);
+  vertical-align: middle;
+}
+
+/* --- Tabela de alocações -------------------------------------------------- */
+
+/* Todo controle de tabela: `td` E `th`, entrada de texto E área de texto.
+   A versão anterior cobria só `td input` e `td select` — o cabeçalho editável
+   e a célula com `textarea` da tabela do escopo caíam para o desenho cru do
+   navegador, com borda preta e alça de redimensionar. */
+.com-root .com-table-wrap td input:not([type='checkbox']),
+.com-root .com-table-wrap td select,
+.com-root .com-table-wrap td textarea,
+.com-root .com-table-wrap th input:not([type='checkbox']),
+.com-root .com-table-wrap th select,
+.com-root .com-table-wrap th textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #c8d5cc;
+  border-radius: 6px;
+  padding: 7px 8px;
+  background: #fff;
+  color: var(--com-texto);
+  font: inherit;
+  font-size: 12px;
+}
+
+.com-root .com-table-wrap td input[type='number'] {
+  /* Número tem largura própria: sem isto a coluna de quantidade fica do
+     tamanho da coluna de descrição. */
+  max-width: 110px;
+}
+
+.com-root .com-medida-com-unidade {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 150px;
+}
+
+.com-root .com-medida-com-unidade input[type='number'] {
+  width: 92px;
+  min-width: 0;
+  max-width: none;
+}
+
+.com-root .com-medida-com-unidade .com-medida-valor {
+  width: 112px;
+  min-width: 112px;
+}
+
+.com-root .com-medida-com-unidade select {
+  width: 64px;
+  min-width: 64px;
+}
+
+.com-root .com-table-wrap td input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--com-acao);
+  cursor: pointer;
+}
+
+/* A célula de texto longo cresce na vertical, e só nela: horizontal estouraria
+   a largura da tabela, que é o que o `overflow-x` do contêiner existe para
+   evitar. */
+.com-root .com-table-wrap td textarea,
+.com-root .com-table-wrap th textarea {
+  min-height: 38px;
+  line-height: 1.4;
+  resize: vertical;
+}
+
+/* Cabeçalho editável: mesma caixa, peso de cabeçalho. */
+.com-root .com-table-wrap th input {
+  font-weight: 600;
+  color: var(--com-marca-forte);
+}
+
+/* A primeira coluna costuma ser a descrição — ela leva o espaço que sobra. */
+.com-root .com-table-wrap td:first-child input { min-width: 160px; }
+
+.com-root .com-table-wrap td input:disabled,
+.com-root .com-table-wrap td select:disabled,
+.com-root .com-table-wrap td textarea:disabled {
+  background: #f2f5f3;
+  color: var(--com-texto-fraco);
+  cursor: not-allowed;
+}
+
+/* A tabela de produtos tem 13 colunas editáveis. Com width:100% o navegador
+   espremia todas até cortar valor, unidade e texto selecionado. Ela conserva
+   uma largura útil e rola dentro do painel, sem alargar a página. */
+.com-root .com-table-wrap-produtos-volume {
+  scrollbar-gutter: stable;
+  overscroll-behavior-x: contain;
+}
+
+.com-root .com-tabela-produtos-volume {
+  min-width: 1520px;
+}
+
+.com-root .com-tabela-produtos-volume td:nth-child(1) { min-width: 180px; }
+.com-root .com-tabela-produtos-volume td:nth-child(2) { min-width: 160px; }
+.com-root .com-tabela-produtos-volume td:nth-child(3) { min-width: 150px; }
+.com-root .com-tabela-produtos-volume td:nth-child(4),
+.com-root .com-tabela-produtos-volume td:nth-child(6),
+.com-root .com-tabela-produtos-volume td:nth-child(8),
+.com-root .com-tabela-produtos-volume td:nth-child(9),
+.com-root .com-tabela-produtos-volume td:nth-child(10) {
+  min-width: 110px;
+}
+.com-root .com-tabela-produtos-volume td:nth-child(5),
+.com-root .com-tabela-produtos-volume td:nth-child(7),
+.com-root .com-tabela-produtos-volume td:nth-child(11) {
+  min-width: 76px;
+}
+.com-root .com-tabela-produtos-volume td:nth-child(12) { min-width: 165px; }
+.com-root .com-tabela-produtos-volume td input[type='number'] { max-width: none; }
+
+.com-root .com-calculado {
+  color: var(--com-marca-forte);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.com-root .com-remover {
+  border: 0;
+  border-radius: 5px;
+  padding: 4px 9px;
+  background: #fbe8e8;
+  color: #b83232;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.com-root .com-vazio {
+  padding: 16px;
+  border: 1px dashed var(--com-borda);
+  border-radius: 8px;
+  color: var(--com-texto-fraco);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* Rótulo só para leitor de tela. */
+.com-root .com-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Linha de despesa gerida pela própria fase: campos travados ficam visivelmente
+   diferentes, para não parecer que o formulário quebrou. */
+.com-root .com-linha-fixa { background: #f7faf8; }
+.com-root .com-linha-fixa td input:disabled,
+.com-root .com-linha-fixa td select:disabled { background: #eef2f0; }
+.com-root .com-remover:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* Volume calculado do circuito, no cabeçalho do cartão. */
+.com-root .com-volume-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 12px;
+  border-radius: 8px;
+  background: var(--com-acao-suave);
+  color: var(--com-marca-forte);
+  font-weight: 700;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* --- Itens de logística --------------------------------------------------- */
+
+.com-root .com-logistica-conjunta {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 13px 14px;
+  border: 1px solid var(--com-borda);
+  border-radius: var(--com-raio-sm);
+  background: var(--com-fundo-suave);
+  cursor: pointer;
+}
+
+.com-root .com-logistica-conjunta input {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  accent-color: var(--com-acao);
+}
+
+.com-root .com-logistica-conjunta span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.com-root .com-logistica-conjunta strong {
+  color: var(--com-marca-forte);
+  font-size: 12px;
+}
+
+.com-root .com-logistica-conjunta small {
+  color: var(--com-texto-fraco);
+  line-height: 1.45;
+}
+
+.com-root .com-subtitulo {
+  margin: 18px 0 10px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--com-marca-forte);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Item incompleto ganha borda de atenção — a mesma informação que o rodapé
+   dá, no lugar onde se resolve. */
+.com-root .com-item-pendente {
+  border-color: #e0b4b4;
+  background: linear-gradient(145deg, #fffafa, #fdf3f3);
+}
+
+.com-root .com-etiqueta {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 20px;
+  background: var(--com-acao-suave);
+  color: var(--com-marca-forte);
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.com-root .com-etiqueta-alerta { background: #fbe8e8; color: #9d2d2d; }
+
+.com-root .com-incluir {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--com-texto-fraco);
+  white-space: nowrap;
+}
+
+.com-root .com-incluir input { width: 16px; height: 16px; accent-color: var(--com-acao); }
+
+/* Campo inválido dentro de tabela: as classes `.field-invalid` do base.css
+   dependem de `.field-group`, que a célula não tem. */
+.com-root .com-campo-invalido {
+  border-color: var(--rd) !important;
+  background-color: #fff5f5 !important;
+}
+
+.com-root .com-total-secao {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+  padding: 16px 18px;
+  border: 1px solid #c8d9cd;
+  border-radius: 10px;
+  background: var(--com-superficie);
+}
+
+.com-root .com-total-secao strong { color: var(--com-marca-forte); font-size: 13px; }
+.com-root .com-total-secao span { font-size: 18px; font-weight: 700; color: var(--com-marca-forte); }
+
+/* --- Formação do preço ---------------------------------------------------- */
+
+.com-root .com-resumo-grade {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
+}
+
+.com-root .com-dado {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--com-borda);
+  border-radius: 9px;
+  background: #f8faf9;
+}
+
+.com-root .com-dado span {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--com-texto-fraco);
+}
+
+.com-root .com-dado strong {
+  margin-top: 4px;
+  font-size: 16px;
+  color: var(--com-marca-forte);
+}
+
+.com-root .com-dado-destaque {
+  border-color: #c8d9cd;
+  background: linear-gradient(145deg, #f7faf8, #edf4ef);
+}
+
+.com-root .com-dado-destaque strong { font-size: 19px; }
+
+.com-root .com-dado-positivo { background: #edf9f1; border-color: #bfe0ca; }
+.com-root .com-dado-negativo { background: #fff2f2; border-color: #efc2c2; }
+.com-root .com-dado-negativo strong { color: #9d2d2d; }
+
+.com-root .com-incluir-bloco {
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--com-texto);
+}
+
+.com-root .com-nota-alerta { color: #9d2d2d; font-weight: 700; }
+
+/* Recado de operação — reserva de número, salvamento, recusa do servidor.
+   Fica no fluxo, não em toast: o usuário precisa poder reler enquanto corrige. */
+.com-root .com-recado {
+  margin: 0;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--com-borda);
+  border-left: 3px solid var(--com-acao);
+  border-radius: 8px;
+  background: var(--com-acao-suave);
+  color: var(--com-texto-fraco);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.com-root .com-recado-tela {
+  margin: 1rem 0 0;
+}
+
+/* Oferta de recuperação de rascunho (L3). Fica acima da tira de seções porque a
+   decisão precisa ser tomada antes de o usuário digitar por cima. */
+.com-root .com-oferta-rascunho {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  border-left: 3px solid var(--com-acao);
+}
+
+.com-root .com-oferta-rascunho > div:first-child {
+  min-width: 0;
+  flex: 1 1 320px;
+}
+
+.com-root .com-oferta-rascunho strong {
+  display: block;
+  color: var(--com-texto);
+  font-size: 0.98rem;
+}
+
+.com-root .com-oferta-rascunho p {
+  margin: 0.25rem 0 0;
+  color: var(--com-texto-fraco);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.com-root .com-oferta-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* Documentos emitidos e guardados no servidor. Aparece depois da emissão, e
+   fica: o download pode ter sido bloqueado pelo navegador, ou a pessoa pode ter
+   pedido só uma das duas propostas e mudado de ideia. */
+.com-root .com-emitidos {
+  margin-top: 1rem;
+  border-left: 3px solid var(--com-acao);
+}
+
+.com-root .com-emitidos strong {
+  display: block;
+  color: var(--com-texto);
+  font-size: 0.98rem;
+}
+
+.com-root .com-emitidos ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Etapa já concluída no stepper — o ✓ substitui o número. */
+.com-root .com-workflow-nav button.is-concluida b {
+  background: var(--com-acao);
+  color: #fff;
+  border-color: var(--com-acao);
+}
+
+.com-root .com-workflow-nav button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Etapa 2 — serviços do escopo e seus blocos de conteúdo. */
+.com-root .com-escopo-cabecalho {
+  margin-top: 1.5rem;
+}
+
+.com-root .com-escopo-adicionar select {
+  min-width: min(100%, 230px);
+}
+
+.com-root .com-escopo-numero {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.com-root .com-escopo-numero b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.6rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--com-raio-controle);
+  background: var(--com-acao-suave);
+  color: var(--com-marca-forte);
+  font-weight: 700;
+}
+
+.com-root .com-escopo-numero strong {
+  display: block;
+  color: var(--com-texto);
+}
+
+.com-root .com-escopo-numero span {
+  color: var(--com-texto-fraco);
+  font-size: 0.82rem;
+}
+
+.com-root .com-blocos {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px dashed var(--com-borda);
+  border-radius: var(--com-raio);
+  background: var(--com-fundo);
+}
+
+.com-root .com-blocos-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.com-root .com-blocos-lista {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 0.75rem;
+}
+
+.com-root .com-bloco {
+  padding: 0.9rem;
+  border: 1px solid var(--com-borda);
+  border-radius: var(--com-raio);
+  background: var(--com-superficie);
+}
+
+.com-root .com-bloco-topo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+}
+
+.com-root .com-bloco-ordem {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.com-root .com-bloco textarea {
+  min-height: 2.4rem;
+  resize: vertical;
+}
+
+.com-root .com-bloco-foto img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--com-raio-controle);
+}
+
+/* Botão de upload — é um <label> com input escondido, então precisa parecer botão. */
+.com-root .com-upload {
+  position: relative;
+  cursor: pointer;
+}
+
+.com-root .com-upload input[type='file'] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.com-root .com-upload-inativo {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.com-root .com-upload-inativo input[type='file'] {
+  cursor: not-allowed;
+}
+
+/* Recusa do envio: o recado precisa se distinguir do informativo. */
+.com-root .com-recado-erro {
+  border-left-color: var(--com-erro);
+  color: var(--com-erro);
+}
+
+/* Catálogo de serviços técnicos (etapa 5). */
+.com-root .com-catalogo {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
+  margin-bottom: 1rem;
+}
+
+.com-root .com-catalogo-item {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.8rem;
+  text-align: left;
+  border: 1px solid var(--com-borda);
+  border-radius: var(--com-raio);
+  background: var(--com-superficie);
+  cursor: pointer;
+}
+
+.com-root .com-catalogo-item b {
+  color: var(--com-acao);
+  font-size: 1rem;
+}
+
+.com-root .com-catalogo-item strong {
+  color: var(--com-texto);
+  font-size: 0.92rem;
+}
+
+.com-root .com-catalogo-item span {
+  color: var(--com-texto-fraco);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.com-root .com-catalogo-item small {
+  margin-top: 0.25rem;
+  color: var(--com-marca-forte);
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.com-root .com-catalogo-item.is-ativa {
+  border-color: var(--com-acao);
+  background: var(--com-acao-suave);
+}
+
+.com-root .com-contagem {
+  color: var(--com-texto-fraco);
+  font-size: 0.84rem;
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.com-root .com-texto-tecnico-topo {
+  margin-top: 0.75rem;
+}
+
+.com-root .com-linha-erro {
+  display: block;
+}
+
+/* Revisão (etapa 7). */
+.com-root .com-checklist {
+  display: grid;
+  gap: 0.4rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+  margin-bottom: 1rem;
+}
+
+.com-root .com-checklist div {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  color: var(--com-texto-fraco);
+  font-size: 0.85rem;
+}
+
+.com-root .com-checklist b {
+  color: var(--com-acao);
+}
+
+.com-root .com-escolha-download {
+  margin: 1rem 0;
+  padding: 0.9rem;
+  border: 1px solid var(--com-borda);
+  border-radius: var(--com-raio);
+}
+
+.com-root .com-escolha-download legend strong {
+  display: block;
+  color: var(--com-texto);
+}
+
+.com-root .com-escolha-download legend span {
+  color: var(--com-texto-fraco);
+  font-size: 0.82rem;
+}
+
+.com-root .com-escolha-opcoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+.com-root .com-escolha-opcoes label {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid var(--com-borda);
+  border-radius: var(--com-raio-controle);
+  cursor: pointer;
+}
+
+.com-root .com-escolha-opcoes label.is-ativa {
+  border-color: var(--com-acao);
+  background: var(--com-acao-suave);
+}
+
+.com-root .com-escolha-opcoes input {
+  width: auto;
+}
+
+.com-root .com-lista-anexos {
+  margin: 0.4rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--com-texto-fraco);
+  font-size: 0.82rem;
+}
+
+.com-root .com-lista-anexos li {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.com-root .com-lista-anexos .com-btn {
+  flex: 0 0 auto;
+  padding: 0.3rem 0.55rem;
+  font-size: 0.76rem;
+}
+
+/* Funil e card são decisões da etapa final, não campos soltos. O grid usa
+   `min(100%, ...)` para que nenhum rótulo crie rolagem horizontal no celular. */
+.com-root .com-funil {
+  display: grid;
+  gap: 0.7rem;
+  margin-bottom: 1rem;
+  padding: 0.9rem;
+  border: 1px solid var(--com-borda);
+  border-radius: var(--com-raio);
+}
+
+.com-root .com-funil-titulo strong,
+.com-root .com-funil-titulo span {
+  display: block;
+}
+
+.com-root .com-funil-titulo span {
+  color: var(--com-texto-fraco);
+  font-size: 0.82rem;
+}
+
+.com-root .com-funil-opcoes,
+.com-root .com-card-opcoes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  gap: 0.6rem;
+}
+
+.com-root .com-funil-opcoes button,
+.com-root .com-card-opcoes button {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+  padding: 0.7rem;
+  border: 1px solid var(--com-borda);
+  border-radius: var(--com-raio-controle);
+  background: var(--com-superficie);
+  color: var(--com-texto);
+  text-align: left;
+  cursor: pointer;
+}
+
+.com-root .com-funil-opcoes button.is-ativa,
+.com-root .com-card-opcoes button.is-ativa {
+  border-color: var(--com-acao);
+  background: var(--com-acao-suave);
+}
+
+.com-root .com-funil-opcoes span,
+.com-root .com-card-opcoes span {
+  color: var(--com-texto-fraco);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.com-root .com-card-opcoes button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.com-root .com-nota-alerta {
+  border-color: #e3a578;
+  background: #fff8f1;
+}
+
+/* Quatro recados em sequência visível. A tela pode receber a resposta final de
+   uma vez, mas a ordem permanece conferível e o estágio atual fica marcado. */
+.com-root .com-progresso-finalizacao {
+  margin-top: 1rem;
+}
+
+.com-root .com-progresso-finalizacao > strong {
+  display: block;
+  margin-bottom: 0.7rem;
+}
+
+.com-root .com-progresso-finalizacao ol {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.com-root .com-progresso-finalizacao li {
+  display: flex;
+  gap: 0.45rem;
+  align-items: flex-start;
+  min-width: 0;
+  color: var(--com-texto-fraco);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.com-root .com-progresso-finalizacao li b {
+  display: grid;
+  flex: 0 0 1.45rem;
+  width: 1.45rem;
+  height: 1.45rem;
+  place-items: center;
+  border: 1px solid var(--com-borda);
+  border-radius: 50%;
+  background: var(--com-superficie);
+}
+
+.com-root .com-progresso-finalizacao li.is-ativa,
+.com-root .com-progresso-finalizacao li.is-concluida {
+  color: var(--com-texto);
+}
+
+.com-root .com-progresso-finalizacao li.is-ativa b,
+.com-root .com-progresso-finalizacao li.is-concluida b {
+  border-color: var(--com-acao);
+  background: var(--com-acao);
+  color: #fff;
+}
+
+.com-root .com-finalizacao-painel {
+  display: grid;
+  gap: 0.8rem;
+  margin-top: 1rem;
+  border-left: 3px solid var(--com-acao);
+}
+
+.com-root .com-finalizacao-painel > div:first-child strong,
+.com-root .com-finalizacao-painel > div:first-child span {
+  display: block;
+}
+
+.com-root .com-finalizacao-painel > div:first-child span {
+  margin-top: 0.2rem;
+  color: var(--com-texto-fraco);
+  font-size: 0.82rem;
+}
+
+.com-root .com-download-selecionado {
+  justify-self: start;
+}
+
+.com-root .com-download-separado {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+@media (max-width: 760px) {
+  .com-root .com-progresso-finalizacao ol {
+    grid-template-columns: 1fr;
+  }
+
+  .com-root .com-download-selecionado,
+  .com-root .com-download-separado .com-btn {
+    width: 100%;
+  }
+}
+
+/* ==========================================================================
+   Faixa da PROPOSTA — a segunda das duas da referência (`.hero`, app/page.tsx)
+   ========================================================================== */
+
+/* A proposta também usa uma faixa verticalmente compacta: o título, a
+   descrição e a numeração continuam legíveis sem retirar área do editor. */
+/* `relative`, nunca `static`: o `::after` do hero é a faixa de 3px da marca
+   (azul, lavanda, VERMELHO). Sem bloco de contenção aqui ela se posiciona
+   contra um ancestral distante e vai parar no meio da página. Era a listra
+   colorida atravessando o formulário. */
+.com-root .com-hero-proposta {
+  position: relative;
+  /* `top` e `z-index` vêm de `.com-hero`, que é STICKY. Trocar só a
+     `position` para `relative` deixou os dois valendo — e `top: 72px` num
+     elemento relativo não gruda: ele EMPURRA a faixa 72px para baixo, que
+     com `z-index: 30` passou por cima do stepper e o escondeu.
+     Trocar `position` sem zerar o que a acompanha esconde uma faixa
+     inteira. */
+  top: auto;
+  z-index: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 4vw;
+  box-shadow: none;
+}
+
+.com-root .com-hero-proposta .com-hero-titulo {
+  display: block;
+  margin-bottom: 0;
+}
+
+.com-root .com-hero-proposta h1 {
+  margin: 3px 0 2px;
+  font-size: 27px;
+}
+
+.com-root .com-hero-proposta h1 em {
+  font-style: normal;
+  color: #b8ddc5;
+}
+
+.com-root .com-hero-proposta p {
+  font-size: 12px;
+}
+
+/* Cartão de numeração, à direita da faixa. */
+.com-root .com-sequencia {
+  display: flex;
+  flex-direction: column;
+  min-width: 170px;
+  padding: 7px 14px;
+  border: 1px solid #ffffff30;
+  border-radius: 10px;
+  background: #ffffff12;
+  backdrop-filter: blur(4px);
+}
+
+.com-root .com-sequencia small {
+  font-size: 9px;
+  letter-spacing: 1.3px;
+  color: #b9d6c3;
+}
+
+.com-root .com-sequencia strong {
+  margin: 2px 0;
+  font-size: 20px;
+  font-weight: 400;
+}
+
+.com-root .com-sequencia span {
+  font-size: 11px;
+  color: #d9e8de;
+}
+
+/* ==========================================================================
+   Stepper das 7 etapas — faixa BRANCA de largura total, não um cartão
+   ========================================================================== */
+
+/* Nada a ver com `.com-workflow-nav`, que é a tira de 5 seções do
+   levantamento. Reusar aquela aqui foi o que produziu duas fileiras de
+   botões verdes num cartão, no lugar de uma faixa de sete passos. */
+.com-root .com-stepper {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  padding: 17px 4vw;
+  background: #fff;
+  border-bottom: 1px solid var(--com-borda);
+}
+
+.com-root .com-stepper button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 0;
+  background: transparent;
+  color: #8993a3;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  /* `cursor: default` é da referência: o passo não é um atalho, é um estado. */
+  cursor: default;
+  min-width: 0;
+}
+
+.com-root .com-stepper button:not([aria-disabled]) {
+  cursor: pointer;
+}
+
+.com-root .com-stepper b {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #cbd3de;
+  border-radius: 50%;
+  font-size: 12px;
+}
+
+.com-root .com-stepper .is-ativa {
+  color: var(--com-marca-forte);
+  font-weight: 700;
+}
+
+.com-root .com-stepper .is-ativa b {
+  background: var(--com-acao);
+  border-color: var(--com-acao);
+  color: #fff;
+}
+
+.com-root .com-stepper .is-concluida {
+  color: #347451;
+}
+
+.com-root .com-stepper .is-concluida b {
+  background: #e2f3e9;
+  border-color: #b8dfc8;
+  color: #347451;
+}
+
+.com-root .com-stepper button > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   Área de trabalho: formulário + prévia
+   ========================================================================== */
+
+/* `width: 100%` NÃO é redundante aqui, e a falta dele foi o que fez a tela
+   mudar de largura conforme a etapa: `.com-app` é flex column, e um item de
+   flex sem largura explícita encolhe para o conteúdo. Etapa com muito campo
+   ficava larga, etapa com pouco ficava estreita — a mesma armadilha que já
+   tinha pegado o `.com-conteudo`. */
+.com-root .com-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 370px;
+  gap: 22px;
+  width: 100%;
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 24px 4vw 50px;
+}
+
+.com-root .com-form-panel {
+  display: flex;
+  flex-direction: column;
+  align-self: start;
+  min-height: 650px;
+  min-width: 0;
+  background: #fff;
+  border: 1px solid #d7e2da;
+  border-radius: 10px;
+  box-shadow: 0 18px 50px #173d2820;
+}
+
+/* O painel do formulário já é o cartão — as seções dentro dele não repetem
+   borda, senão viram cartão dentro de cartão. */
+.com-root .com-form-panel > .com-painel:not(.com-oferta-rascunho) {
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 28px;
+  margin: 0;
+}
+
+.com-root .com-vinculo-levantamento {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  padding: 16px 28px;
+  border-bottom: 1px solid #cfe0d3;
+  background: #eef6f0;
+}
+
+.com-root .com-vinculo-levantamento > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.com-root .com-vinculo-levantamento small {
+  color: var(--com-texto-fraco);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.com-root .com-vinculo-levantamento strong {
+  color: var(--com-marca-forte);
+  font-size: 16px;
+}
+
+.com-root .com-vinculo-levantamento span {
+  color: var(--com-texto-fraco);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 700px) {
+  .com-root .com-vinculo-levantamento { grid-template-columns: 1fr; }
+}
+
+.com-root .com-obrigatorios {
+  color: var(--com-texto-fraco);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* Rodapé grudado no pé do painel, como na referência. */
+.com-root .com-form-panel .com-rodape {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  margin: auto 0 0;
+  padding: 18px 28px;
+  border: 0;
+  border-top: 1px solid var(--com-borda);
+  border-radius: 0 0 10px 10px;
+  background: #fff;
+  box-shadow: 0 -8px 18px #1720330d;
+}
+
+.com-root .com-acoes-topo {
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--com-borda);
+}
+
+.com-root .com-form-panel .com-rodape.com-acoes-topo {
+  position: static;
+  margin: 0;
+  border-top: 0;
+  border-bottom: 1px solid var(--com-borda);
+  border-radius: 10px 10px 0 0;
+  box-shadow: none;
+}
+
+.com-root .com-faltando {
+  color: #bd5e28;
+  font-size: 11px;
+}
+
+/* Busca no CRM: entrada e botão JUNTOS numa caixa só. */
+.com-root .com-crm {
+  margin-bottom: 22px;
+}
+
+/* A margem mora no bloco, não na barra: a lista de resultados nasce logo
+   abaixo da barra, e 22px ali separavam o campo dos próprios resultados. */
+.com-root .com-crm-busca {
+  display: flex;
+  gap: 0;
+  padding: 12px;
+  border: 1px solid #c9ddef;
+  border-radius: 8px;
+  background: #edf4fb;
+}
+
+/* `flex-basis: 0`, não `auto`. Todo campo do módulo tem `width: 100%`, e com
+   base automática o navegador reserva essa largura inteira antes de dividir o
+   espaço — o botão não cabe mais na linha e desce. */
+.com-root .com-crm-busca input {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  border-radius: 6px 0 0 6px;
+}
+
+.com-root .com-crm-busca button {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 0 6px 6px 0;
+  padding: 11px 16px;
+  background: var(--com-acao);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.com-root .com-crm-busca button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Resultados da busca e contatos da empresa escolhida: a mesma lista, porque
+   são a mesma escolha em dois níveis. */
+.com-root .com-crm-resultados {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid #c9ddef;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.com-root .com-crm-resultados li + li {
+  border-top: 1px solid #e6eef6;
+}
+
+.com-root .com-crm-resultados button {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: var(--com-texto);
+  cursor: pointer;
+}
+
+.com-root .com-crm-resultados button:hover,
+.com-root .com-crm-resultados button:focus-visible {
+  background: #edf4fb;
+}
+
+.com-root .com-crm-resultados strong {
+  font-size: 14px;
+  color: var(--com-marca-forte);
+}
+
+.com-root .com-crm-resultados span {
+  font-size: 12px;
+  color: var(--com-texto-fraco);
+}
+
+.com-root .com-crm-escolhida {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid #c9ddef;
+  border-radius: 8px;
+  background: #f6fafd;
+}
+
+/* Aviso que não é erro: a busca respondeu, só não alcança o que se esperava. */
+.com-root .com-nota-aviso {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-left: 3px solid #c08a2e;
+  background: #fdf6e8;
+  color: #6b4c12;
+}
+
+/* ==========================================================================
+   Prévia do documento
+   ========================================================================== */
+
+.com-root .com-previa {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-height: calc(100vh - 36px);
+  padding: 14px;
+  background: #fff;
+  border: 1px solid #d7e2da;
+  border-radius: 10px;
+  box-shadow: 0 18px 50px #173d2820;
+  position: sticky;
+  top: 12px;
+}
+
+.com-root .com-previa-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 2px 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--com-borda);
+}
+
+.com-root .com-previa-topo div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.com-root .com-previa-topo strong {
+  font-size: 13px;
+  color: var(--com-marca-forte);
+}
+
+.com-root .com-previa-topo span {
+  font-size: 9px;
+  color: var(--com-texto-fraco);
+}
+
+.com-root .com-previa-topo > b {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border: 1px solid var(--com-borda);
+  border-radius: 12px;
+  background: #fff;
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.com-root .com-previa-abas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.com-root .com-previa-abas button {
+  padding: 10px;
+  border: 1px solid var(--com-borda);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--com-texto-fraco);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.com-root .com-previa-abas button.is-ativa {
+  background: var(--com-marca-forte);
+  border-color: var(--com-marca-forte);
+  color: #fff;
+}
+
+.com-root .com-previa-rolagem {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 0 7px 4px 1px;
+  scroll-behavior: smooth;
+}
+
+.com-root .com-previa-imprimir {
+  flex: 0 0 auto;
+  margin-top: 14px;
+  border: 0;
+  border-radius: 7px;
+  padding: 11px 16px;
+  background: var(--com-acao);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* --- O documento em si --------------------------------------------------- */
+
+.com-root .com-documento {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+/* Proporção do papel timbrado oficial. `background-size: 100% 100%` e não
+   `cover`: a arte já vem na proporção certa, e `cover` a cortaria. */
+.com-root .com-pagina {
+  position: relative;
+  width: 100%;
+  max-width: 334px;
+  flex: 0 0 auto;
+  aspect-ratio: 1414 / 2000;
+  overflow: hidden;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  color: #111;
+  font-family: Arial, Helvetica, sans-serif;
+  box-shadow: 0 4px 14px #24375230;
+}
+
+/* A margem do corpo é a MESMA do gerador de PDF, e isso não é estética.
+   `CONTENT_TOP = 53` e `CONTENT_BOTTOM = 269` numa folha A4 de 297 mm dão
+   17,85% no topo e 9,4% no pé — é a geometria que o documento usa.
+
+   Era `13% 9% 8%`, e o 13% colocava a primeira linha DENTRO da curva verde do
+   timbrado: medido na própria imagem, a faixa ainda tem 25% de cobertura em
+   13,1% e só some em 16,1%. Por isso "Proposta Técnica" saía sobreposta ao
+   cabeçalho. */
+.com-root .com-pagina-corpo {
+  position: absolute;
+  inset: 17.85% 9% 9.4%;
+  overflow: hidden;
+  font-size: 7px;
+  line-height: 1.5;
+}
+
+/* A data vai no TOPO à direita, não no rodapé: é onde o cabeçalho do .docx a
+   imprime ("07 de janeiro de 2026"), e é onde o gerador a desenha — x=185, y=16
+   numa folha de 210×297 mm, ou seja 88% e 5,4%. */
+.com-root .com-pagina-data {
+  position: absolute;
+  top: 5.4%;
+  right: 12%;
+  font-size: 6px;
+  font-weight: 700;
+  color: #333;
+}
+
+/* O número fica embaixo à direita, x=201 y=289 no gerador — 95,7% e 97,3%. */
+.com-root .com-pagina-numero {
+  position: absolute;
+  right: 4.3%;
+  bottom: 2.7%;
+  font-size: 6px;
+  color: #667;
+}
+
+.com-root .com-pagina h3 {
+  margin: 9px 0 3px;
+  font-size: 8px;
+  color: var(--com-marca-forte);
+}
+
+.com-root .com-pagina h4 {
+  margin: 6px 0 2px;
+  font-size: 7.5px;
+}
+
+.com-root .com-pagina p {
+  margin: 0 0 4px;
+}
+
+.com-root .com-doc-tipo {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--com-marca-forte);
+}
+
+.com-root .com-doc-meta {
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.com-root .com-doc-meta h3 {
+  margin: 12px 0 3px;
+}
+
+.com-root .com-doc-indice-titulo {
+  margin: 20px 0 12px;
+  font-size: 10px;
+  text-align: center;
+}
+
+.com-root .com-doc-indice {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 7px;
+  font-weight: 700;
+  line-height: 1.75;
+}
+
+.com-root .com-doc-visual {
+  display: block;
+  margin: 4px auto;
+  object-fit: contain;
+  max-width: 100%;
+}
+
+/* As galerias do documento: as imagens dividem a largura da folha em pé de
+   igualdade, e cada uma guarda a proporção que veio de `proposal-visuals`. */
+.com-root .com-doc-faixa {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3px;
+  margin: 4px 0;
+  align-items: end;
+}
+
+.com-root .com-doc-faixa .com-doc-visual {
+  margin: 0;
+}
+
+/* O quadro 1.1 vem em duas colunas no documento. Uma só viraria lista corrida. */
+.com-root .com-doc-servicos-duas-colunas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 10px;
+}
+
+.com-root .com-doc-servicos-duas-colunas ul {
+  margin: 0;
+  padding-left: 9px;
+  list-style: disc;
+}
+
+.com-root .com-doc-metricas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin: 5px 0;
+}
+
+.com-root .com-doc-metricas span {
+  padding: 2px 5px;
+  border-radius: 8px;
+  background: var(--com-acao-suave);
+  color: var(--com-marca-forte);
+  font-size: 6px;
+  font-weight: 700;
+}
+
+.com-root .com-doc-tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 6px;
+}
+
+.com-root .com-doc-tabela th,
+.com-root .com-doc-tabela td {
+  border: 1px solid #ccc;
+  padding: 2px 3px;
+  text-align: left;
+}
+
+.com-root .com-doc-tabela th {
+  background: var(--com-acao-suave);
+  color: var(--com-marca-forte);
+}
+
+.com-root .com-doc-servico {
+  margin-bottom: 4px;
+}
+
+.com-root .com-escopo-topicos { margin: 16px 0; }
+.com-root .com-escopo-topicos > p { color: var(--com-texto-fraco); }
+.com-root .com-escopo-topico {
+  min-width: 0;
+  padding: 12px;
+  margin: 12px 0;
+  border: 1px solid var(--com-borda);
+  border-radius: var(--com-raio);
+}
+.com-root .com-escopo-topico-cabecalho,
+.com-root .com-escopo-topico-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.com-root .com-escopo-topico-cabecalho { justify-content: space-between; }
+.com-root .com-escopo-topicos-filhos {
+  padding-left: 10px;
+  border-left: 2px solid var(--com-acao-suave);
+}
+.com-root .com-escopo-topicos-filhos .com-escopo-topico {
+  padding: 10px 0 0;
+  border: 0;
+  border-top: 1px solid var(--com-borda);
+  border-radius: 0;
+}
+.com-root .com-doc-paragrafo { overflow-wrap: anywhere; }
+.com-root .com-doc-paragrafo.is-subitem { padding-left: 12px; }
+
+/* O subtítulo que agrupa a matriz ocupa a largura da tabela, como no documento.
+   Sem o `colspan` visualmente marcado ele se confunde com uma obrigação. */
+.com-root .com-doc-categoria td {
+  background: var(--com-acao-suave);
+  color: var(--com-marca-forte);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.com-root .com-doc-subitens {
+  margin: 2px 0 0;
+  padding-left: 8px;
+  list-style: disc;
+}
+
+.com-root .com-doc-prazos {
+  margin: 0 0 4px;
+  padding-left: 10px;
+  list-style: disc;
+}
+
+.com-root .com-doc-nota {
+  font-style: italic;
+}
+
+/* Abaixo de 1100px a prévia sai da lateral e vai para baixo do formulário:
+   370px fixos numa tela de 1024 espremeriam o formulário a nada. */
+@media (max-width: 1100px) {
+  .com-root .com-workspace { grid-template-columns: minmax(0, 1fr); }
+  .com-root .com-previa { position: static; max-height: none; }
+  .com-root .com-stepper { grid-template-columns: repeat(4, 1fr); gap: 12px 8px; }
+}
+
+@media (max-width: 640px) {
+  .com-root .com-stepper { grid-template-columns: repeat(2, 1fr); }
+  .com-root .com-hero-proposta { padding: 10px 5vw; }
+  .com-root .com-hero-proposta h1 { font-size: 24px; }
+}
+
+/* Chips de integração da barra superior. O ponto é o estado: âmbar pendente,
+   verde conectado — a cor faz o trabalho que o texto sozinho não faz de longe. */
+.com-root .com-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border: 1px solid var(--com-borda);
+  border-radius: 999px;
+  background: #f6f9f7;
+  color: var(--com-texto-fraco);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.com-root .com-topbar .com-chip {
+  padding: 5px 9px;
+  font-size: 11px;
+}
+
+.com-root .com-chip i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #d79a2b;
+}
+
+.com-root .com-chip.is-conectado i {
+  background: var(--com-acao);
+}
+
+/* A oferta de rascunho fica FORA do cartão do formulário, com borda própria. */
+.com-root .com-form-panel > .com-oferta-rascunho {
+  margin: 14px 14px 0;
+}
+
+/* Folhas de conteúdo do escopo e de texto técnico na prévia. */
+.com-root .com-doc-foto {
+  margin: 6px 0;
+}
+
+.com-root .com-doc-foto img {
+  width: 100%;
+  height: auto;
+  border: 1px solid #ddd;
+}
+
+.com-root .com-doc-foto figcaption {
+  margin-top: 2px;
+  font-size: 6px;
+  color: #555;
+}
+
+/* O texto técnico traz as próprias quebras — colapsá-las transformaria a lista
+   de etapas num parágrafo só. */
+.com-root .com-doc-tecnico {
+  white-space: pre-wrap;
+}
+
+.com-root .com-doc-responsabilidade {
+  margin-bottom: 6px;
+}
+
+.com-root .com-doc-responsabilidade h4 {
+  margin: 4px 0 2px;
+}
+
+.com-root .com-doc-total {
+  margin-top: 4px;
+  text-align: right;
+}
+
+/* Bloco de campos agrupados na etapa comercial (stand-by e mobilização). */
+.com-root .com-fieldset {
+  border: 1px solid var(--com-borda);
+  border-radius: 10px;
+  padding: 14px 16px 16px;
+  margin: 18px 0 0;
+}
+
+.com-root .com-fieldset legend {
+  padding: 0 6px;
+  font-weight: 700;
+  color: var(--com-marca-forte);
+}
+
+.com-root .com-fieldset-nota {
+  margin: 0 0 10px;
+  color: var(--com-texto-fraco);
+  font-size: 13px;
+}
+
+/* Escolha do cenário contratado (T130): dois cartões de rádio lado a lado.
+   Classes PRÓPRIAS, e não `com-modo-card`/`com-modo-opcoes` do diálogo de
+   entrada — aquele cartão é o painel do diálogo (940px, sombra de 80px) e
+   aquelas opções estilizam `> button`, não `label`: reaproveitar renderiza dois
+   painéis gigantes sem estado de selecionado. */
+.com-root .com-cenario-opcoes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.com-root .com-cenario-opcao {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 2px 10px;
+  padding: 12px 14px;
+  border: 1px solid #d6e1d9;
+  border-radius: 11px;
+  background: #f8fbf9;
+  cursor: pointer;
+}
+
+.com-root .com-cenario-opcao:hover {
+  border-color: var(--com-acao);
+}
+
+/* O selecionado precisa se ver SEM depender só do ponto do rádio: é ele que
+   define o valor que vai ao CRM. */
+.com-root .com-cenario-ativo {
+  border-color: var(--com-acao);
+  background: #edf5ef;
+  box-shadow: inset 0 0 0 1px var(--com-acao);
+}
+
+.com-root .com-cenario-opcao input {
+  grid-row: 1 / 3;
+  margin: 0;
+  accent-color: var(--com-acao);
+}
+
+.com-root .com-cenario-opcao strong {
+  color: var(--com-marca-forte);
+  font-size: 15px;
+}
+
+.com-root .com-cenario-opcao span {
+  color: var(--com-texto-fraco);
+  font-size: 13px;
+}
+
+@media (max-width: 700px) {
+  .com-root .com-cenario-opcoes { grid-template-columns: 1fr; }
+}
+
+/* --- Arrastar para reordenar (L2, T068–T071) -----------------------------
+
+   As três listas do módulo — itens do escopo, serviços técnicos e blocos de
+   conteúdo — usam a mesma alça e o mesmo placeholder. O fantasma
+   (`.app-reorder-touch-ghost`) e o `body.app-reorder-touching` são globais e
+   vêm do `base.css`; o que é do módulo mora aqui. */
+
+.com-root .com-alca {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  min-height: 30px;
+  border-radius: 7px;
+  color: var(--com-texto-fraco);
+  font-size: 15px;
+  line-height: 1;
+  cursor: grab;
+  /* **`touch-action: none` é a T069 inteira.** Sem isso o navegador entende o
+     primeiro movimento do dedo como rolagem da página, engole o `pointermove`
+     e o arrasto simplesmente não acontece no celular — sem erro nenhum. */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.com-root .com-alca:hover {
+  background: #eef4f0;
+  color: var(--com-acao);
+}
+
+.com-root .com-alca:active {
+  cursor: grabbing;
+}
+
+/* Alça de lista com um item só: continua visível, e diz por que não move. */
+.com-root .com-alca[draggable='false'] {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* O buraco que mostra o destino. O `.drag-placeholder` do `base.css` é escopado
+   por classe de cartão, então cada lista precisa declarar a sua — e a legenda
+   "Soltar aqui" vem junto. */
+.com-root .com-escopo-card.drag-placeholder,
+.com-root .com-tecnica-card.drag-placeholder,
+.com-root .com-bloco.drag-placeholder,
+.com-root .com-responsabilidade-linha.drag-placeholder {
+  position: relative;
+  min-height: 96px;
+  border-style: dashed;
+  border-color: var(--com-acao);
+  background: #f1f7f3;
+}
+
+.com-root .com-escopo-card.drag-placeholder > *,
+.com-root .com-tecnica-card.drag-placeholder > *,
+.com-root .com-bloco.drag-placeholder > *,
+.com-root .com-responsabilidade-linha.drag-placeholder > * {
+  visibility: hidden;
+}
+
+.com-root .com-escopo-card.drag-placeholder::after,
+.com-root .com-tecnica-card.drag-placeholder::after,
+.com-root .com-bloco.drag-placeholder::after,
+.com-root .com-responsabilidade-linha.drag-placeholder::after {
+  content: 'Soltar aqui';
+  position: absolute;
+  inset: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--com-acao);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+
+/* Botão de rever o tutorial. Mora na BARRA DE CIMA, ao lado dos outros botões
+   do módulo — pedido do mantenedor em 14/08. Ele é uma saída de emergência, e
+   saída de emergência se acha por estar sempre no mesmo lugar; solto acima do
+   conteúdo, mudava de altura conforme a tela. */
+.com-root .com-tutorial-botao {
+  font-size: 12px;
+  padding: 6px 12px;
+}
+
+/* O × dos diálogos de escolha (14/08). O cartão não tinha `position`, então o
+   `absolute` do botão se penduraria na janela em vez do cartão — e o × apareceria
+   no canto da tela, longe do diálogo. */
+.com-root .com-modo-card {
+  position: relative;
+}
+
+.com-root .com-fechar-dialogo {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  width: 34px;
+  height: 34px;
+  /* `inline-flex` + `center` nos dois eixos, e o conteúdo é um SVG: a caixa do
+     glifo não entra na conta, então o × fica no meio de verdade. `line-height`
+     e `font-size` saíram porque não têm mais nada para dimensionar. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--com-borda);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--com-texto-fraco);
+  cursor: pointer;
+}
+
+.com-root .com-fechar-dialogo:hover {
+  border-color: var(--com-acao);
+  color: var(--com-acao);
+  background: #f1f7f3;
+}
+
+/* Assinatura no fim da proposta comercial: as linhas do documento, centradas. */
+.com-root .com-doc-assinatura {
+  margin-top: 10px;
+  text-align: center;
+  line-height: 1.9;
+}
+
+/* Uma tabela de preços por local de operação (ONSHORE/OFFSHORE). */
+.com-root .com-tabela-precos + .com-tabela-precos {
+  margin-top: 18px;
+  padding-top: 6px;
+  border-top: 1px solid var(--com-borda);
+}
+
+.com-root .com-doc-local {
+  margin: 6px 0 3px;
+  color: var(--com-marca-forte);
+}
+
+/* Editor da lista de categorias da matriz de responsabilidades. */
+.com-root .com-equipamentos-proposta {
+  display: grid;
+  gap: 14px;
+  margin: 6px 0 18px;
+  padding: 16px;
+  border: 1px solid var(--com-borda);
+  border-radius: var(--com-raio);
+  background: var(--com-superficie);
+}
+
+.com-root .com-equipamentos-proposta.is-invalid {
+  border-color: var(--com-erro);
+}
+
+.com-root .com-equipamentos-cabecalho {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.com-root .com-equipamentos-cabecalho h3,
+.com-root .com-equipamentos-cabecalho p {
+  margin: 0;
+}
+
+.com-root .com-equipamentos-cabecalho p {
+  margin-top: 3px;
+  color: var(--com-texto-fraco);
+  font-size: 12px;
+}
+
+.com-root .com-equipamentos-cabecalho > div:last-child {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-direction: column;
+  flex: none;
+}
+
+.com-root .com-equipamentos-cabecalho strong {
+  color: var(--com-marca-forte);
+  font-size: 12px;
+}
+
+.com-root .com-equipamentos-sugestao {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--com-acao-suave);
+  color: var(--com-marca-forte);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.com-root .com-equipamentos-opcoes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.com-root .com-equipamento-opcao {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--com-borda);
+  border-radius: 8px;
+  background: var(--com-fundo);
+  color: var(--com-texto);
+}
+
+.com-root .com-equipamento-escolha {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 3px 8px;
+  cursor: pointer;
+}
+
+.com-root .com-equipamento-opcao.is-sugerido {
+  border-color: var(--com-acao);
+  background: var(--com-acao-suave);
+}
+
+.com-root .com-equipamento-escolha input {
+  margin-top: 2px;
+  accent-color: var(--com-acao);
+}
+
+.com-root .com-equipamento-escolha > span {
+  overflow-wrap: anywhere;
+}
+
+.com-root .com-equipamento-escolha small {
+  grid-column: 2;
+  color: var(--com-acao);
+  font-size: 10px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.com-root .com-equipamento-quantidade {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--com-texto-fraco);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.com-root .com-equipamento-quantidade input {
+  width: 64px;
+  min-width: 64px;
+}
+
+.com-root .com-equipamento-escolha .com-equipamento-nome {
+  width: 100%;
+  min-width: 0;
+  margin: -4px 0;
+  padding: 3px 4px;
+  border-color: transparent;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: text;
+}
+
+.com-root .com-equipamento-escolha .com-equipamento-nome:hover,
+.com-root .com-equipamento-escolha .com-equipamento-nome:focus {
+  border-color: var(--com-acao);
+  background: var(--com-superficie);
+}
+
+.com-root .com-equipamento-nome-erro {
+  grid-column: 1 / -1;
+}
+
+.com-root .com-responsabilidade-acoes {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.com-root .com-responsabilidade-acoes .com-btn {
+  min-width: 30px;
+  padding: 5px 7px;
+}
+
+.com-root .com-equipamentos-adicional {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.com-root .com-equipamentos-adicional .field-group {
+  flex: 1;
+  margin: 0;
+}
+
+@media (max-width: 700px) {
+  .com-root .com-equipamentos-cabecalho,
+  .com-root .com-equipamentos-adicional {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .com-root .com-equipamentos-cabecalho > div:last-child {
+    align-items: stretch;
+  }
+
+  .com-root .com-equipamentos-opcoes {
+    grid-template-columns: 1fr;
+  }
+}
+
+.com-root .com-categorias {
+  margin: 4px 0 14px;
+}
+
+.com-root .com-matriz-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.com-root .com-matriz-acoes-rodape {
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.com-root .com-categorias-editor {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--com-borda);
+  border-radius: var(--com-raio);
+  background: var(--com-acao-suave);
+}
+
+.com-root .com-categorias-editor ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.com-root .com-categorias-editor li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 10px;
+  border: 1px solid var(--com-borda);
+  border-radius: 999px;
+  background: var(--com-superficie);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--com-marca-forte);
+}
+
+.com-root .com-categorias-nova {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.com-root .com-categorias-nova .field-group {
+  flex: 1;
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   Impressão
+   ---------------------------------------------------------------------------
+   "Imprimir prévia" chama `window.print()`, e sem estas regras o navegador
+   mandava a TELA INTEIRA para o papel — barra, hero, stepper e formulário junto
+   com o documento. Era essa a origem de "o PDF baixado não é o mesmo da prévia".
+
+   Isto NÃO substitui o gerador (T072), que produz o PDF oficial no servidor.
+   É o caminho de conferência: imprime só o documento, uma folha por página.
+   -------------------------------------------------------------------------- */
+@media print {
+  .com-root .com-topbar,
+  .com-root .com-hero,
+  .com-root .com-stepper,
+  .com-root .com-form-panel,
+  .com-root .com-previa-topo,
+  .com-root .com-rodape,
+  .com-root .com-overlay {
+    display: none !important;
+  }
+
+  .com-root .com-workspace,
+  .com-root .com-previa,
+  .com-root .com-previa-rolagem,
+  .com-root .com-conteudo {
+    display: block;
+    max-width: none;
+    max-height: none;
+    padding: 0;
+    margin: 0;
+    overflow: visible;
+    position: static;
+  }
+
+  /* A folha da prévia vira a folha do papel: largura inteira, sem sombra, e uma
+     por página. `break-inside: avoid` impede o navegador de partir a página do
+     documento no meio — que produziria duas folhas com meio cabeçalho cada. */
+  .com-root .com-pagina {
+    max-width: none;
+    width: 100%;
+    box-shadow: none;
+    break-inside: avoid;
+    break-after: page;
+  }
+
+  .com-root .com-pagina:last-child {
+    break-after: auto;
+  }
+
+  .com-root .com-documento {
+    display: block;
+    gap: 0;
+  }
+}
+
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
+/* Duas ações no pé da prévia: o PDF de verdade e a impressão da tela. */
+.com-root .com-previa-acoes {
+  display: flex;
+  gap: 8px;
+}
+
+.com-root .com-previa-acoes .com-previa-imprimir {
+  flex: 1;
+}
+
+.com-root .com-previa-imprimir-secundario {
+  background: transparent;
+  color: var(--com-marca-forte);
+  border: 1px solid var(--com-borda);
+}
+
+.com-root .com-previa-imprimir:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* ---------------------------------------------------------------------------
+ * Sugestões de endereço (T134)
+ *
+ * A lista flutua sobre o conteúdo e é posicionada em coordenadas de viewport,
+ * medidas do input pelo componente. O porquê está no bloco da lista.
+ * ------------------------------------------------------------------------- */
+.com-root .com-autocomplete {
+  display: block;
+}
+
+.com-root .com-autocomplete > input {
+  width: 100%;
+}
+
+/* `fixed`, não `absolute`: na tela de custos o campo mora dentro de
+   `.com-table-wrap`, que tem `overflow-x: auto` — e um `absolute` seria
+   RECORTADO por ele. A posição vem medida do input, em JS. */
+.com-root .com-autocomplete-lista {
+  position: fixed;
+  z-index: 60;
+  max-height: 15rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+  border: 1px solid var(--com-borda);
+  border-radius: 8px;
+  background: var(--com-superficie);
+  box-shadow: 0 10px 24px rgb(15 33 24 / 12%);
+}
+
+.com-root .com-autocomplete-item {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.com-root .com-autocomplete-item span {
+  color: var(--com-texto-fraco);
+  font-size: 0.8rem;
+}
+
+/* Teclado e mouse chegam ao mesmo destaque: a navegação por seta marca a linha
+   ativa, e o mouse move essa marca em vez de criar um segundo realce. */
+.com-root .com-autocomplete-item-ativo {
+  background: var(--com-acao-suave);
+}
+
+/* Cálculo de distância na tabela de destinos (T126b). */
+.com-root .com-distancia {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 15rem;
+}
+
+.com-root .com-distancia-linha {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.com-root .com-distancia-linha > input {
+  flex: 1 1 5rem;
+  min-width: 4.5rem;
+}
+
+/* Compacto: divide a célula com o campo, e a coluna não pode crescer por causa
+   dele. */
+.com-root .com-distancia-botao {
+  flex: 0 0 auto;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+/* Dimensionamento por equipamento: só exibe os tipos adicionados pelo usuário. */
+.com-root .com-circuito-remover,
+.com-root .com-circuito-adicionar { margin-top: 1rem; }
+
+.com-root .com-dimension-tabs,
+.com-root .com-dimension-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-block: 1rem;
+}
+
+.com-root .com-dimension-tabs [aria-selected="true"] {
+  background: var(--com-acao);
+  color: var(--com-superficie);
+  border-color: var(--com-acao);
+}
+
+.com-root .com-dimension-item {
+  container-type: inline-size;
+  padding: 1rem;
+  margin-block: 1rem;
+  border: 1px solid var(--com-borda);
+  border-radius: var(--com-raio);
+  background: var(--com-superficie);
+}
+
+/* Proporções próprias: números curtos não precisam da largura do nome.
+   A quebra depende do espaço no cartão, não da grade genérica da página. */
+.com-root .com-dimension-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 10px;
+}
+
+.com-root .com-dimension-fields > .field-group { margin: 0; }
+.com-root .com-dimension-fields .com-dimension-label { font-size: 12px; }
+.com-root .com-dimension-fields input,
+.com-root .com-dimension-fields select { padding: 8px; }
+.com-root .com-dimension-fields .com-medida-com-unidade { min-width: 0; }
+.com-root .com-dimension-fields .com-medida-com-unidade > :first-child {
+  flex: 1;
+  width: 0;
+  min-width: 0;
+}
+.com-root .com-dimension-fields .com-medida-com-unidade > :last-child {
+  flex: 0 0 3.5rem;
+  width: 3.5rem;
+  min-width: 0;
+  padding-inline: 4px;
+}
+
+@container (min-width: 40rem) {
+  .com-root .com-dimension-fields {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.2fr) minmax(0, 0.7fr) minmax(0, 0.9fr);
+  }
+  .com-root .com-dimension-fields--oil {
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.2fr) minmax(0, 1.4fr) minmax(0, 0.9fr);
+  }
+  .com-root .com-dimension-fields--pipes {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 52rem) {
+  .com-root .com-dimension-fields--pipes {
+    grid-template-columns: minmax(9rem, 1.6fr) minmax(7rem, 1.1fr) minmax(5rem, 0.65fr) minmax(8.75rem, 1.2fr) minmax(10rem, 1.35fr) minmax(7.25rem, 0.9fr);
+  }
+}
+
+@container (max-width: 28rem) {
+  .com-root .com-dimension-fields { grid-template-columns: minmax(0, 1fr); }
+}
+
+.com-root .com-dimension-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+.com-root .com-dimension-services {
+  border: 1px solid var(--com-borda);
+  border-radius: var(--com-raio);
+  margin: 1rem 0;
+  padding: 0.75rem;
+  min-width: 0;
+}
+
+.com-root .com-dimension-services legend {
+  font-weight: 600;
+  padding-inline: 0.35rem;
+}
+
+.com-root .com-dimension-service-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.com-root .com-dimension-service-row select {
+  min-width: 0;
+  flex: 1;
+}
+
+.com-root .com-dimension-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(32rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 1.5rem;
+  border: 1px solid var(--com-borda);
+  border-radius: var(--com-raio);
+  color: var(--com-texto);
+  background: var(--com-superficie);
+}
+
+.com-root .com-dimension-dialog::backdrop {
+  background: color-mix(in srgb, var(--com-texto) 45%, transparent);
+}
+
+.com-root .com-dimension-options .com-btn {
+  flex: 1 1 11rem;
+}
+
+.com-root .com-volume-quimico {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--com-borda);
+  border-radius: var(--com-raio);
+  background: var(--com-superficie);
+}
+.com-root .com-volume-quimico summary { cursor: pointer; font-weight: 600; }
+.com-root .com-volume-quimico p { margin-block: 0.75rem; }
+.com-root .com-volume-quimico h3 { margin-block: 1rem 0.5rem; }

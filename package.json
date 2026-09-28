@@ -12,6 +12,6 @@
     "dev:api": "npm run dev --workspace @comercialapp/backend",
     "dev:web": "npm run dev --workspace @comercialapp/frontend",
     "build": "npm run build --workspace @comercialapp/rules && npm run build --workspace @comercialapp/frontend",
-    "check": "npm run build && npm run test --workspace @comercialapp/rules && npm run check --workspace @comercialapp/backend"
+    "check": "npm run build && npm run check:ported --workspace @comercialapp/frontend && npm run test --workspace @comercialapp/rules && npm run check --workspace @comercialapp/backend"
   }
 }
