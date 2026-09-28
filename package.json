@@ -1,0 +1,17 @@
+{
+  "name": "comercialapp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "frontend",
+    "backend",
+    "shared/comercial"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace @comercialapp/backend",
+    "dev:web": "npm run dev --workspace @comercialapp/frontend",
+    "build": "npm run build --workspace @comercialapp/rules && npm run build --workspace @comercialapp/frontend",
+    "check": "npm run build && npm run check --workspace @comercialapp/backend"
+  }
+}

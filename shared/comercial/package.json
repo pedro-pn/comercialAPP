@@ -1,0 +1,25 @@
+{
+  "name": "@comercialapp/rules",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./cost-model": "./dist/cost-model.js",
+    "./technical-services": "./dist/technical-services.js",
+    "./scope-content": "./dist/scope-content.js",
+    "./proposal-visuals": "./dist/proposal-visuals.js",
+    "./finalization": "./dist/finalization.js",
+    "./nectar-pipelines": "./dist/nectar-pipelines.js",
+    "./dinheiro": "./dist/dinheiro.js",
+    "./modelo-documento": "./dist/modelo-documento.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}
