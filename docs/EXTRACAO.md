@@ -52,7 +52,9 @@ Em 28/09/2026, a auditoria de `main` e `origin/main` do FiltroAPP no commit
 `31865b08` confirmou que o novo módulo Comercial existe apenas na branch
 `feat/modulo-comercial`. Não há código desse módulo a retirar da `main` por
 enquanto. O legado Access/CommercialProposal permanece na `main` e atende
-fluxos de Acompanhamento que exigem transição própria.
+fluxos de Acompanhamento que exigem transição própria. A branch de origem
+também contém mudanças fora do Comercial; não encerrá-la inteira sem revisar
+essas diferenças.
 
 O aplicativo novo não deve importar arquivos do repositório FiltroAPP em tempo
 de execução nem consultar seu banco diretamente. Dados comerciais existentes
