@@ -17,7 +17,8 @@ Requer Node.js e npm compatíveis com as dependências declaradas.
 2. Em um terminal, execute npm run dev:api.
 3. Em outro terminal, execute npm run dev:web.
 4. Abra http://localhost:5174. A página mostra o estado da API local.
-5. Execute npm run check para compilar frontend e regras e verificar a API.
+5. Execute npm run check para compilar frontend e regras, rodar os 16 cenários
+   de referência do cálculo e verificar a sintaxe da API.
 
 O backend escuta em 127.0.0.1:4300 por padrão. As variáveis de exemplo estão
 em backend/.env.example e frontend/.env.example. Nenhuma credencial de produção
@@ -27,7 +28,8 @@ em backend/.env.example e frontend/.env.example. Nenhuma credencial de produçã
 
 - frontend: React e Vite, com origem própria.
 - backend: Express, com a rota de saúde /api/health.
-- shared/comercial: regras copiadas do módulo Comercial atual do FiltroAPP.
+- shared/comercial: regras copiadas do módulo Comercial atual do FiltroAPP,
+  com os cenários de referência do cálculo em test/goldens.
 - docs/EXTRACAO.md: proveniência, decisões e próximas etapas.
 
 ## Decisões de produto

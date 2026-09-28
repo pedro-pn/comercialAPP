@@ -20,7 +20,8 @@
 - [x] Criar main sem o histórico de arquivos do rascunho.
 - [x] Criar frontend e API mínimos com execução independente.
 - [x] Portar a biblioteca inicial de regras comerciais.
-- [ ] Registrar resultados de paridade dos cálculos e trazer testes/goldens.
+- [x] Trazer os 16 cenários de referência e verificar a paridade dos cálculos
+  com 18 testes aprovados em 28/09/2026.
 - [ ] Extrair telas, estilos, modelos DOCX, imagens e fluxo de navegação.
 - [ ] Extrair serviços de propostas e levantamentos para backend próprio.
 - [ ] Criar banco PostgreSQL e migrações apenas do domínio Comercial.

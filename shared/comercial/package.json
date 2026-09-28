@@ -17,7 +17,8 @@
     "./modelo-documento": "./dist/modelo-documento.js"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test test/*.test.js"
   },
   "devDependencies": {
     "typescript": "^5.8.3"

@@ -1,0 +1,274 @@
+{
+  "generatedFrom": {
+    "repo": "comercialAPP (referência congelada)",
+    "commit": "6f5b072d16f457561e6c3fbe16e6495b38d51799",
+    "entrypoint": "lib/cost-model.ts :: calculateEstimate"
+  },
+  "note": "Regerar apenas se a referência congelada mudar. A implementação portada tem de reproduzir estes valores; divergência é bug do porte, não motivo para regerar.",
+  "scenarios": [
+    {
+      "scenario": "01-default-intocado",
+      "intent": "Payload default sem nenhuma mudança e SEM as escolhas obrigatórias do usuário. É o único cenário deliberadamente inválido: fixa o estado inicial do formulário e a lista exata de erros que o app tem de cobrar antes de deixar salvar. Sanity check do createDefaultCostEstimatePayload e das constantes de precificação (overhead 24%, imposto 17,54%, comissão 9%, comercial 5%, margem 15%).",
+      "proves": [
+        "recusa salvar sem as escolhas obrigatórias",
+        "cobra condição de trabalho",
+        "ainda assim precifica"
+      ],
+      "sha256": "d3a6f811403a97ee8f3ab3d7ffd783bfd469f2e70408b472c5524aac4a4504e2",
+      "valid": false,
+      "errors": 12,
+      "warnings": 0,
+      "totalCost": 13777.91,
+      "salePrice": 38139.33,
+      "margin": 0.14999999999999994,
+      "validPricing": true
+    },
+    {
+      "scenario": "02-sede-sem-hora-extra",
+      "intent": "Obra em sede, jornada normal, sem hora extra. Piso de comparação para os cenários 03 a 05: qualquer diferença neles vem só da hora extra.",
+      "proves": [
+        "sem hora extra de nenhum tipo",
+        "tem custo de mão de obra"
+      ],
+      "sha256": "eff6d91b7a13b7cf76919ff8a4c4402eed7aa990fb2589d0f706dadd46ecfefb",
+      "valid": true,
+      "errors": 0,
+      "warnings": 0,
+      "totalCost": 13777.91,
+      "salePrice": 38139.33,
+      "margin": 0.14999999999999994,
+      "validPricing": true
+    },
+    {
+      "scenario": "03-sede-he70-dentro-do-limite",
+      "intent": "HE 70 abaixo do teto mensal de 30 h da política union_monthly_30_v1. extra70ConvertedTo100Hours tem de sair zero.",
+      "proves": [
+        "gera HE 70",
+        "não converte nada para 100%"
+      ],
+      "sha256": "e404a52965e1029038b996a25843709f09e57dd8eaec53fbf3fb3f2c1a2d4642",
+      "valid": true,
+      "errors": 0,
+      "warnings": 0,
+      "totalCost": 16258.85,
+      "salePrice": 45006.95,
+      "margin": 0.15000000000000002,
+      "validPricing": true
+    },
+    {
+      "scenario": "04-sede-he70-acima-do-limite",
+      "intent": "HE 70 acima do teto mensal de 30 h. Exercita a conversão do excedente para 100% (extra70ConvertedTo100Hours > 0), que é a regra mais fácil de perder no porte.",
+      "proves": [
+        "converte excedente para 100%",
+        "custa mais que o mesmo caso sem conversão"
+      ],
+      "sha256": "2f3e1689f8ed5e0e5cff8337cbe8a8c3943fe070cf1be7cf1d33d93345ddb601",
+      "valid": true,
+      "errors": 0,
+      "warnings": 0,
+      "totalCost": 26182.64,
+      "salePrice": 72477.49,
+      "margin": 0.15000000000000002,
+      "validPricing": true
+    },
+    {
+      "scenario": "05-sede-he100-domingo",
+      "intent": "Domingos e feriados caem direto no bucket de 100%, sem passar pelo teto de 30 h.",
+      "proves": [
+        "gera HE 100",
+        "não gera HE 70"
+      ],
+      "sha256": "2067dc944ac3d66b21f61659a255739da523ad629893cff86ffe42a005e5bd44",
+      "valid": true,
+      "errors": 0,
+      "warnings": 0,
+      "totalCost": 20146.11,
+      "salePrice": 55767.47,
+      "margin": 0.14999999999999997,
+      "validPricing": true
+    },
+    {
+      "scenario": "06-viagem-com-veiculo",
+      "intent": "Obra em viagem com veículo da empresa e deslocamento hotel-obra. Liga as despesas de contexto por dia-calendário (hospedagem, refeição, lavanderia, diária de veículo).",
+      "proves": [
+        "gera despesa de contexto",
+        "dimensiona veículo"
+      ],
+      "sha256": "cf806808384b07b1a7f27afcb9fe5df27f1782bd1043503f1a84c961e9b61424",
+      "valid": true,
+      "errors": 0,
+      "warnings": 0,
+      "totalCost": 28668.49,
+      "salePrice": 79358.7,
+      "margin": 0.14999999999999997,
+      "validPricing": true
+    },
+    {
+      "scenario": "07-offshore",
+      "intent": "Condição offshore, que tem escala e tratamento de jornada próprios (offshoreWorkSchedule). Terceira e última condição de trabalho.",
+      "proves": [
+        "condição offshore preservada",
+        "tem hora de trabalho"
+      ],
+      "sha256": "d5a854b2d37d4a998c185dae49557930d981f0107ae8088d56b9ef89f9479ab4",
+      "valid": true,
+      "errors": 0,
+      "warnings": 2,
+      "totalCost": 21025.21,
+      "salePrice": 58200.95,
+      "margin": 0.15000000000000002,
+      "validPricing": true
+    },
+    {
+      "scenario": "08-com-quimicos-por-volume",
+      "intent": "Sistema em aço carbono com 500 m de tubo de 100 mm e 2 ciclos. Os produtos dosados por percentual de volume passam a ter quantidade calculada, exercitando pipeVolumeLiters, requiredQuantity e o custo de insumos.",
+      "proves": [
+        "calcula volume da tubulação",
+        "gera custo de insumo",
+        "produto dosado tem quantidade"
+      ],
+      "sha256": "c933f0ed8bdc0647776c481bbba3201bbde2929d008f605c13376a421ce75ca3",
+      "valid": true,
+      "errors": 0,
+      "warnings": 0,
+      "totalCost": 28167.57,
+      "salePrice": 77972.08,
+      "margin": 0.15000000000000002,
+      "validPricing": true
+    },
+    {
+      "scenario": "09-sem-quimicos-com-material",
+      "intent": "Mesmo volume do cenário 08, porém com todo produto químico excluído e um material avulso no lugar. O par 08/09 separa custo de produto de custo de material: aqui productResults soma zero e materialCost sai positivo, com o volume preservado. Confirmar 'sem insumos' NÃO serve para este cenário porque zera o ramo inteiro, volume incluído — é o que o cenário 16 documenta.",
+      "proves": [
+        "preserva o volume",
+        "zera custo de insumo",
+        "mantém custo de material"
+      ],
+      "sha256": "0419edced755f8b7540e9ecdf00a2e526d995333641bbdd3ea96e8ca9245d39d",
+      "valid": true,
+      "errors": 0,
+      "warnings": 0,
+      "totalCost": 17837.91,
+      "salePrice": 49378.02,
+      "margin": 0.14999999999999994,
+      "validPricing": true
+    },
+    {
+      "scenario": "10-com-logistica-rodoviaria",
+      "intent": "Mobilização e desmobilização de equipe e equipamento por veículo próprio, 320 km por trecho e 2 pernoites. Exercita combustível, pedágio, hospedagem e as horas de viagem da equipe.",
+      "proves": [
+        "cobra mobilização",
+        "cobra desmobilização",
+        "gera combustível"
+      ],
+      "sha256": "db575ec3eeaafb1c413af273d109fe128dcb341807e97126f015f0ce25114632",
+      "valid": true,
+      "errors": 0,
+      "warnings": 1,
+      "totalCost": 42924.2,
+      "salePrice": 118820.66,
+      "margin": 0.15000000000000008,
+      "validPricing": true
+    },
+    {
+      "scenario": "11-sem-logistica",
+      "intent": "Escopo confirmado sem logística (equipe já em obra). mobilizationCost e demobilizationCost têm de sair zero sem invalidar o levantamento.",
+      "proves": [
+        "zera mobilização",
+        "zera desmobilização",
+        "não zera o resto do levantamento"
+      ],
+      "sha256": "e9275b72e4067f11a9a46e120815904072b0fa5831fe2ce346130670f757a09f",
+      "valid": true,
+      "errors": 0,
+      "warnings": 0,
+      "totalCost": 28167.57,
+      "salePrice": 77972.08,
+      "margin": 0.15000000000000002,
+      "validPricing": true
+    },
+    {
+      "scenario": "12-pricing-filtrovali-net-revenue",
+      "intent": "Modelo de precificação atual (filtrovali_net_revenue_v1) sobre um levantamento completo: mão de obra, insumos e logística. É o caminho de produção.",
+      "proves": [
+        "precificação válida",
+        "tem receita líquida",
+        "atinge a margem desejada"
+      ],
+      "sha256": "1bebd9e39cab238b7b5a27c170a32bd091ce9d958262e0b72c41aae40dbe70f0",
+      "valid": true,
+      "errors": 0,
+      "warnings": 1,
+      "totalCost": 46840.16,
+      "salePrice": 129660.62,
+      "margin": 0.15000000000000005,
+      "validPricing": true
+    },
+    {
+      "scenario": "13-pricing-legacy-lec",
+      "intent": "Mesmo levantamento do cenário 12 no modelo legado (legacy_lec). O par 12/13 é o que prova que os dois denominadores de precificação foram portados corretamente.",
+      "proves": [
+        "precificação válida",
+        "denominador difere do modelo atual"
+      ],
+      "sha256": "af6ad01c0ce486322e8cca0f91cfaa71750f768b0067578ed6e94b8fc086b9bf",
+      "valid": true,
+      "errors": 0,
+      "warnings": 1,
+      "totalCost": 46840.16,
+      "salePrice": 99353.06,
+      "margin": 0.15,
+      "validPricing": true
+    },
+    {
+      "scenario": "14-preco-global-fechado",
+      "intent": "pricingMode global: o preço é imposto pelo comercial e o motor recalcula margem e saldo por diferença, em vez de derivar o preço do custo.",
+      "proves": [
+        "usa o preço imposto",
+        "recalcula margem por diferença"
+      ],
+      "sha256": "fe97f18888c63283629ea73f88b26aa4449a948ae942c1495d2fa8f3832b2710",
+      "valid": true,
+      "errors": 0,
+      "warnings": 1,
+      "totalCost": 42924.2,
+      "salePrice": 750000,
+      "margin": 0.4540197333333334,
+      "validPricing": true
+    },
+    {
+      "scenario": "15-comissao-representante-e-indicacao",
+      "intent": "Comissão de representante sobre receita líquida somada a bônus de indicação de colaborador. Exercita representativeCommissionGrossUpValue, que é o cálculo mais sensível da camada comercial.",
+      "proves": [
+        "cobra comissão do representante",
+        "aplica gross-up da comissão",
+        "soma bônus de indicação ao custo"
+      ],
+      "sha256": "62754fc7e22ead44b44007544fe51c9a57f3275513f1dab24d96214a018716f7",
+      "valid": true,
+      "errors": 0,
+      "warnings": 1,
+      "totalCost": 45424.2,
+      "salePrice": 138375.35,
+      "margin": 0.14999999999999994,
+      "validPricing": true
+    },
+    {
+      "scenario": "16-escopo-sem-insumos-confirmado",
+      "intent": "Volume físico preenchido, mas com 'sem insumos' confirmado no escopo. Documenta que a confirmação zera o ramo inteiro — volumeResults sai vazio e totalVolumeLiters sai zero, mesmo com trecho de tubulação no payload. Comportamento não óbvio e fácil de perder no porte.",
+      "proves": [
+        "zera o volume apesar do tubo no payload",
+        "não sobra nenhum sistema de volume",
+        "mão de obra intacta"
+      ],
+      "sha256": "e3d1c69f324d185abed86806293148c2bed68e5cf74acfbf64b52c5566b365bb",
+      "valid": true,
+      "errors": 0,
+      "warnings": 0,
+      "totalCost": 13777.91,
+      "salePrice": 38139.33,
+      "margin": 0.14999999999999994,
+      "validPricing": true
+    }
+  ]
+}
