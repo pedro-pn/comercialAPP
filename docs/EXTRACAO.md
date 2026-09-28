@@ -27,19 +27,34 @@
   com 18 testes aprovados em 28/09/2026.
 - [x] Copiar os arquivos das telas e seus recursos; verificar TypeScript e os
   bundles das cinco entradas principais.
-- [ ] Extrair telas, estilos, modelos DOCX, imagens e fluxo de navegação.
+- [ ] Ligar as telas copiadas ao novo fluxo de navegação e revisar modelos DOCX.
 - [ ] Extrair serviços de propostas e levantamentos para backend próprio.
-- [ ] Criar banco PostgreSQL e migrações apenas do domínio Comercial.
-- [ ] Implementar login próprio, cadastro inicial do gestor e permissões.
+- [x] Criar banco PostgreSQL próprio e primeira migração de usuários e sessões.
+- [x] Implementar login próprio, cadastro inicial do gestor e permissões da
+  administração de acessos.
 - [ ] Contratar e implementar o fluxo Comercial → CRM → FiltroAPP.
 - [ ] Homologar paridade funcional, operação, backup e implantação.
 
-Os arquivos de interface já compilam, mas não foram ligados ao roteador.
-O adaptador de identidade ainda não tem provedor, e os endpoints de
-frontend/src/api/comercial.ts ainda não existem no backend independente.
-Não habilitar os formulários para usuários antes de implementar login,
-persistência e validação do servidor. O CSS portado ainda precisa ser conferido
+Os arquivos das telas de propostas já compilam, mas não foram ligados ao
+roteador. O adaptador de identidade dessas telas ainda não tem provedor, e os
+endpoints de frontend/src/api/comercial.ts ainda não existem no backend
+independente. A tela ativa cobre apenas login e gestão de acessos. Não habilitar
+os formulários de propostas antes de implementar persistência, validação do
+servidor e permissões por operação. O CSS portado ainda precisa ser conferido
 visualmente fora do FiltroAPP.
+
+A primeira migração contém somente `User` e `Session`. A API cria sessões no
+PostgreSQL, armazena apenas o hash do token e usa cookie HttpOnly. O gestor
+inicial é criado por um comando local que lê a senha da entrada padrão. O gestor
+pode criar usuários nos papéis gestor, vendedor e consulta, alterar papéis,
+desativar acessos e redefinir senhas. A mudança de papel, desativação ou troca
+de senha revoga as sessões daquele usuário. O login tem limite local de
+tentativas por nome de usuário; para múltiplas instâncias será preciso mover
+esse limite a um armazenamento compartilhado.
+
+A migração e o fluxo de autenticação foram exercitados em 28/09/2026 contra um
+PostgreSQL 16 isolado. O teste de integração é executado com
+`TEST_DATABASE_URL` apontando para um banco chamado `comercialapp_test`.
 
 Na primeira tentativa de empacotar as telas, esbuild confundiu
 BuscaDeEmpresa.tsx com buscaDeEmpresa.ts. O helper foi renomeado apenas no
