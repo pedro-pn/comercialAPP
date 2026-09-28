@@ -14,6 +14,10 @@ esqueleto para propostas reais.
 
 Requer Node.js e npm compatíveis com as dependências declaradas.
 
+Para executar os três serviços em Docker, use o
+[guia de Docker](docs/DOCKER.md). O frontend React/Vite é compilado em uma
+imagem Nginx; a API Node e o PostgreSQL ficam em contêineres separados.
+
 1. Crie um banco PostgreSQL exclusivo e um usuário próprio para este app.
 2. Execute `npm install` na raiz, copie `backend/.env.example` para
    `backend/.env` e configure `DATABASE_URL` e `APP_ORIGIN`.
@@ -53,7 +57,8 @@ usuários está vazia.
 
 - Repositório remoto privado: será criado pelo proprietário; não há remoto local.
 - Produção: comercial.filtrovali.com.br na mesma VPS do FiltroAPP, sob outro
-  usuário do sistema e com banco próprio.
+  usuário do sistema e com banco próprio. O Compose é separado e só o Nginx do
+  Comercial compartilha a rede do proxy do FiltroAPP.
 - Primeira entrega: login próprio; o gestor do Comercial administra acessos
   e papéis. Login compartilhado fica para uma etapa futura.
 - Integração: Comercial envia propostas ao CRM, que escolhe o projeto e envia

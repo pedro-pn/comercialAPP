@@ -32,8 +32,11 @@
 - [x] Criar banco PostgreSQL próprio e primeira migração de usuários e sessões.
 - [x] Implementar login próprio, cadastro inicial do gestor e permissões da
   administração de acessos.
+- [x] Preparar imagens Docker e Compose local/produção para frontend, API e
+  PostgreSQL próprios; testar a stack localmente.
 - [ ] Contratar e implementar o fluxo Comercial → CRM → FiltroAPP.
-- [ ] Homologar paridade funcional, operação, backup e implantação.
+- [ ] Homologar paridade funcional, operação, backup e implantação. Incluir
+  DNS, certificado e configuração do proxy existente nessa etapa.
 
 Os arquivos das telas de propostas já compilam, mas não foram ligados ao
 roteador. O adaptador de identidade dessas telas ainda não tem provedor, e os

@@ -1,0 +1,12 @@
+services:
+  web:
+    networks:
+      private:
+      filtrovali-edge:
+        aliases:
+          - comercialapp-web
+
+networks:
+  filtrovali-edge:
+    external: true
+    name: filtrovali-net
