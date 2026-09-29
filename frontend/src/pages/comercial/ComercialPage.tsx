@@ -7,39 +7,23 @@ import { ComercialChrome } from './components/ComercialChrome';
 import { TutorialDoModulo } from './TutorialDoModulo';
 import { ROTEIRO_DA_ENTRADA } from './roteiroDoTutorial';
 
-/**
- * Menu de entrada do módulo Comercial — desvio nº 9.
- *
- * A referência não tem esta tela: lá o login desemboca direto no assistente de
- * proposta, e quem vai levantar custos — que é o começo real do fluxo, já que é
- * o levantamento que carimba o código — tem de sair de lá e navegar.
- *
- * Metade disto já era inevitável, porque no filtroAPP todo módulo mora atrás de
- * um prefixo. O que a decisão do mantenedor acrescentou foi a **tela de
- * escolha**. E ela é menos estranha à referência do que parecia: o diálogo de
- * abertura de `/` já oferecia três caminhos, e um deles ("Levantar custos") era
- * um **link** para a tela de custos. Este menu é a promoção daquilo a tela.
- *
- * **Sem baseline visual** — não existe na referência para ser fotografado, então
- * a comparação de paridade não se aplica aqui.
- */
+/** Menu de entrada copiado do módulo Comercial e ligado às rotas deste app. */
 
 type Destino = {
   titulo: string;
   descricao: string;
-  rota: string;
   icone: ReactNode;
 };
 
-type RotaKey = 'custos' | 'propostas' | 'historico' | 'configuracoes';
+type RotaKey = 'custos' | 'propostas' | 'historico' | 'acessos' | 'configuracoes';
 
 const DESTINOS: Array<
-  Omit<Destino, 'rota'> & { rotaKey: RotaKey; soGestor?: boolean; soOrcamentista?: boolean }
+  Destino & { rotaKey: RotaKey; soGestor?: boolean; soOrcamentista?: boolean }
 > = [
   {
     titulo: 'Levantar custos',
     descricao:
-      'Calcula custos, impostos, comissões e margem. É ele que carimba o código da proposta.',
+      'Calcula custos, impostos, comissões e margem. O preço e o código podem ser usados na proposta.',
     rotaKey: 'custos',
     soOrcamentista: true,
     icone: (
@@ -55,7 +39,7 @@ const DESTINOS: Array<
   },
   {
     titulo: 'Propostas',
-    descricao: 'Monta a proposta técnica e a comercial para uma nova emissão.',
+    descricao: 'Cria propostas com ou sem levantamento, emite documentos e finaliza.',
     rotaKey: 'propostas',
     soOrcamentista: true,
     icone: (
@@ -69,7 +53,7 @@ const DESTINOS: Array<
   },
   {
     titulo: 'Histórico',
-    descricao: 'Consulta propostas emitidas, documentos e o estado das integrações.',
+    descricao: 'Consulta levantamentos, propostas e documentos emitidos.',
     rotaKey: 'historico',
     icone: (
       <>
@@ -80,9 +64,9 @@ const DESTINOS: Array<
     )
   },
   {
-    titulo: 'Configurações',
-    descricao: 'Endereço da sede — a origem de todas as distâncias calculadas nos levantamentos.',
-    rotaKey: 'configuracoes',
+    titulo: 'Acessos e numeração',
+    descricao: 'Administra usuários e define o número inicial das propostas.',
+    rotaKey: 'acessos',
     soGestor: true,
     icone: (
       <>
@@ -90,6 +74,13 @@ const DESTINOS: Array<
         <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.9 19.3a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.7 8.9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9v.09a1.7 1.7 0 0 0 1.56 1h.04a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.56 1z" />
       </>
     )
+  },
+  {
+    titulo: 'Configurações',
+    descricao: 'Defina a sede usada no cálculo automático de distâncias.',
+    rotaKey: 'configuracoes',
+    soGestor: true,
+    icone: <><circle cx="12" cy="12" r="8" /><path d="M12 7v5l3 2" /></>
   }
 ];
 
@@ -113,11 +104,10 @@ export function ComercialPage() {
     <ComercialChrome
       eyebrow="FILTROVALI / COMERCIAL"
       titulo="O que você quer fazer?"
-      descricao="O levantamento vem antes da proposta — é ele que define o código que os dois documentos vão usar."
-      /* A entrada é a ÚNICA tela que abre o tutorial sozinha (T096). Nas outras,
-         o botão é o caminho — abrir automático saltaria por cima de quem está no
-         meio de um levantamento. */
-      acoes={<TutorialDoModulo passos={ROTEIRO_DA_ENTRADA} abrirSozinho />}
+      descricao={ehOrcamentista
+        ? 'Monte a proposta diretamente ou use um levantamento de custos concluído.'
+        : 'Consulte propostas e documentos técnicos disponíveis no histórico.'}
+      acoes={ehOrcamentista ? <TutorialDoModulo passos={ROTEIRO_DA_ENTRADA} /> : undefined}
     >
       <section className="com-painel com-menu">
         <div className="com-grid">
@@ -144,7 +134,11 @@ export function ComercialPage() {
                   </svg>
                 </span>
                 <strong className="com-quebrar">{destino.titulo}</strong>
-                <span className="com-cartao-descricao com-quebrar">{destino.descricao}</span>
+                <span className="com-cartao-descricao com-quebrar">
+                  {destino.rotaKey === 'historico' && !ehOrcamentista
+                    ? 'Consulta propostas e baixa documentos técnicos.'
+                    : destino.descricao}
+                </span>
               </button>
             ))}
         </div>

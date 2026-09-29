@@ -1,0 +1,3 @@
+ALTER TABLE "Proposal"
+  ADD COLUMN "filtroAttempts" INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN "filtroNextRetryAt" TIMESTAMP(3);

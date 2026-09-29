@@ -3,6 +3,7 @@ const routes: Record<string, string> = {
   custos: '/custos',
   propostas: '/propostas',
   historico: '/historico',
+  acessos: '/acessos',
   configuracoes: '/configuracoes'
 };
 

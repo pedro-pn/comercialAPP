@@ -23,7 +23,8 @@ export function PropostaPreviewPanel({
   complementoRelatorios,
   modelo,
   gerando,
-  onGerarPdf
+  onGerarPdf,
+  somenteRascunho = false
 }: {
   indice: number;
   documento: TipoDeDocumento;
@@ -40,13 +41,16 @@ export function PropostaPreviewPanel({
   modelo: ModeloProposta;
   gerando: boolean;
   onGerarPdf: () => void;
+  somenteRascunho?: boolean;
 }) {
   return (
     <aside className="com-previa">
       <div className="com-previa-topo">
         <div>
-          <strong>Prévia oficial Filtrovali</strong>
-          <span>As duas saídas usam o mesmo cadastro</span>
+          <strong>{somenteRascunho ? 'Prévia da proposta' : 'Prévia oficial Filtrovali'}</strong>
+          <span>{somenteRascunho
+            ? 'Confira no navegador ou baixe o PDF antes de emitir.'
+            : 'As duas saídas usam o mesmo cadastro'}</span>
         </div>
         <b>
           {indice + 1}/{ETAPAS.length}

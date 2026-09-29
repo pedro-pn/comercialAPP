@@ -6,3 +6,5 @@ dist/
 .code-review-graph/
 coverage/
 *.log
+backend/storage/
+.playwright-cli/

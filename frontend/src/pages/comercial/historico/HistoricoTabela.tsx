@@ -3,10 +3,11 @@ import type { DocumentoEmitido, PropostaSalva } from '../../../api/comercial';
 type HistoricoTabelaProps = {
   propostas: PropostaSalva[];
   podeVerValores: boolean;
-  onBaixarDocumento: (documento: DocumentoEmitido) => void;
+  onBaixarDocumento?: (documento: DocumentoEmitido) => void;
   baixandoDocumentoId?: string;
   onAbrirProposta?: (proposta: PropostaSalva) => void;
   onCriarRevisao?: (proposta: PropostaSalva) => void;
+  rascunhosOnly?: boolean;
 };
 
 const dinheiro = new Intl.NumberFormat('pt-BR', {
@@ -66,7 +67,8 @@ function Documento({
   onBaixarDocumento: (documento: DocumentoEmitido) => void;
   baixandoDocumentoId?: string;
 }) {
-  const documento = documentos.find((item) => item.kind === kind);
+  const documento = documentos.find((item) => item.kind === kind &&
+    (!item.format || item.format === 'PDF'));
   const comercial = kind === 'COMERCIAL';
 
   return (
@@ -97,7 +99,8 @@ export function HistoricoTabela({
   onBaixarDocumento,
   baixandoDocumentoId,
   onAbrirProposta,
-  onCriarRevisao
+  onCriarRevisao,
+  rascunhosOnly = false
 }: HistoricoTabelaProps) {
   const mostraAcoes = Boolean(onAbrirProposta || onCriarRevisao);
   return (
@@ -111,7 +114,7 @@ export function HistoricoTabela({
             <th>Responsáveis</th>
             <th>Contato</th>
             {podeVerValores && <th>Valor</th>}
-            <th>Integrações / funil</th>
+            {!rascunhosOnly && <th>Integrações / funil</th>}
             <th>Atualização</th>
             {mostraAcoes && (
               <th>
@@ -138,7 +141,7 @@ export function HistoricoTabela({
                   <small>{proposta.site || '—'}</small>
                 </td>
                 <td>
-                  {podeVerValores && (
+                  {podeVerValores && onBaixarDocumento && (
                     <Documento
                       kind="COMERCIAL"
                       documentos={documentos}
@@ -146,12 +149,12 @@ export function HistoricoTabela({
                       baixandoDocumentoId={baixandoDocumentoId}
                     />
                   )}
-                  <Documento
+                  {onBaixarDocumento && <Documento
                     kind="TECNICA"
                     documentos={documentos}
                     onBaixarDocumento={onBaixarDocumento}
                     baixandoDocumentoId={baixandoDocumentoId}
-                  />
+                  />}
                 </td>
                 <td>
                   <span>Vendedor</span>
@@ -174,7 +177,7 @@ export function HistoricoTabela({
                     )}
                   </td>
                 )}
-                <td>
+                {!rascunhosOnly && <td>
                   <div className="com-history-status">
                     <span className={classeDaIntegracao(proposta.nectarStatus)}>
                       Nectar
@@ -204,10 +207,10 @@ export function HistoricoTabela({
                       {proposta.integrationError}
                     </small>
                   )}
-                </td>
+                </td>}
                 <td>
                   <span>{formatarDataHora(proposta.updatedAt)}</span>
-                  {proposta.nectarOpportunityId && (
+                  {!rascunhosOnly && proposta.nectarOpportunityId && (
                     <small>Oportunidade {proposta.nectarOpportunityId}</small>
                   )}
                 </td>
@@ -229,7 +232,7 @@ export function HistoricoTabela({
                       >
                         Finalização em andamento
                       </button>
-                    ) : onAbrirProposta ? (
+                    ) : onAbrirProposta && (!rascunhosOnly || proposta.status === 'RASCUNHO') ? (
                       <button
                         type="button"
                         className="com-btn com-btn-fantasma"

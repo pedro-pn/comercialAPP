@@ -39,7 +39,7 @@ export function PremissasSection({ levantamento }: { levantamento: Levantamento 
           <h2>Premissas do levantamento</h2>
           <p>
             Defina o nome do serviço e as bases financeiras. Os percentuais permanecem
-            editáveis para cada proposta.
+            editáveis para cada levantamento.
           </p>
         </div>
         <span className="com-obrigatorios">Campos com * são obrigatórios</span>

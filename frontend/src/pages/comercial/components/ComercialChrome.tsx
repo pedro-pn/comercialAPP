@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 
 import { useAuth } from '../../../auth/AuthContext';
 import { moduleRoutePath } from '../../../modules/registry';
@@ -29,7 +29,7 @@ import { LOGO_URL } from './marca';
  * A única coisa que este componente acrescenta à referência é o **caminho de
  * volta ao hub**, e ele vive onde já vivia um link na referência: na marca.
  * Lá a marca levava para `/` (a proposta); aqui leva para o menu do módulo, e
- * "Sair do módulo" leva ao hub do filtroAPP. Sem isso o usuário fica preso.
+ * "Voltar ao início" leva à entrada do app independente.
  */
 
 
@@ -78,6 +78,7 @@ export function ComercialChrome({
   children
 }: ComercialChromeProps) {
   const { user, logout } = useAuth();
+  const location = useLocation();
   const navigate = useNavigate();
 
   return (
@@ -104,21 +105,17 @@ export function ComercialChrome({
           )}
           {chips}
           <span className="com-usuario">
-            Orçamentista: <b className="com-quebrar">{user?.name || '—'}</b>
+            Usuário: <b className="com-quebrar">{user?.name || '—'}</b>
           </span>
           {acoes}
-          <button
+          {location.pathname !== moduleRoutePath('comercial', 'index') && <button
             type="button"
             className="com-btn com-btn-fantasma"
-            onClick={() => navigate('/modulos')}
+            onClick={() => navigate(moduleRoutePath('comercial', 'index'))}
           >
-            Sair do módulo
-          </button>
-          {/* **Sair do módulo e sair do sistema são coisas diferentes**, e só a
-              primeira existia: quem entrava no Comercial tinha de voltar ao hub
-              para deslogar. Relatado em 14/08, antes do uso em staging. Os dois
-              ficam lado a lado com rótulos que dizem o destino, porque errar
-              aqui custa o trabalho não salvo. */}
+            Voltar ao início
+          </button>}
+          {/* Voltar ao início mantém a sessão; sair do sistema a encerra. */}
           <button
             type="button"
             className="com-btn com-btn-fantasma"

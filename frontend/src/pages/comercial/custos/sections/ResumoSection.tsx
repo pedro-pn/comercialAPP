@@ -40,7 +40,10 @@ const BASES_COMISSAO = [
   { value: 'gross_invoice', label: 'Valor bruto da nota fiscal' }
 ];
 
-export function ResumoSection({ levantamento }: { levantamento: Levantamento }) {
+export function ResumoSection({ levantamento, somenteLevantamento = false }: {
+  levantamento: Levantamento;
+  somenteLevantamento?: boolean;
+}) {
   const { draft, result, setDraft, erroSe } = levantamento;
 
   const comercial = (draft.commercial as AnyRecord) || {};
@@ -77,10 +80,11 @@ export function ResumoSection({ levantamento }: { levantamento: Levantamento }) 
       <section className="com-painel">
         <div className="com-secao-titulo">
           <div>
-            <h2>Apresentação comercial</h2>
+            <h2>{somenteLevantamento ? 'Premissas de venda' : 'Apresentação comercial'}</h2>
             <p>
-              Escolha se o preço sai do custo ou é imposto pelo comercial. O QQP entra na
-              proposta quando marcado.
+              {somenteLevantamento
+                ? 'Escolha como o preço de venda estimado será calculado e registre a opção de QQP para uma futura proposta.'
+                : 'Escolha se o preço sai do custo ou é imposto pelo comercial. O QQP entra na proposta quando marcado.'}
             </p>
           </div>
         </div>
@@ -118,7 +122,9 @@ export function ResumoSection({ levantamento }: { levantamento: Levantamento }) 
             checked={comercial.includeQqp === true}
             onChange={event => editarComercial({ includeQqp: event.target.checked })}
           />
-          Incluir o quadro de quantidades e preços (QQP) na proposta
+          {somenteLevantamento
+            ? 'Preparar o quadro de quantidades e preços (QQP) para a futura proposta'
+            : 'Incluir o quadro de quantidades e preços (QQP) na proposta'}
         </label>
       </section>
 
@@ -135,7 +141,7 @@ export function ResumoSection({ levantamento }: { levantamento: Levantamento }) 
 
         <ConfirmacaoEscopo
           confirmado={comissao.enabled === true}
-          tituloPendente="Sem representante nesta proposta"
+          tituloPendente={somenteLevantamento ? 'Sem representante neste levantamento' : 'Sem representante nesta proposta'}
           tituloConfirmado="Comissão de representante incluída"
           descricaoPendente="Marque apenas se houver representante externo — a comissão entra no cálculo do preço."
           descricaoConfirmada="O percentual entra na formação do preço, com gross-up quando necessário."
@@ -178,7 +184,7 @@ export function ResumoSection({ levantamento }: { levantamento: Levantamento }) 
         <div className="com-secao-titulo">
           <div>
             <h2>Formação do preço</h2>
-            <p>De onde vem cada parcela do valor da proposta.</p>
+            <p>De onde vem cada parcela do preço de venda estimado.</p>
           </div>
         </div>
 
@@ -203,13 +209,13 @@ export function ResumoSection({ levantamento }: { levantamento: Levantamento }) 
           />
           <Dado label="Margem" valor={percent(numberValue(result.margin))} />
           <Dado
-            label="Valor da proposta"
+            label={somenteLevantamento ? 'Preço de venda estimado' : 'Valor da proposta'}
             valor={money(numberValue(result.salePrice))}
             destaque
           />
           <Dado
             label="Pico simultâneo"
-            valor={`${number(numberValue(result.peakHeadcount))} pessoas`}
+            valor={`${number(numberValue(result.peakHeadcount))} ${numberValue(result.peakHeadcount) === 1 ? 'pessoa' : 'pessoas'}`}
           />
         </div>
 

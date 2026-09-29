@@ -1,5 +1,4 @@
-// Contrato mínimo para compilar as telas extraídas. A autenticação própria
-// substituirá este adaptador antes de ativar as rotas comerciais.
+// Formato usado pelas telas portadas, preenchido a partir da sessão local.
 export interface AuthUser {
   id: string;
   name: string;

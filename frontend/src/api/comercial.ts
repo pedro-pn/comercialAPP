@@ -221,6 +221,25 @@ export async function reservarProximoNumero() {
   return data.numero;
 }
 
+export interface EstadoDaNumeracao {
+  seeded: boolean;
+  seedValue: number | null;
+  nextNumber: number | null;
+  seededAt: string | null;
+}
+
+export async function obterEstadoDaNumeracao() {
+  const { data } = await apiClient.get<EstadoDaNumeracao>('/comercial/numeracao/status');
+  return data;
+}
+
+export async function configurarNumeracaoInicial(initialNumber: number) {
+  const { data } = await apiClient.post<EstadoDaNumeracao>(
+    '/comercial/numeracao/inicializar', { initialNumber }
+  );
+  return data;
+}
+
 export interface Consultor {
   id: string;
   nome: string;
@@ -434,6 +453,7 @@ export async function listarPropostas(
 export interface DocumentoEmitido {
   id: string;
   kind: 'COMERCIAL' | 'TECNICA';
+  format?: 'PDF' | 'DOCX';
   fileName: string;
   byteSize: number;
 }
@@ -442,6 +462,100 @@ export interface FunilNectar {
   id: string;
   nome: string;
   primeiraEtapa: number;
+}
+
+export interface EstadoCrmLocal {
+  status: 'PENDENTE' | 'SUCESSO' | 'ERRO';
+  opportunityId: string | null;
+  pipelineId: string | null;
+  pipelineName: string | null;
+  companyId: string;
+  contactId: string;
+  message: string;
+  sending: boolean;
+}
+
+export interface ResultadoEnvioCrm {
+  status: 'SUCESSO' | 'SIMULADO' | 'ERRO';
+  opportunityId: string;
+  pipelineId: string;
+  pipelineName: string;
+  attached?: number;
+  message: string;
+}
+
+export interface EstadoSharePointLocal {
+  mode: 'off' | 'fake' | 'real';
+  unavailable: string;
+  status: 'PENDENTE' | 'SUCESSO' | 'ERRO';
+  folder: string;
+  message: string;
+  sending: boolean;
+}
+
+export async function obterEstadoSharePoint(proposalId: string) {
+  const { data } = await apiClient.get<EstadoSharePointLocal>(
+    `/comercial/propostas/${proposalId}/integracao-sharepoint`
+  );
+  return data;
+}
+
+export async function enviarPropostaAoSharePoint(proposalId: string, folder: string) {
+  const { data } = await apiClient.post<{
+    status: 'SUCESSO' | 'SIMULADO' | 'ERRO'; folder: string; message: string;
+  }>(`/comercial/propostas/${proposalId}/enviar-sharepoint`, { folder });
+  return data;
+}
+
+export interface EstadoFiltroApp {
+  opportunityId: string;
+  approvalStatus: 'PENDENTE' | 'APPROVED' | 'REJECTED';
+  approvalSource: 'NECTAR' | 'MANUAL' | null;
+  approvalAt: string | null;
+  projectId: string;
+  deliveryStatus: 'PENDENTE' | 'ENVIANDO' | 'ERRO' | 'SUCESSO' | 'AGUARDANDO_SELECAO';
+  deliveredAt: string | null;
+  attempts: number;
+  nextRetryAt: string | null;
+  message: string;
+  sending: boolean;
+}
+
+export async function obterEstadoFiltroApp(proposalId: string) {
+  const { data } = await apiClient.get<EstadoFiltroApp>(
+    `/comercial/propostas/${proposalId}/integracao-filtroapp`);
+  return data;
+}
+
+export async function selecionarProjetoManual(proposalId: string, projectId: string, reason: string) {
+  const { data } = await apiClient.post(`/comercial/propostas/${proposalId}/selecao-manual`,
+    { projectId, reason });
+  return data;
+}
+
+export async function reenviarAoFiltroApp(proposalId: string) {
+  const { data } = await apiClient.post<{ status: string; message?: string }>(
+    `/comercial/propostas/${proposalId}/enviar-filtroapp`, {});
+  return data;
+}
+
+export async function sincronizarAprovacaoNectar(proposalId: string) {
+  const { data } = await apiClient.post<{ pending?: boolean; message?: string }>(
+    `/comercial/propostas/${proposalId}/sincronizar-nectar`, {});
+  return data;
+}
+
+export interface ProjetoFiltroApp {
+  id: string;
+  code: string;
+  name: string;
+  clientName: string;
+}
+
+export async function buscarProjetosFiltroApp(busca: string) {
+  const { data } = await apiClient.get<{ items: ProjetoFiltroApp[] }>(
+    '/comercial/filtroapp/projetos', { params: { busca } });
+  return data.items;
 }
 
 export interface AnexoDaProposta {
@@ -474,7 +588,24 @@ export async function listarFunisNectar() {
   const { data } = await apiClient.get<{
     items: FunilNectar[];
     motivoIndisponivel: string;
+    mode: 'off' | 'fake' | 'real';
   }>('/comercial/nectar/funis');
+  return data;
+}
+
+export async function obterEstadoCrmDaProposta(proposalId: string) {
+  const { data } = await apiClient.get<EstadoCrmLocal>(
+    `/comercial/propostas/${proposalId}/integracao-crm`
+  );
+  return data;
+}
+
+export async function enviarPropostaAoCrm(proposalId: string, input: {
+  pipelineId: string; companyId: string; contactId: string;
+}) {
+  const { data } = await apiClient.post<ResultadoEnvioCrm>(
+    `/comercial/propostas/${proposalId}/enviar-crm`, input
+  );
   return data;
 }
 
@@ -582,6 +713,27 @@ export async function emitirDocumentos(proposalId: string) {
     proposalCode: string;
     documentos: DocumentoEmitido[];
   }>('/comercial/propostas/documentos', { proposalId });
+  return data;
+}
+
+export async function listarDocumentosDaProposta(proposalId: string) {
+  const { data } = await apiClient.get<{ items: DocumentoEmitido[] }>(
+    `/comercial/propostas/${proposalId}/documentos`
+  );
+  return data.items;
+}
+
+export async function finalizarPropostaLocal(proposalId: string) {
+  const { data } = await apiClient.post<{
+    status: 'FINALIZADA'; documentos: DocumentoEmitido[]
+  }>(`/comercial/propostas/${proposalId}/finalizar-local`);
+  return data;
+}
+
+export async function baixarAnexoDaProposta(id: string): Promise<Blob> {
+  const { data } = await apiClient.get<Blob>(`/comercial/anexos/${id}`, {
+    responseType: 'blob'
+  });
   return data;
 }
 

@@ -31,14 +31,15 @@ type AnyRecord = Record<string, unknown>;
 export type Levantamento = ReturnType<typeof useLevantamento>;
 
 export function useLevantamento(estimatorName: string, secaoAtual = 'premises') {
-  const [draft, setDraftBruto] = useState<AnyRecord>(() =>
-    comDataBaseDoCronograma(
+  const [draft, setDraftBruto] = useState<AnyRecord>(() => ({
+    ...comDataBaseDoCronograma(
       normalizeCostEstimatePayload({
         ...(createDefaultCostEstimatePayload() as AnyRecord),
         estimatorName
       }) as AnyRecord
-    )
-  );
+    ),
+    estimatorName
+  }));
 
   /**
    * Pendências que vieram do `422`.

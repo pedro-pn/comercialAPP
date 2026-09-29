@@ -35,6 +35,7 @@ type AnyRecord = Record<string, unknown>;
  * o `502` parcial abre o download dos PDFs em vez de apagar o resultado útil.
  */
 export function usePropostaFinalizacao({
+  habilitado = true,
   propostaId,
   statusProposta,
   form,
@@ -46,6 +47,7 @@ export function usePropostaFinalizacao({
   onPendencia,
   onStatus
 }: {
+  habilitado?: boolean;
   propostaId: string;
   statusProposta: string;
   form: AnyRecord;
@@ -61,7 +63,7 @@ export function usePropostaFinalizacao({
     useState<EscolhaDeDownload>('both');
   const [escolhaCard, setEscolhaCard] = useState<EscolhaDeCard>('');
   const [funis, setFunis] = useState<FunilNectar[]>([]);
-  const [funisCarregando, setFunisCarregando] = useState(true);
+  const [funisCarregando, setFunisCarregando] = useState(habilitado);
   const [funisMensagem, setFunisMensagem] = useState('');
   const [funilId, setFunilId] = useState('');
   const [pastaOneDrive, setPastaOneDrive] = useState('');
@@ -77,6 +79,7 @@ export function usePropostaFinalizacao({
 
   /** Os ids já chegam filtrados pela lista branca do backend. */
   useEffect(() => {
+    if (!habilitado) return;
     let vivo = true;
     setFunisCarregando(true);
     listarFunisNectar()
@@ -101,7 +104,7 @@ export function usePropostaFinalizacao({
     return () => {
       vivo = false;
     };
-  }, []);
+  }, [habilitado]);
 
   /** Revisão vinculada não pede outra escolha nem permite trocar de funil. */
   useEffect(() => {
@@ -116,6 +119,7 @@ export function usePropostaFinalizacao({
 
   /** Anexo já enviado sobrevive a F5 e não pode ser reenviado em duplicidade. */
   useEffect(() => {
+    if (!habilitado) return;
     if (!propostaId) {
       setAnexosEnviados([]);
       return;
@@ -135,7 +139,7 @@ export function usePropostaFinalizacao({
     return () => {
       vivo = false;
     };
-  }, [propostaId, setRecado]);
+  }, [habilitado, propostaId, setRecado]);
 
   function escolherFunil(id: string) {
     setFunilId(id);

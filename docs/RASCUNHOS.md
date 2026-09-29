@@ -33,14 +33,33 @@ alcança todos. O perfil de consulta lê a lista de propostas sem campos de
 valor e não abre o registro completo. Edições exigem `expectedUpdatedAt` e
 respondem conflito 409 quando outro usuário salvou uma versão mais recente.
 
-As telas copiadas ainda não foram ligadas ao roteador. A API cobre apenas o
-salvamento e a leitura inicial: faltam documentos DOCX/PDF, arquivos anexos,
-fotos de escopo, finalização, integração CRM e revisão visual das telas.
+O histórico usa o login próprio. Gestor e vendedor podem abrir e editar seus
+levantamentos e rascunhos de proposta; consulta vê somente a lista de propostas
+sem valores. O gestor
+pode configurar o primeiro número pela tela de acesso, confirmando antes que
+ele não aparece no CRM ou no legado. No levantamento, endereços e distâncias
+são informados manualmente enquanto o serviço de mapas não existe neste app.
+A montagem de propostas aceita rascunhos com ou sem levantamento vinculado. A migração
+`20260929180000_local_documents` acrescenta documentos, anexos e fotos de escopo.
+`POST /api/comercial/propostas/documentos` emite os modelos comercial e técnico
+em DOCX/PDF a partir da proposta salva. `GET /api/comercial/documentos/:id`
+baixa os arquivos; `GET /api/comercial/propostas/:id/documentos` lista a emissão
+atual. `POST /api/comercial/propostas/previa.pdf` gera uma prévia sem salvar.
+`POST /api/comercial/escopo/fotos` guarda fotos válidas de até 1,5 MB.
+`GET/POST /api/comercial/propostas/:id/anexos` e `DELETE` por ID gerem os anexos.
+`POST /api/comercial/propostas/:id/finalizar-local` fecha a edição somente com
+documentos atualizados e PDFs mais anexos dentro do limite agregado de 20 MB.
+O perfil de consulta pode baixar apenas o documento técnico. A etapa Nectar
+acrescenta `GET /nectar/funis`, `GET /crm/empresas`, `GET /crm/empresas/:id`,
+`GET /propostas/:id/integracao-crm` e `POST /propostas/:id/enviar-crm` sob
+`/api/comercial`. O envio real ainda depende de configuração e validação com
+credenciais no funil de teste. SharePoint, FiltroAPP e a revisão visual completa
+das telas ficam para depois.
 
 ## Verificação
 
-`npm run check` valida o esquema, compila frontend e regras e executa testes
-sem banco. Um teste HTTP mais amplo está em
+`npm run check` valida o esquema, compila frontend e regras e executa testes.
+Sem `TEST_DATABASE_URL`, os testes de banco são pulados. Um teste HTTP mais amplo está em
 `backend/test/commercial.integration.test.js`; para executá-lo, use um
 PostgreSQL de teste com base chamada exatamente `comercialapp_test`, aplique as
 migrações e defina `TEST_DATABASE_URL`. O teste apaga **somente** as tabelas

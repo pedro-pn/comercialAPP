@@ -13,13 +13,19 @@ test('login local, permissões do gestor e revogação de sessão', { skip: !dat
 
   const db = createDatabase(databaseUrl);
   const auth = createAuthService(db);
-  const app = createApp({ authService: auth, appOrigin: 'http://localhost:5174' });
+  const app = createApp({ authService: auth, appOrigin: 'http://localhost:8086',
+    additionalOrigins: ['http://localhost:5174'] });
   const server = app.listen(0, '127.0.0.1');
   await once(server, 'listening');
   t.after(async () => {
     await new Promise(resolve => server.close(resolve));
     await db.$disconnect();
   });
+  await db.proposal.deleteMany();
+  await db.costEstimateVersion.deleteMany();
+  await db.costEstimate.deleteMany();
+  await db.proposalNumberReservation.deleteMany();
+  await db.proposalNumberingState.deleteMany();
   await db.session.deleteMany();
   await db.user.deleteMany();
 
@@ -48,6 +54,13 @@ test('login local, permissões do gestor e revogação de sessão', { skip: !dat
   assert.equal((await request('/api/auth/login', {
     method: 'POST', body: { username: 'gestor', password: 'errada' }
   })).response.status, 401);
+  assert.equal((await fetch(base + '/api/auth/login', {
+    method: 'POST', headers: {
+      'Content-Type': 'application/json', 'X-Comercial-Request': '1',
+      Origin: 'http://localhost:5174'
+    },
+    body: JSON.stringify({ username: 'gestor', password: 'errada' })
+  })).status, 401);
   assert.equal((await fetch(base + '/api/auth/login', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username: 'gestor', password: 'senha-segura-123' })

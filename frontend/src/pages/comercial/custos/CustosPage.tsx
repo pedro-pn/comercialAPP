@@ -82,7 +82,7 @@ const dataHora = new Intl.DateTimeFormat('pt-BR', {
  * ambiente dizendo que a numeração ainda não foi semeada. Quem lê "erro do servidor"
  * abre chamado; quem lê o que falta chama o operador.
  */
-export function CustosPage() {
+export function CustosPage({ somenteLevantamento = false }: { somenteLevantamento?: boolean }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
@@ -103,6 +103,7 @@ export function CustosPage() {
   const [salvando, setSalvando] = useState(false);
   const [salvandoRascunho, setSalvandoRascunho] = useState(false);
   const [versaoDoRascunho, setVersaoDoRascunho] = useState('');
+  const [statusPersistido, setStatusPersistido] = useState<'RASCUNHO' | 'SALVO' | null>(null);
   const [recado, setRecado] = useState('');
   const [salvo, setSalvo] = useState<string | null>(null);
   const [focarPendencia, setFocarPendencia] = useState(false);
@@ -202,6 +203,7 @@ export function CustosPage() {
           estimatorName: user?.name || atual.payload.estimatorName || ''
         });
         setVersaoDoRascunho(atual.updatedAt || '');
+        setStatusPersistido(atual.status ?? 'RASCUNHO');
       })
       .catch((error) => {
         if (vivo) {
@@ -304,6 +306,8 @@ export function CustosPage() {
   const acao = footerAction(pendencias, guardas, secao);
 
   const codigo = base || '—';
+  const concluidoSemAlteracoes = statusPersistido === 'SALVO' &&
+    (autosave.estado === 'inativo' || autosave.estado === 'salvo');
 
   function trocarSecao(
     destino: CostSection,
@@ -330,6 +334,7 @@ export function CustosPage() {
    */
   async function persistirRascunho(automatico = false): Promise<string | null> {
     if (!modo || salvandoRascunho || salvando) return null;
+    if (concluidoSemAlteracoes) return levantamentoAtualId || null;
     if (levantamentoAtualId && !versaoDoRascunho) {
       setRecado('Aguarde o rascunho terminar de carregar antes de continuar.');
       return null;
@@ -355,6 +360,7 @@ export function CustosPage() {
         : await criarLevantamento(entrada);
 
       setVersaoDoRascunho(gravado.updatedAt || '');
+      setStatusPersistido('RASCUNHO');
       if (!levantamentoAtualId) {
         const proximos = new URLSearchParams(params);
         proximos.set('id', gravado.id);
@@ -376,6 +382,7 @@ export function CustosPage() {
   }
 
   function iniciarModo(novoModo: EstimateMode, numero?: string) {
+    setStatusPersistido(null);
     const proximos = new URLSearchParams();
     proximos.set('modo', novoModo);
     if (numero) proximos.set('base', numero);
@@ -384,6 +391,7 @@ export function CustosPage() {
   }
 
   function continuarLevantamento(levantamento: LevantamentoSalvo) {
+    setStatusPersistido(levantamento.status ?? 'RASCUNHO');
     const proximos = new URLSearchParams({
       modo: levantamento.mode === 'REVISAO' ? 'revision' : 'new',
       base: levantamento.proposalCode,
@@ -524,8 +532,10 @@ export function CustosPage() {
       // reaparecer depois como se fosse trabalho não salvo.
       rascunho.limparTudo();
       setMostrarConfirmacao(false);
-      setSalvo(gravado.id);
+      setSalvo(somenteLevantamento ? null : gravado.id);
       setVersaoDoRascunho(gravado.updatedAt || '');
+      setStatusPersistido('SALVO');
+      if (somenteLevantamento) autosave.marcarSalvo(draft);
 
       if (criarPropostaDepois) {
         setRecado('');
@@ -659,6 +669,9 @@ export function CustosPage() {
 
   function renderAcoesDoLevantamento(posicao: 'topo' | 'rodape') {
     const Container = posicao === 'topo' ? 'div' : 'footer';
+    const rotuloPersistencia = concluidoSemAlteracoes
+      ? 'Levantamento concluído e salvo'
+      : autosave.rotulo;
     return (
       <Container className={`com-rodape${posicao === 'topo' ? ' com-acoes-topo' : ''}`}
         role="group" aria-label={`Ações do levantamento no ${posicao === 'topo' ? 'topo' : 'rodapé'}`}>
@@ -671,17 +684,30 @@ export function CustosPage() {
         </button>
 
         <div className="com-codigo-vinculado">
-          <small>LEVANTAMENTO E PROPOSTA</small>
+          <small>{somenteLevantamento ? 'LEVANTAMENTO' : 'LEVANTAMENTO E PROPOSTA'}</small>
           <strong>{codigo}</strong>
-          {autosave.rotulo && (
+          {rotuloPersistencia && (
             <span className={`com-autosave is-${autosave.estado}`} role="status">
-              {autosave.rotulo}
+              {rotuloPersistencia}
             </span>
           )}
         </div>
 
         <div className="com-rodape-acoes">
-          {secao === 'summary' ? (
+          {secao === 'summary' && somenteLevantamento ? (
+            <>
+              <button type="button" className="com-btn com-btn-fantasma"
+                disabled={salvando || salvandoRascunho || concluidoSemAlteracoes}
+                onClick={() => void persistirRascunho()}>
+                {salvandoRascunho ? 'Salvando rascunho...' : 'Salvar rascunho'}
+              </button>
+              <button type="button" className="com-btn com-btn-primario"
+                disabled={salvando || salvandoRascunho}
+                onClick={() => concluirLevantamento(false)}>
+                {salvando ? 'Salvando...' : 'Concluir levantamento'}
+              </button>
+            </>
+          ) : secao === 'summary' ? (
             <>
               <button
                 type="button"
@@ -717,7 +743,7 @@ export function CustosPage() {
               <button
                 type="button"
                 className="com-btn com-btn-fantasma"
-                disabled={salvando || salvandoRascunho || salvo !== null}
+                disabled={salvando || salvandoRascunho || salvo !== null || concluidoSemAlteracoes}
                 onClick={() => void persistirRascunho()}
               >
                 {salvandoRascunho
@@ -729,9 +755,9 @@ export function CustosPage() {
                 type="button"
                 className="com-btn com-btn-primario"
                 disabled={
-                  acao.disabled || salvo !== null || salvandoRascunho
+                  acao.disabled || (!somenteLevantamento && salvo !== null) || salvandoRascunho
                 }
-                onClick={() => concluirLevantamento(true)}
+                onClick={() => concluirLevantamento(!somenteLevantamento)}
               >
                 {salvo ? 'Levantamento salvo' : acao.label}
               </button>
@@ -749,11 +775,12 @@ export function CustosPage() {
       descricao="Engenharia de custos Filtrovali: equipe, circuitos, materiais, logística e formação do preço em um só lugar."
       /* Não abre sozinho: quem chegou aqui já passou pela entrada. O botão
          replica o roteiro DESTA tela. */
-      acoes={<TutorialDoModulo passos={ROTEIRO_DOS_CUSTOS} />}
+      acoes={somenteLevantamento ? undefined : <TutorialDoModulo passos={ROTEIRO_DOS_CUSTOS} />}
       heroExtra={
         modo !== null ? (
           <FaixaIndicadores
             levantamento={levantamento}
+            somenteLevantamento={somenteLevantamento}
             modoLabel={
               modo === 'revision' ? `Revisão de ${base}` : 'Levantamento novo'
             }
@@ -779,8 +806,9 @@ export function CustosPage() {
             <span className="com-eyebrow">LEVANTAMENTO DE CUSTOS</span>
             <h1 id="com-modo-titulo">Como deseja começar?</h1>
             <p>
-              O levantamento será vinculado à proposta técnica e comercial com a
-              mesma numeração.
+              {somenteLevantamento
+                ? 'O levantamento recebe um número reservado. A criação da proposta será habilitada em outra etapa.'
+                : 'O levantamento será vinculado à proposta técnica e comercial com a mesma numeração.'}
             </p>
 
             <div className="com-modo-opcoes">
@@ -792,13 +820,13 @@ export function CustosPage() {
                 </span>
               </button>
 
-              <button type="button" onClick={() => setMostrarRevisao(true)}>
+              {!somenteLevantamento && <button type="button" onClick={() => setMostrarRevisao(true)}>
                 <MarcaDeOpcao tipo="revisao" />
                 <strong>Revisar orçamento</strong>
                 <span>
                   Carrega o último levantamento e preserva toda a composição.
                 </span>
-              </button>
+              </button>}
             </div>
 
             <section className="com-levantamentos-entrada" aria-live="polite">
@@ -834,7 +862,7 @@ export function CustosPage() {
                     >
                       <span>
                         <strong>
-                          Proposta {levantamento.proposalCode}
+                          {somenteLevantamento ? 'Levantamento' : 'Proposta'} {levantamento.proposalCode}
                           {levantamento.revisionNumber > 0
                             ? ` · Rev ${levantamento.revisionNumber}`
                             : ''}
@@ -1022,7 +1050,7 @@ export function CustosPage() {
           ) : secao === 'logistics' ? (
             <LogisticaSection levantamento={levantamento} />
           ) : (
-            <ResumoSection levantamento={levantamento} />
+            <ResumoSection levantamento={levantamento} somenteLevantamento={somenteLevantamento} />
           )}
 
           {recado && (

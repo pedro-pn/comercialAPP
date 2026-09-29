@@ -44,13 +44,15 @@ type Props = {
   /** Todos os blocos da proposta — é neles que os limites são contados. */
   allBlocks: ScopeBlock[];
   onChange: (atualizar: (atual: ScopeBlock[]) => ScopeBlock[]) => void;
+  permitirFotos?: boolean;
 };
 
 function novoId(prefixo: string) {
   return `${prefixo}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function ScopeContentEditor({ itemId, blocks, allBlocks, onChange }: Props) {
+export function ScopeContentEditor({ itemId, blocks, allBlocks, onChange,
+  permitirFotos = true }: Props) {
   const tabelasNoLimite = countScopeTables(allBlocks) >= MAX_SCOPE_TABLES;
   const fotosUsadas = countScopePhotos(allBlocks);
   const fotosNoLimite = fotosUsadas >= MAX_SCOPE_PHOTOS;
@@ -192,13 +194,14 @@ export function ScopeContentEditor({ itemId, blocks, allBlocks, onChange }: Prop
   }
 
   return (
-    <section className="com-blocos" aria-label="Tabelas e fotos deste serviço">
+    <section className="com-blocos" aria-label="Conteúdo deste serviço">
       <div className="com-secao-titulo">
         <div>
-          <strong>Tabelas e fotos deste serviço</strong>
+          <strong>{permitirFotos ? 'Tabelas e fotos deste serviço' : 'Tabelas deste serviço'}</strong>
           <span>
-            Inclua apenas quando necessário. Sem upload, nenhuma foto será inserida
-            neste item.
+            {permitirFotos
+              ? 'Inclua apenas quando necessário. Sem upload, nenhuma foto será inserida neste item.'
+              : 'Inclua tabelas quando forem necessárias para descrever o serviço.'}
           </span>
         </div>
         <div className="com-blocos-acoes">
@@ -215,7 +218,7 @@ export function ScopeContentEditor({ itemId, blocks, allBlocks, onChange }: Prop
           >
             ＋ Inserir tabela
           </button>
-          <label
+          {permitirFotos && <label
             className={`com-btn-add com-upload${
               enviando || fotosNoLimite ? ' com-upload-inativo' : ''
             }`}
@@ -239,14 +242,12 @@ export function ScopeContentEditor({ itemId, blocks, allBlocks, onChange }: Prop
                 void enviarFotos(arquivos);
               }}
             />
-          </label>
+          </label>}
         </div>
       </div>
 
-      <p className="com-nota">
-        Até {MAX_SCOPE_TABLES} tabelas e {MAX_SCOPE_PHOTOS} fotos JPEG, PNG ou WebP por
-        proposta. As imagens são otimizadas automaticamente e preservadas para futuras
-        revisões.
+      <p className="com-nota">Até {MAX_SCOPE_TABLES} tabelas por proposta.
+        {permitirFotos ? ` Até ${MAX_SCOPE_PHOTOS} fotos JPEG, PNG ou WebP.` : ''}
       </p>
 
       {recado && (
@@ -257,7 +258,7 @@ export function ScopeContentEditor({ itemId, blocks, allBlocks, onChange }: Prop
 
       {blocks.length === 0 ? (
         <div className="com-vazio">
-          Nenhuma tabela ou foto adicionada. Use os botões acima quando o escopo
+          Nenhuma tabela adicionada. Use o botão acima quando o escopo
           precisar de conteúdo visual.
         </div>
       ) : (

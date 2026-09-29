@@ -2,6 +2,9 @@ import express from 'express';
 import { ZodError } from 'zod';
 import { HttpError, normalizeUsername, sessionDays } from './auth/service.js';
 import { createCommercialRouter } from './comercial/routes.js';
+import { requireCrmEventToken, recordCrmEvent, deliverToFiltro,
+  syncNectarOpportunity } from './comercial/crm-bridge.js';
+import { z } from 'zod';
 
 const cookieName = 'comercial_session';
 const sessionMaxAge = sessionDays * 24 * 60 * 60 * 1000;
@@ -41,11 +44,20 @@ function loginLimiter() {
   };
 }
 
-export function createApp({ authService, commercialDb, appOrigin, production = false } = {}) {
+export function createApp({ authService, commercialDb, crm, appOrigin, additionalOrigins = [], production = false } = {}) {
   const app = express();
   const limiter = loginLimiter();
+  const allowedOrigins = new Set([appOrigin, ...additionalOrigins].filter(Boolean));
   app.disable('x-powered-by');
-  app.use(express.json({ limit: '1mb' }));
+  const jsonBody = express.json({ limit: '1mb' });
+  app.use((request, response, next) => {
+    // Anexos podem ser arquivos JSON; o parser global não deve consumir o binário.
+    if (request.method === 'POST' && (
+      request.path === '/api/comercial/escopo/fotos' ||
+      /^\/api\/comercial\/propostas\/[^/]+\/anexos$/.test(request.path)
+    )) return next();
+    return jsonBody(request, response, next);
+  });
 
   app.get('/api/health', (_request, response) => {
     response.json({ status: 'ok', service: 'comercialapp' });
@@ -53,12 +65,43 @@ export function createApp({ authService, commercialDb, appOrigin, production = f
 
   app.use('/api', (request, _response, next) => {
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) {
+      if (request.path === '/integrations/crm/events' ||
+          request.path === '/integrations/nectar/webhook') return next();
       if (request.get('x-comercial-request') !== '1' ||
-          request.get('origin') && appOrigin && request.get('origin') !== appOrigin) {
+          request.get('origin') && allowedOrigins.size && !allowedOrigins.has(request.get('origin'))) {
         return next(new HttpError(403, 'Origem da requisição não autorizada.'));
       }
     }
     next();
+  });
+
+  const crmEventSchema = z.object({
+    contractVersion: z.literal(1),
+    eventId: z.string().uuid(),
+    proposalCode: z.string().trim().min(1).max(40),
+    revisionNumber: z.number().int().min(0),
+    opportunityId: z.string().trim().min(1),
+    approvalStatus: z.enum(['APPROVED', 'REJECTED']),
+    projectId: z.string().trim().min(1).max(200).nullable().optional(),
+    occurredAt: z.iso.datetime(),
+    reason: z.string().trim().max(1000).optional()
+  });
+  app.post('/api/integrations/crm/events', requireCrmEventToken, async (request, response) => {
+    const event = crmEventSchema.parse(request.body);
+    const recorded = await recordCrmEvent(commercialDb, event);
+    let delivery = null;
+    if (recorded.approvalStatus === 'APPROVED' && event.projectId && !recorded.duplicate) {
+      delivery = await deliverToFiltro(commercialDb, recorded.proposalId)
+        .catch(error => ({ status: 'PENDENTE', message: error.message }));
+    }
+    response.status(recorded.duplicate ? 200 : 202).json({ ...recorded, delivery });
+  });
+  app.post('/api/integrations/nectar/webhook', requireCrmEventToken, async (request, response) => {
+    const id = request.body?.oportunidade?.id ?? request.body?.data?.oportunidade?.id ??
+      request.body?.data?.id ?? request.body?.id;
+    if (!/^\d+$/.test(String(id ?? ''))) throw new HttpError(400, 'Webhook sem ID da oportunidade.');
+    const result = await syncNectarOpportunity(commercialDb, String(id));
+    response.status(result.pending ? 200 : 202).json(result);
   });
 
   const requireAuth = async (request, _response, next) => {
@@ -120,7 +163,8 @@ export function createApp({ authService, commercialDb, appOrigin, production = f
     response.json({ user });
   });
 
-  if (commercialDb) app.use('/api/comercial', requireAuth, createCommercialRouter(commercialDb));
+  if (commercialDb) app.use('/api/comercial', requireAuth,
+    createCommercialRouter(commercialDb, crm ? { crm } : undefined));
 
   app.use((error, _request, response, _next) => {
     if (error instanceof ZodError) {

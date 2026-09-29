@@ -1,0 +1,125 @@
+/* Administração local com o mesmo chrome e os mesmos tokens do Comercial. */
+.com-root .com-access-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr);
+  align-items: start;
+  gap: 20px;
+}
+
+.com-root .com-access-layout .com-painel { margin-bottom: 0; }
+.com-root .com-access-side { display: grid; gap: 20px; min-width: 0; }
+.com-root .com-access-feedback { margin-bottom: 18px; }
+.com-root .com-access-feedback .com-recado { margin: 0 0 8px; }
+
+.com-root .com-access-count {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--com-acao-suave);
+  color: var(--com-marca-forte);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.com-root .com-access-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.com-root .com-access-empty { color: var(--com-texto-fraco); }
+.com-root .com-access-user {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--com-borda);
+  border-radius: var(--com-raio);
+  background: var(--com-superficie);
+}
+
+.com-root .com-access-user-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.com-root .com-access-user-heading strong { display: block; font-size: 15px; overflow-wrap: anywhere; }
+.com-root .com-access-username { display: block; margin-top: 3px; color: var(--com-texto-fraco); font-size: 12px; }
+.com-root .com-access-status {
+  flex: none;
+  border-radius: 999px;
+  border: 1px solid var(--com-borda);
+  padding: 4px 9px;
+  color: var(--com-texto-fraco);
+  font-size: 11px;
+  font-weight: 700;
+}
+.com-root .com-access-status.is-active {
+  border-color: var(--com-acao-suave);
+  background: var(--com-acao-suave);
+  color: var(--com-marca-forte);
+}
+
+.com-root .com-access-user-controls {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.com-root .com-access-user-controls .com-btn { min-height: 42px; }
+.com-root .com-access-role { width: min(100%, 170px); }
+.com-root .com-access-field { display: grid; gap: 6px; min-width: 0; color: var(--com-texto); font-size: 12px; font-weight: 700; }
+.com-root .com-access-field input,
+.com-root .com-access-field select {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  box-sizing: border-box;
+  border: 1px solid var(--com-borda);
+  border-radius: var(--com-raio-controle);
+  padding: 8px 11px;
+  background: var(--com-superficie);
+  color: var(--com-texto);
+  font: inherit;
+  font-size: 14px;
+}
+.com-root .com-access-field input:focus-visible,
+.com-root .com-access-field select:focus-visible {
+  outline: 2px solid var(--com-acao);
+  outline-offset: 2px;
+}
+.com-root .com-access-field small { color: var(--com-texto-fraco); font-size: 11px; font-weight: 400; }
+.com-root .com-access-form { display: grid; gap: 14px; }
+.com-root .com-access-form > .com-btn { justify-self: start; }
+.com-root .com-access-reset {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--com-borda);
+}
+.com-root .com-access-reset .com-access-field { flex: 1; }
+.com-root .com-access-reset .com-btn { min-height: 42px; }
+
+.com-root .com-access-numbering-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.com-root .com-access-numbering-values > div {
+  min-width: 0;
+  border: 1px solid var(--com-borda);
+  border-radius: var(--com-raio-controle);
+  padding: 12px;
+  background: var(--com-acao-suave);
+}
+.com-root .com-access-numbering-values span { display: block; color: var(--com-texto-fraco); font-size: 11px; }
+.com-root .com-access-numbering-values strong { display: block; margin-top: 5px; color: var(--com-marca-forte); font-size: 18px; }
+.com-root .com-access-hint { margin: 0 0 16px; color: var(--com-texto-fraco); line-height: 1.5; }
+.com-root .com-access-confirmation { display: flex; align-items: flex-start; gap: 9px; font-size: 12px; line-height: 1.5; }
+.com-root .com-access-confirmation input { flex: none; width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--com-acao); }
+
+@media (max-width: 950px) {
+  .com-root .com-access-layout { grid-template-columns: 1fr; }
+  .com-root .com-access-side { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 650px) {
+  .com-root .com-access-side { grid-template-columns: 1fr; }
+  .com-root .com-access-user-controls .com-access-role { width: 100%; }
+  .com-root .com-access-user-controls .com-btn { flex: 1; }
+  .com-root .com-access-reset { display: grid; }
+  .com-root .com-access-reset .com-btn { justify-self: start; }
+}

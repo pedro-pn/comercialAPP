@@ -27,7 +27,8 @@ export function ClienteStep({
   orcamentista,
   consultores,
   podeEscolherConsultor,
-  erroCrm
+  erroCrm,
+  somenteRascunho = false
 }: {
   form: AnyRecord;
   editar: (patch: AnyRecord) => void;
@@ -36,6 +37,7 @@ export function ClienteStep({
   consultores: Array<{ id: string; nome: string }>;
   podeEscolherConsultor: boolean;
   erroCrm?: string;
+  somenteRascunho?: boolean;
 }) {
   const valor = (campo: string) => String(form[campo] ?? '');
 
@@ -44,7 +46,9 @@ export function ClienteStep({
       <div className="com-secao-titulo">
         <div>
           <h2>Cliente e responsáveis</h2>
-          <p>Selecione os dados oficiais que aparecerão nos dois documentos.</p>
+          <p>{somenteRascunho
+            ? 'Preencha os dados do cliente para a proposta.'
+            : 'Selecione os dados oficiais que aparecerão nos dois documentos.'}</p>
         </div>
         <span className="com-obrigatorios">Campos com * são obrigatórios</span>
       </div>
@@ -53,7 +57,7 @@ export function ClienteStep({
           esteve desabilitado enquanto a integração não existia; agora ela existe,
           e é por aqui que `companyId` e `contactId` entram — sem eles a
           finalização recusa, e digitar o nome à mão nunca os produziria. */}
-      <BuscaDeEmpresa onEscolher={editar} erro={erroCrm} />
+      {!somenteRascunho && <BuscaDeEmpresa onEscolher={editar} erro={erroCrm} />}
 
       <div className="com-form-grid">
         <SelectField

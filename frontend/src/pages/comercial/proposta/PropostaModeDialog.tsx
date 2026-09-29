@@ -111,9 +111,8 @@ export function PropostaModeDialog({
         <span className="com-eyebrow">PROPOSTA TÉCNICA E COMERCIAL</span>
         <h1 id="com-proposta-modo-titulo">Como deseja começar?</h1>
         <p>
-          Continue de um levantamento salvo para aproveitar o código e o preço
-          já calculado. Se necessário, também é possível criar uma proposta
-          avulsa ou revisar uma existente.
+          Use um levantamento concluído para aproveitar o preço calculado, crie uma
+          proposta sem levantamento ou revise uma proposta existente.
         </p>
 
         <div className="com-modo-opcoes com-modo-tres">

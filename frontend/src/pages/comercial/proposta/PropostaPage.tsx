@@ -89,6 +89,7 @@ import { PrazosStep } from './steps/PrazosStep';
 import { ComercialStep } from './steps/ComercialStep';
 import { ResponsabilidadesStep } from './steps/ResponsabilidadesStep';
 import { RevisaoStep } from './steps/RevisaoStep';
+import { FinalizacaoLocalPanel } from './FinalizacaoLocalPanel';
 import { TecnicaStep } from './steps/TecnicaStep';
 import { TutorialDoModulo } from '../TutorialDoModulo';
 import { ROTEIRO_DA_PROPOSTA } from '../roteiroDoTutorial';
@@ -155,7 +156,7 @@ function formularioInicial(modelo: ModeloProposta = 'padrao'): AnyRecord {
   };
 }
 
-export function PropostaPage() {
+export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: boolean }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
@@ -381,6 +382,9 @@ export function PropostaPage() {
     precos,
     incluirUnitario
   };
+  const nomeDoConsultor =
+    consultores.find((consultor) => consultor.id === form.seller)?.nome ||
+    String(form.sellerName || '');
   const propostaProntaParaSalvar =
     modo !== null &&
     modelo !== null &&
@@ -423,6 +427,7 @@ export function PropostaPage() {
   });
 
   const finalizacao = usePropostaFinalizacao({
+    habilitado: !somenteRascunho,
     propostaId,
     statusProposta,
     form,
@@ -517,6 +522,7 @@ export function PropostaPage() {
           (salvo === 'padrao' || salvo === 'hidrojateamento')
             ? { modelo: salvo }
             : {}),
+          levantamento: proposta.costEstimateId || '',
           modo: proposta.revisionNumber > 0 ? 'revision' : 'new',
           proposta: proposta.proposalCode,
           revisao: String(proposta.revisionNumber)
@@ -587,6 +593,7 @@ export function PropostaPage() {
    * uma falha esconderia a falha atrás de uma etapa nova.
    */
   async function avancar() {
+    if (somenteRascunho && statusProposta === 'FINALIZADA') return;
     if (statusProposta !== 'RASCUNHO' && etapa !== 'revisao') {
       setRecado(
         'Esta proposta já foi emitida e não aceita edição. Tente novamente pela revisão.'
@@ -597,6 +604,16 @@ export function PropostaPage() {
     // Mesma regra do vermelho na tela de custos: a marcação aparece quando o
     // usuário tenta avançar, não antes.
     setTentouAvancar(true);
+    if (ultima && somenteRascunho) {
+      if (!identificacaoCompleta) {
+        irPara('cliente');
+        setTentouAvancar(true);
+        setEtapaParaFocar('cliente');
+        return;
+      }
+      if (await salvar()) setRecado('Rascunho de proposta salvo no histórico.');
+      return;
+    }
     if (pendencias.length > 0) {
       setEtapaParaFocar(etapa);
       return;
@@ -618,6 +635,16 @@ export function PropostaPage() {
     const id = await salvar();
     if (!id) return;
     if (proximaEtapa) irPara(proximaEtapa.value, true);
+  }
+
+  function validarParaEmissaoLocal() {
+    const pendencia = pendenciasDoFormulario[0];
+    if (!pendencia) return true;
+    irPara(pendencia.etapa);
+    setTentouAvancar(true);
+    setEtapaParaFocar(pendencia.etapa);
+    setRecado(`Complete a etapa ${ETAPAS.find(item => item.value === pendencia.etapa)?.label || pendencia.etapa} antes de emitir.`);
+    return false;
   }
 
   function editar(patch: AnyRecord) {
@@ -675,7 +702,7 @@ export function PropostaPage() {
   /** O estado da tela no formato que `salvamento.ts` consome. */
   function conteudo(codigoAtual = codigo): ConteudoDaProposta {
     return {
-      form,
+      form: { ...form, sellerName: nomeDoConsultor },
       codigo: codigoAtual,
       revisionNumber,
       orcamentista: user?.name || '',
@@ -848,12 +875,15 @@ export function PropostaPage() {
       <PropostaFooter
         posicao={posicao}
         onCancelar={() => navigate(moduleRoutePath('comercial', 'index'))}
-        onSalvarRascunho={statusProposta === 'RASCUNHO' ? () => void salvar() : undefined}
+        onSalvarRascunho={statusProposta === 'RASCUNHO' &&
+          (!somenteRascunho || identificacaoCompleta) ? () => void salvar() : undefined}
         primeiraEtapa={indice === 0}
         aviso={avisoDePendencias(pendencias)}
         rotulo={
           salvando
             ? 'Salvando...'
+            : somenteRascunho && ultima
+              ? statusProposta === 'FINALIZADA' ? 'Proposta finalizada' : 'Salvar rascunho'
             : finalizacao.finalizando
               ? ETAPAS_VISIVEIS_DA_FINALIZACAO[
                   Math.max(0, finalizacao.etapaFinalizacao)
@@ -872,7 +902,8 @@ export function PropostaPage() {
                           proximaEtapa?.label
                         )
         }
-        ocupado={salvando || gerandoPdf || finalizacao.bloqueada}
+        ocupado={salvando || gerandoPdf || finalizacao.bloqueada ||
+          (somenteRascunho && statusProposta === 'FINALIZADA')}
         onVoltar={() =>
           statusProposta !== 'RASCUNHO'
             ? navigate(moduleRoutePath('comercial', 'historico'))
@@ -889,12 +920,16 @@ export function PropostaPage() {
     <ComercialChrome
       variante="proposta"
       semContainer
-      eyebrow={`FILTROVALI / ${modo === 'revision' ? 'REVISÃO' : 'NOVA PROPOSTA'}`}
+      eyebrow={somenteRascunho ?
+        statusProposta === 'FINALIZADA' ? 'FILTROVALI / PROPOSTA FINALIZADA' : 'FILTROVALI / PROPOSTA' :
+        `FILTROVALI / ${modo === 'revision' ? 'REVISÃO' : 'NOVA PROPOSTA'}`}
       titulo="Propostas "
       tituloComplemento={codigoExibido}
-      descricao="Um cadastro, dois documentos: técnico e comercial."
+      descricao={somenteRascunho
+        ? 'Monte a proposta, confira os documentos e finalize neste aplicativo.'
+        : 'Um cadastro, dois documentos: técnico e comercial.'}
       chips={
-        <>
+        somenteRascunho ? undefined : <>
           {/* **A pergunta é sobre a INTEGRAÇÃO, não sobre esta proposta.** O porte
               tinha trocado a condição por `vinculoCrm` — "esta proposta já tem
               card" —, e aí um ambiente com o Nectar ligado e respondendo exibia
@@ -916,7 +951,7 @@ export function PropostaPage() {
         </>
       }
       acoes={
-        <>
+        somenteRascunho ? undefined : <>
           {/* Não abre sozinho: quem chegou nesta tela já passou pela entrada. */}
           <TutorialDoModulo passos={ROTEIRO_DA_PROPOSTA} />
           <button
@@ -941,7 +976,8 @@ export function PropostaPage() {
               ? `Card ${vinculoCrm.opportunityId} · ${
                   vinculoCrm.pipelineName || vinculoCrm.pipelineId
                 }`
-              : 'Integração Nectar na etapa final'}
+              : somenteRascunho ? 'Documentos guardados no Comercial' :
+                'Integração Nectar na etapa final'}
           </span>
         </div>
       }
@@ -1140,6 +1176,7 @@ export function PropostaPage() {
 
           {etapa === 'cliente' ? (
             <ClienteStep
+              somenteRascunho={somenteRascunho}
               form={form}
               editar={editar}
               erroDe={erroDe}
@@ -1154,6 +1191,7 @@ export function PropostaPage() {
             />
           ) : etapa === 'escopo' ? (
             <EscopoStep
+              permitirFotos
               titulo={String(form.title ?? '')}
               onTitulo={(valor) => editar({ title: valor })}
               itens={itensEscopo}
@@ -1200,6 +1238,26 @@ export function PropostaPage() {
               mostrarErros={tentouAvancar}
               modelo={modelo ?? 'padrao'}
             />
+          ) : somenteRascunho ? (
+            <>
+              <section className="com-painel">
+                <div className="com-secao-titulo">
+                  <div>
+                    <h2>Revisão da proposta</h2>
+                    <p>Confira o conteúdo, emita os arquivos e finalize antes de enviar ao Nectar.</p>
+                  </div>
+                </div>
+                <p><strong>Cliente:</strong> {String(form.client || 'Não informado')}</p>
+                <p><strong>Serviço:</strong> {String(form.title || 'Não informado')}</p>
+                <p><strong>Código:</strong> {codigoExibido}</p>
+              </section>
+              <FinalizacaoLocalPanel proposalId={propostaId} status={statusProposta}
+                save={() => salvar()} validate={validarParaEmissaoLocal}
+                onFinalized={() => {
+                  setStatusProposta('FINALIZADA');
+                  finalizacao.marcarFinalizada(true);
+                }} />
+            </>
           ) : (
             <RevisaoStep
               form={form}
@@ -1235,7 +1293,7 @@ export function PropostaPage() {
             </p>
           )}
 
-          {finalizacao.etapaFinalizacao >= 0 && (
+          {!somenteRascunho && finalizacao.etapaFinalizacao >= 0 && (
             <section
               className="com-painel com-progresso-finalizacao"
               aria-live="polite"
@@ -1263,14 +1321,14 @@ export function PropostaPage() {
             </section>
           )}
 
-          <FinalizacaoPanel
+          {!somenteRascunho && <FinalizacaoPanel
             documentos={finalizacao.emitidos}
             escolha={finalizacao.escolhaDownload}
             baixandoId={finalizacao.baixandoId}
             onBaixar={(documentos) => {
               finalizacao.baixarDocumentos(documentos).catch(() => {});
             }}
-          />
+          />}
 
           {autosave.rotulo && (
             <p
@@ -1289,10 +1347,11 @@ export function PropostaPage() {
           cliente. Ver o documento se formar é o que faz alguém perceber que o
           escopo saiu vazio ANTES de gerar o PDF. */}
         <PropostaPreviewPanel
+          somenteRascunho={somenteRascunho}
           indice={indice}
           documento={documentoNaPrevia}
           onDocumento={setDocumentoNaPrevia}
-          form={{ ...form, estimator: user?.name || '' }}
+          form={{ ...form, sellerName: nomeDoConsultor, estimator: user?.name || '' }}
           codigo={codigoExibido}
           itensEscopo={itensEscopo}
           blocos={blocos}

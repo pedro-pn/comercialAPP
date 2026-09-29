@@ -2,11 +2,11 @@ services:
   web:
     networks:
       private:
-      filtrovali-edge:
+      proxy-edge:
         aliases:
           - comercialapp-web
 
 networks:
-  filtrovali-edge:
+  proxy-edge:
     external: true
-    name: filtrovali-net
+    name: proxy-net
