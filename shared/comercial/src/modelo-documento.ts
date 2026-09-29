@@ -1016,7 +1016,17 @@ export type ValoresStandby = {
   standbyEquipamento: number;
   /** `valor_desmob_extra` — mobilização extra, por evento ida e volta. */
   mobilizacaoExtra: number;
+  /** Quantidade usada para compor a diária total da equipe. */
+  quantidadeColaboradores?: unknown;
 };
+
+/** A diária da equipe é o preço por colaborador multiplicado pelo efetivo. */
+export function totalStandbyEquipe(valorPorColaborador: number, quantidade: unknown): number {
+  const colaboradores = quantidade == null ? 1 : Number(quantidade);
+  if (!Number.isInteger(colaboradores) || colaboradores <= 0) return 0;
+  if (!Number.isFinite(valorPorColaborador) || valorPorColaborador < 0) return 0;
+  return Math.round(valorPorColaborador * 100 * colaboradores) / 100;
+}
 
 function moeda(valor: number): string {
   return new Intl.NumberFormat("pt-BR", {
@@ -1025,11 +1035,20 @@ function moeda(valor: number): string {
   }).format(valor);
 }
 
+export function rotuloStandbyEquipe(quantidadeInformada?: unknown): string {
+  const quantidade = Number(quantidadeInformada);
+  return quantidadeInformada != null
+    && quantidadeInformada !== ''
+    && Number.isInteger(quantidade) && quantidade > 0
+    ? `Stand-by de Equipe (${quantidade} ${quantidade === 1 ? 'colaborador' : 'colaboradores'})`
+    : "Stand-by de Equipe";
+}
+
 export function tabelaStandby(
   valores: ValoresStandby,
 ): readonly (readonly [string, string])[] {
   return [
-    ["Stand-by de Equipe", moeda(valores.standbyEquipe)],
+    [rotuloStandbyEquipe(valores.quantidadeColaboradores), moeda(valores.standbyEquipe)],
     ["Stand-by de Equipamentos", moeda(valores.standbyEquipamento)],
     [
       "Mobilização Extra (por evento ida e volta)",
@@ -1053,7 +1072,7 @@ export function fraseHoraExtra(valorHomemHora: number): string {
 
 export const TITULO_BLOCO_STANDBY = "Condições de Stand by e Mobilização Adicional:";
 
-export const TEXTO_EXPLICACAO_STANDBY = `Stand-by de Equipe: quando a equipe permanecer em obra aguardando condições para início ou continuidade dos trabalhos, será cobrado o valor de diária, correspondente a 8 horas, conforme a tabela acima. O serviço é um pacote fechado; sendo assim, qualquer interferência que gere impacto ou não no cronograma acarretará a aplicação da diária de stand-by, por ter interferência direta na performance do projeto.
+export const TEXTO_EXPLICACAO_STANDBY = `Stand-by de Equipe: quando a equipe permanecer em obra aguardando condições para início ou continuidade dos trabalhos, será cobrado o valor de diária, correspondente a 8 horas, conforme a tabela acima. A diária da equipe corresponde ao valor por colaborador multiplicado pela quantidade de colaboradores informada na proposta. O serviço é um pacote fechado; sendo assim, qualquer interferência que gere impacto ou não no cronograma acarretará a aplicação da diária de stand-by, por ter interferência direta na performance do projeto.
 
 Stand-by de Equipamentos: a partir da chegada dos equipamentos em obra, caso permaneçam aguardando frente de serviço ou ultrapassem o prazo previsto no item 5.1, será aplicada cobrança diária conforme a tabela. A Contratante deverá avaliar a viabilidade de arcar com esses custos ou optar pela desmobilização/mobilização dos equipamentos. O serviço é um pacote fechado; sendo assim, qualquer interferência que gere impacto ou não no cronograma acarretará a aplicação da diária de stand-by, por ter interferência direta na performance do projeto.
 

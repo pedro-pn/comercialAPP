@@ -150,6 +150,7 @@ function formularioInicial(modelo: ModeloProposta = 'padrao'): AnyRecord {
     // Os quatro da tabela de stand-by (T071d).
     overtimeRate: VALORES_PADRAO_STANDBY.overtimeRate,
     standbyTeam: VALORES_PADRAO_STANDBY.standbyTeam,
+    standbyTeamQuantity: '1',
     standbyEquipment: '',
     extraMobilization: '',
     validity: '10'

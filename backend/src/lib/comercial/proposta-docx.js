@@ -9,8 +9,10 @@ import { DOMParser, XMLSerializer } from '@xmldom/xmldom';
 import {
   categoriaCanonicaResponsabilidade,
   ordenarLinhasDeResponsabilidade,
+  rotuloStandbyEquipe,
   tabelasDePrecoDoModelo,
-  textoJornada
+  textoJornada,
+  totalStandbyEquipe
 } from '../../../../shared/comercial/dist/modelo-documento.js';
 import { scopeDescriptionParagraphs } from '../../../../shared/comercial/dist/scope-descriptions.js';
 import {
@@ -179,7 +181,9 @@ function camposSimples(dados) {
     prazo_pgto: dados.paymentTerm || '',
     forma_pgto: dados.paymentMethod || '',
     valor_he: moeda(lerDinheiro(dados.overtimeRate)),
-    valor_standby: moeda(lerDinheiro(dados.standbyTeam)),
+    valor_standby: moeda(totalStandbyEquipe(
+      lerDinheiro(dados.standbyTeam), dados.standbyTeamQuantity
+    )),
     diaria_equipamento: moeda(lerDinheiro(dados.standbyEquipment)),
     valor_desmob_extra: moeda(lerDinheiro(dados.extraMobilization)),
     validadeProp: dados.validity || '',
@@ -189,6 +193,18 @@ function camposSimples(dados) {
     // marcadores só olhava `word/document.xml`.
     data_texto: formatarData(dados.date)
   };
+}
+
+function ajustarRotuloStandby(doc, quantidadeInformada) {
+  const rotulo = rotuloStandbyEquipe(quantidadeInformada ?? 1);
+  if (rotulo === 'Stand-by de Equipe') return;
+  const celula = findFirstByText(doc, 'w:tc', 'Stand-by de Equipe');
+  if (!celula) return;
+  replaceTokenInElement(
+    celula,
+    'Stand-by de Equipe',
+    rotulo
+  );
 }
 
 /**
@@ -371,12 +387,24 @@ function ajustarRelatorios(doc, servicos) {
 
 function paragrafoDeTexto(doc, texto, { negrito = false, tamanho = 20 } = {}) {
   const xml = `<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-    <w:pPr><w:spacing w:before="60" w:after="60"/></w:pPr>
+    <w:pPr><w:spacing w:before="0" w:after="120" w:line="240" w:lineRule="auto"/></w:pPr>
     <w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="${tamanho}"/>${
       negrito ? '<w:b/>' : ''
     }</w:rPr><w:t xml:space="preserve">${escapar(texto)}</w:t></w:r>
   </w:p>`;
   return new DOMParser().parseFromString(xml, 'text/xml').documentElement;
+}
+
+/** Linhas em branco separam parágrafos; uma quebra simples permanece na linha. */
+function paragrafosDeTexto(doc, texto) {
+  return String(texto || '')
+    .trim()
+    .split(/(?:\r?\n\s*){2,}/u)
+    .map(trecho => {
+      const paragrafo = paragrafoDeTexto(doc, trecho.trim());
+      preserveWordTextLineBreaks(paragrafo);
+      return paragrafo;
+    });
 }
 
 function tituloDoCorpo(doc, trecho) {
@@ -481,9 +509,9 @@ function ajustarJornada(doc, jornada, modelo) {
   const ancora = limparEntreTitulos(doc, '- Jornada de trabalho:', proximoTitulo);
   if (!ancora) return;
 
-  const paragrafo = paragrafoDeTexto(doc, jornada || textoJornada(modelo));
-  preserveWordTextLineBreaks(paragrafo);
-  ancora.parentNode.insertBefore(paragrafo, ancora);
+  for (const paragrafo of paragrafosDeTexto(doc, jornada || textoJornada(modelo))) {
+    ancora.parentNode.insertBefore(paragrafo, ancora);
+  }
 }
 
 /**
@@ -504,24 +532,22 @@ function ajustarEscopoTecnico(doc, servicos) {
       `7.${indice + 1} ${servico.title || `Serviço ${indice + 1}`}`,
       { negrito: true }
     );
-    const texto = paragrafoDeTexto(doc, servico.text || '');
-    preserveWordTextLineBreaks(texto);
     ancora.parentNode.insertBefore(titulo, ancora);
-    ancora.parentNode.insertBefore(texto, ancora);
+    for (const texto of paragrafosDeTexto(doc, servico.text || '')) {
+      ancora.parentNode.insertBefore(texto, ancora);
+    }
   });
-}
-
-function paragrafoComQuebras(doc, texto) {
-  const paragrafo = paragrafoDeTexto(doc, texto);
-  preserveWordTextLineBreaks(paragrafo);
-  return paragrafo;
 }
 
 function substituirEntreTitulos(doc, inicio, fim, texto) {
   const valor = String(texto || '').trim();
   if (!valor) return;
   const ancora = limparEntreTitulos(doc, inicio, fim);
-  if (ancora) ancora.parentNode.insertBefore(paragrafoComQuebras(doc, valor), ancora);
+  if (ancora) {
+    for (const paragrafo of paragrafosDeTexto(doc, valor)) {
+      ancora.parentNode.insertBefore(paragrafo, ancora);
+    }
+  }
 }
 
 /** Substitui o trecho final de uma seção sem apagar o conteúdo que vem antes. */
@@ -537,7 +563,9 @@ function substituirCaudaAteTitulo(doc, inicioDaCauda, fim, texto) {
     if (atual.nodeType === 1) removeNode(atual);
     atual = proximo;
   }
-  fimDaSecao.parentNode.insertBefore(paragrafoComQuebras(doc, valor), fimDaSecao);
+  for (const paragrafo of paragrafosDeTexto(doc, valor)) {
+    fimDaSecao.parentNode.insertBefore(paragrafo, fimDaSecao);
+  }
 }
 
 /**
@@ -561,7 +589,9 @@ function ajustarTextosEditaveis(doc, dados, tipo) {
   const relatoriosComplementares = String(dados.technicalReports || '').trim();
   const validade = tituloDoCorpo(doc, '- Validade da proposta:');
   if (relatoriosComplementares && validade) {
-    validade.parentNode.insertBefore(paragrafoComQuebras(doc, relatoriosComplementares), validade);
+    for (const paragrafo of paragrafosDeTexto(doc, relatoriosComplementares)) {
+      validade.parentNode.insertBefore(paragrafo, validade);
+    }
   }
 
   const observacoesComplementares = String(dados.technicalObservations || '').trim();
@@ -571,7 +601,9 @@ function ajustarTextosEditaveis(doc, dados, tipo) {
     corpo &&
     Array.from(corpo.childNodes).find(no => no.nodeType === 1 && no.nodeName === 'w:sectPr');
   if (propriedadesDaSecao) {
-    corpo.insertBefore(paragrafoComQuebras(doc, observacoesComplementares), propriedadesDaSecao);
+    for (const paragrafo of paragrafosDeTexto(doc, observacoesComplementares)) {
+      corpo.insertBefore(paragrafo, propriedadesDaSecao);
+    }
   }
 }
 
@@ -680,6 +712,7 @@ export async function preencherProposta(dados, tipo) {
     const doc = new DOMParser().parseFromString(item.getData().toString('utf8'), 'text/xml');
 
     if (parte === 'word/document.xml') {
+      if (tipo === 'commercial') ajustarRotuloStandby(doc, dados.standbyTeamQuantity);
       ajustarPrevisaoDeAtendimento(doc, dados.attendance);
       ajustarColunaDeValorUnitario(doc, dados.includeUnitValue);
       ajustarJornada(doc, String(dados.workday || '').trim(), modelo);
