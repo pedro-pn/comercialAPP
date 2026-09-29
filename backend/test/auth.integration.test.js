@@ -80,6 +80,7 @@ test('login local, permissões do gestor e revogação de sessão', { skip: !dat
   assert.equal(login.json.user.username, 'gestor');
   assert.equal(login.json.user.passwordHash, undefined);
   assert.match(login.response.headers.get('set-cookie'), /HttpOnly/);
+  assert.match(login.response.headers.get('set-cookie'), /Max-Age=604800/);
   const managerCookie = login.response.headers.get('set-cookie').split(';')[0];
   assert.equal((await request('/api/auth/me', { cookie: managerCookie })).json.user.role, 'MANAGER');
   assert.equal((await request('/api/users')).response.status, 401);

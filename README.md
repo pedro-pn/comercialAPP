@@ -42,7 +42,13 @@ desenvolvimento local.
 6. Abra http://localhost:5174 e entre com o usuário do gestor. O gestor pode
    criar, desativar e alterar os papéis de outros usuários.
 7. Execute `npm run check` para compilar a interface e as regras, verificar as
-   telas extraídas, testar os cálculos e validar o esquema Prisma.
+   telas extraídas, testar os cálculos e validar o esquema Prisma. Para executar
+   também os testes de integração, configure `TEST_DATABASE_URL` com um banco
+   exclusivo chamado `comercialapp_test` e aplique as migrações nele.
+
+O [CI](.github/workflows/ci.yml) executa `npm ci`, aplica as migrações em um
+PostgreSQL de teste, roda `npm run check` e valida os arquivos Compose e os
+scripts de backup. Ele é executado nos PRs para `main` e nos pushes à `main`.
 
 O backend escuta em 127.0.0.1:4300 por padrão. A sessão usa cookie HttpOnly;
 em produção, `APP_ORIGIN` deve ser a origem HTTPS pública e o cookie é marcado
@@ -63,7 +69,7 @@ usuários está vazia.
 
 ## Decisões de produto
 
-- Repositório remoto privado: será criado pelo proprietário; não há remoto local.
+- Repositório remoto privado: `pedro-pn/comercialAPP`.
 - Produção: comercial.filtrovali.com.br na mesma VPS do FiltroAPP, sob outro
   usuário do sistema e com banco próprio. O Compose é separado e só o Nginx do
   Comercial compartilha a rede do proxy do FiltroAPP.
