@@ -109,23 +109,36 @@ export function App() {
   }
 
   return (
-    <main className="shell">
-      <div className="brand">Filtrovali · Comercial</div>
-      <section className="card">
-        {loading ? <p role="status">Verificando acesso…</p> : (
-          <>
-            <p className="eyebrow">Acesso local</p>
-            <h1>Entrar no Comercial</h1>
-            <form onSubmit={handleLogin} className="login-form">
-              <label>Usuário<input required autoComplete="username" autoCapitalize="none" value={username}
-                onChange={event => setUsername(event.target.value)} /></label>
-              <label>Senha<input required type="password" autoComplete="current-password" value={password}
-                onChange={event => setPassword(event.target.value)} /></label>
-              <button type="submit" disabled={busy}>Entrar</button>
-            </form>
-          </>
-        )}
-        {error && <p className="error" role="alert">{error}</p>}
+    <main className="login-page">
+      <section className="login-layout" aria-labelledby="login-title">
+        <div className="login-visual" aria-hidden="true">
+          <div className="login-visual-content">
+            <span className="login-visual-brand">Filtrovali</span>
+            <p>Comercial</p>
+          </div>
+        </div>
+        <div className="login-panel">
+          <div className="login-panel-content">
+            <img className="login-logo" src="/assets/Logo/LOGO_COLORIDO.png" alt="Filtrovali" />
+            <div className="login-heading">
+              <p className="login-eyebrow">ComercialAPP</p>
+              <h1 id="login-title">Bem-vindo de volta</h1>
+              <p>Entre com sua conta para acessar o Comercial.</p>
+            </div>
+            {loading ? <p className="login-status" role="status">Verificando acesso…</p> : (
+              <form onSubmit={handleLogin} className="login-form">
+                <label htmlFor="login-username">Usuário</label>
+                <input id="login-username" required autoComplete="username" autoCapitalize="none"
+                  value={username} onChange={event => setUsername(event.target.value)} />
+                <label htmlFor="login-password">Senha</label>
+                <input id="login-password" required type="password" autoComplete="current-password"
+                  value={password} onChange={event => setPassword(event.target.value)} />
+                <button type="submit" disabled={busy}>{busy ? 'Entrando…' : 'Entrar'}</button>
+              </form>
+            )}
+            {error && <p className="login-error" role="alert">{error}</p>}
+          </div>
+        </div>
       </section>
     </main>
   );

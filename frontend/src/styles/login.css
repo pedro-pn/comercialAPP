@@ -1,0 +1,185 @@
+.login-page {
+  display: grid;
+  min-height: 100vh;
+  min-height: 100dvh;
+  place-items: center;
+  padding: clamp(16px, 4vw, 56px);
+  background: radial-gradient(circle at 10% 15%, #e2efea 0, transparent 32%), #f2f5f3;
+}
+
+.login-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  width: min(1180px, 100%);
+  min-height: min(760px, calc(100dvh - 112px));
+  overflow: hidden;
+  border: 1px solid #dce6e0;
+  border-radius: 26px;
+  background: #fff;
+  box-shadow: 0 30px 80px #173c2c1c;
+}
+
+.login-visual {
+  position: relative;
+  display: flex;
+  align-items: end;
+  min-height: 100%;
+  overflow: hidden;
+  color: #fff;
+  /* Ao escolher a foto, defina --login-hero-image: url('/assets/...'). */
+  background-image:
+    linear-gradient(180deg, transparent 40%, #092d25bd 100%),
+    var(--login-hero-image,
+      radial-gradient(circle at 76% 22%, #6db89b 0, transparent 35%),
+      linear-gradient(135deg, #12382f 8%, #26745d 62%, #103a30 100%));
+  background-size: cover;
+  background-position: center;
+}
+
+.login-visual::before {
+  position: absolute;
+  inset: 0;
+  content: '';
+  background: linear-gradient(125deg, #ffffff18 0, transparent 38%);
+  pointer-events: none;
+}
+
+.login-visual-content {
+  position: relative;
+  z-index: 1;
+  padding: clamp(36px, 5vw, 72px);
+  text-shadow: 0 2px 16px #08292066;
+}
+
+.login-visual-brand {
+  display: block;
+  margin-bottom: 12px;
+  font-size: .82rem;
+  font-weight: 700;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.login-visual-content p {
+  margin: 0;
+  font-size: clamp(3rem, 5vw, 5rem);
+  font-weight: 700;
+  letter-spacing: -.055em;
+  line-height: 1;
+}
+
+.login-panel {
+  display: flex;
+  align-items: center;
+  padding: clamp(32px, 4vw, 56px);
+}
+
+.login-panel-content { width: 100%; }
+
+.login-logo {
+  display: block;
+  width: min(200px, 72%);
+  height: auto;
+  margin-bottom: clamp(40px, 6vw, 72px);
+}
+
+.login-heading { margin-bottom: 34px; }
+
+.login-eyebrow {
+  margin: 0 0 12px;
+  color: #286d55;
+  font-size: .74rem;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.login-heading h1 {
+  margin: 0 0 12px;
+  color: #173a2d;
+  font-size: clamp(1.8rem, 2.8vw, 2.4rem);
+  letter-spacing: -.045em;
+  line-height: 1.12;
+}
+
+.login-heading > p:last-child {
+  margin: 0;
+  color: #667970;
+  font-size: .94rem;
+  line-height: 1.5;
+}
+
+.login-form { display: grid; gap: 10px; }
+
+.login-form label {
+  color: #294438;
+  font-size: .87rem;
+  font-weight: 700;
+}
+
+.login-form input {
+  width: 100%;
+  min-height: 50px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px solid #cfdbd3;
+  border-radius: 10px;
+  outline: none;
+  background: #fff;
+  color: #173a2d;
+  font: inherit;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.login-form input:focus {
+  border-color: #247b5d;
+  box-shadow: 0 0 0 3px #247b5d25;
+}
+
+.login-form button {
+  min-height: 50px;
+  margin-top: 8px;
+  border: 0;
+  border-radius: 10px;
+  background: #1e664d;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color .15s ease;
+}
+
+.login-form button:hover:not(:disabled) { background: #15543e; }
+.login-form button:focus-visible { outline: 3px solid #77bfa0; outline-offset: 3px; }
+.login-form button:disabled { cursor: wait; opacity: .65; }
+
+.login-status { color: #496456; }
+
+.login-error {
+  margin: 18px 0 0;
+  color: #a32b31;
+  font-size: .88rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+@media (max-width: 900px) {
+  .login-layout { grid-template-columns: 1fr; min-height: 0; }
+  .login-visual { min-height: 230px; }
+  .login-visual-content { padding: 32px 40px; }
+  .login-visual-content p { font-size: 3rem; }
+  .login-panel { justify-content: center; padding: 44px 32px 52px; }
+  .login-panel-content { max-width: 460px; }
+  .login-logo { margin-bottom: 40px; }
+}
+
+@media (max-width: 480px) {
+  .login-page { padding: 12px; }
+  .login-layout { border-radius: 18px; }
+  .login-visual { min-height: 170px; }
+  .login-visual-content { padding: 24px; }
+  .login-visual-content p { font-size: 2.4rem; }
+  .login-panel { padding: 34px 24px 42px; }
+  .login-logo { width: 168px; margin-bottom: 36px; }
+  .login-heading { margin-bottom: 28px; }
+}
