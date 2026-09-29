@@ -1,7 +1,7 @@
 /* Base de controles usada pelo Comercial na origem (NewRDO/base.css).
    Mantida sob .com-root para não afetar o login e a administração locais. */
 .com-root {
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: Arial, Helvetica, sans-serif;
   font-size: 14px;
 }
 
