@@ -14,6 +14,21 @@ const PropostaPage = lazy(() => import('./pages/comercial/proposta/PropostaPage'
   .then(module => ({ default: module.PropostaPage })));
 const ConfiguracoesPage = lazy(() => import('./pages/comercial/configuracoes/ConfiguracoesPage')
   .then(module => ({ default: module.ConfiguracoesPage })));
+const REMEMBERED_USER_KEY = 'comercialapp-remembered-user';
+
+function readRememberedUser() {
+  try { return localStorage.getItem(REMEMBERED_USER_KEY) || ''; }
+  catch { return ''; }
+}
+
+function saveRememberedUser(username: string, rememberUser: boolean) {
+  try {
+    if (rememberUser) localStorage.setItem(REMEMBERED_USER_KEY, username);
+    else localStorage.removeItem(REMEMBERED_USER_KEY);
+  } catch {
+    // O login continua funcionando quando o navegador bloqueia o armazenamento local.
+  }
+}
 
 function errorMessage(error: unknown) {
   return error instanceof ApiClientError ? error.message : 'Não foi possível concluir a operação.';
@@ -26,8 +41,10 @@ export function App() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(readRememberedUser);
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberUser, setRememberUser] = useState(() => Boolean(readRememberedUser()));
 
   useEffect(() => {
     getCurrentUser()
@@ -45,11 +62,16 @@ export function App() {
     setBusy(true);
     setError('');
     try {
-      setUser(await login(username, password));
+      const loggedInUser = await login(username, password);
+      saveRememberedUser(username, rememberUser);
+      setUser(loggedInUser);
       setPassword('');
     } catch (requestError) {
       setError(errorMessage(requestError));
-    } finally { setBusy(false); }
+    } finally {
+      setShowPassword(false);
+      setBusy(false);
+    }
   }
 
   async function handleLogout() {
@@ -131,9 +153,31 @@ export function App() {
                 <input id="login-username" required autoComplete="username" autoCapitalize="none"
                   value={username} onChange={event => setUsername(event.target.value)} />
                 <label htmlFor="login-password">Senha</label>
-                <input id="login-password" required type="password" autoComplete="current-password"
-                  value={password} onChange={event => setPassword(event.target.value)} />
-                <button type="submit" disabled={busy}>{busy ? 'Entrando…' : 'Entrar'}</button>
+                <div className="login-password-field">
+                  <input id="login-password" required type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password" value={password}
+                    onChange={event => setPassword(event.target.value)} />
+                  <button className="login-password-toggle" type="button" disabled={busy}
+                    aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                    title={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                    aria-pressed={showPassword} onMouseDown={event => event.preventDefault()}
+                    onClick={() => setShowPassword(value => !value)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+                      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6Z" />
+                      <circle cx="12" cy="12" r="2.7" />
+                      {showPassword && <path d="M3 3 21 21" />}
+                    </svg>
+                  </button>
+                </div>
+                <label className="login-remember-user">
+                  <input type="checkbox" checked={rememberUser}
+                    onChange={event => setRememberUser(event.target.checked)} />
+                  <span>Lembrar usuário</span>
+                </label>
+                <button className="login-submit" type="submit" disabled={busy}>
+                  {busy ? 'Entrando…' : 'Entrar'}
+                </button>
               </form>
             )}
             {error && <p className="login-error" role="alert">{error}</p>}
