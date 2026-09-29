@@ -19,6 +19,7 @@ import {
   obterLevantamento,
   obterProposta,
   reservarProximoNumero,
+  registrarRevisaoLegada,
   ComercialConcurrentWriteError,
   type Consultor,
   type LevantamentoSalvo
@@ -734,6 +735,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     proximos.set('modo', 'new');
     proximos.set('etapa', 'cliente');
     proximos.delete('revisao');
+    proximos.delete('legado');
     proximos.delete('id');
     setParams(proximos, { replace: true });
     setVinculoCrm(null);
@@ -750,6 +752,40 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     setLevantamentoVinculado(levantamento);
     setRecado('Carregando dados do levantamento...');
     setParams(proximos, { replace: true });
+  }
+
+  async function iniciarRevisaoLegada(proposalCode: string, revisionNumber: number): Promise<boolean> {
+    try {
+      const registrada = await registrarRevisaoLegada(proposalCode, revisionNumber);
+      setForm(formularioInicial('padrao'));
+      setItensEscopo([]);
+      setBlocos([]);
+      setResponsabilidades(matrizInicial('padrao'));
+      setCategorias([...CATEGORIAS_RESPONSABILIDADE]);
+      setServicosTecnicos([]);
+      setComplementoRelatorios('');
+      setPrecos([{ description: '', unit: 'VB', quantity: '1', unitValue: '', value: '' }]);
+      setIncluirUnitario(true);
+      setTentouAvancar(false);
+      setPendenciaFinalizacao(null);
+      setLevantamentoVinculado(null);
+      setVinculoCrm(null);
+      finalizacao.reiniciarFinalizacao();
+      setStatusProposta('RASCUNHO');
+      setVersaoCarregada('');
+      setRecado(`Proposta legada ${registrada.proposalCode}: preencha a revisão ${registrada.revisionNumber}. Os dados anteriores não estão neste aplicativo.`);
+      setParams(new URLSearchParams({
+        modo: 'revision',
+        proposta: registrada.proposalCode,
+        revisao: String(registrada.revisionNumber),
+        legado: '1',
+        etapa: 'cliente'
+      }), { replace: true });
+      return true;
+    } catch (error) {
+      setRecado(mensagemDeErro(error, 'Não foi possível registrar a revisão legada.'));
+      return false;
+    }
   }
 
   function continuarPropostaDoLevantamento(levantamento: LevantamentoSalvo) {
@@ -967,9 +1003,9 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
       heroExtra={
         <div className="com-sequencia">
           <small>
-            {modo === 'revision'
-              ? 'REVISÃO AUTOMÁTICA'
-              : 'NUMERAÇÃO AUTOMÁTICA'}
+            {params.get('legado') === '1'
+              ? 'REVISÃO LEGADA'
+              : modo === 'revision' ? 'REVISÃO AUTOMÁTICA' : 'NUMERAÇÃO AUTOMÁTICA'}
           </small>
           <strong>{codigoExibido}</strong>
           <span>
@@ -1043,6 +1079,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
           onPropostaExistente={continuarPropostaDoLevantamento}
           onNova={iniciarNovaProposta}
           onRevisao={carregarRevisao}
+          onLegada={iniciarRevisaoLegada}
           onFechar={() => navigate(moduleRoutePath('comercial', 'index'))}
         />
       )}
@@ -1062,6 +1099,12 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
 
       <section className="com-workspace">
         <div ref={formularioRef} className="com-form-panel">
+          {params.get('legado') === '1' && (
+            <p className="com-recado" role="status">
+              Esta é a primeira revisão deste número no Comercial. Preencha os dados da proposta
+              anterior manualmente; o histórico legado não foi importado.
+            </p>
+          )}
           {modo !== null && modelo !== null && renderAcoesDaProposta('topo')}
           {levantamentoVinculado && modo !== null && (
             <section className="com-vinculo-levantamento" role="status">

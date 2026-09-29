@@ -6,7 +6,7 @@ import {
   archiveCostEstimate, createCostEstimate, getCostEstimate,
   listCostEstimates, updateCostEstimate
 } from './cost-estimates.js';
-import { initializeNumbering, numberingStatus, reserveNumber } from './numbering.js';
+import { initializeNumbering, numberingStatus, registerLegacyRevision, reserveNumber } from './numbering.js';
 import {
   archiveProposal, createProposal, getProposal, listProposals,
   prepareRevision, updateProposal
@@ -26,6 +26,10 @@ import { crmBridgeStatus, recordManualSelection, deliverToFiltro,
 
 const schemas = makeComercialSchemas(z);
 const initialNumberSchema = z.object({ initialNumber: z.number().int().min(1).max(2_147_483_646) });
+const legacyRevisionSchema = z.object({
+  proposalCode: z.string().regex(/^[1-9]\d*$/).max(10),
+  revisionNumber: z.number().int().min(1).max(2_147_483_646)
+});
 const crmSendSchema = z.object({
   pipelineId: z.string().trim().min(1),
   companyId: z.string().trim().optional(),
@@ -64,6 +68,12 @@ export function createCommercialRouter(db, { crm = createNectarClient() } = {}) 
 
   router.post('/propostas/proximo-numero', requireEstimator, async (request, response) => {
     response.set('Cache-Control', 'no-store').json({ numero: await reserveNumber(db, request.authUser) });
+  });
+
+  router.post('/propostas/legado/revisao', requireEstimator, async (request, response) => {
+    const { proposalCode, revisionNumber } = legacyRevisionSchema.parse(request.body);
+    const registered = await registerLegacyRevision(db, request.authUser, proposalCode, revisionNumber);
+    response.status(registered.alreadyRegistered ? 200 : 201).json(registered);
   });
 
   router.get('/consultores', requireEstimator, async (request, response) => {

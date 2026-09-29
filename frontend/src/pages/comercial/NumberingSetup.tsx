@@ -54,10 +54,13 @@ export function NumberingSetup() {
         <p>Sequência única usada ao reservar novos números.</p>
       </div></div>
       {carregando ? <p role="status">Consultando numeração...</p> : estado?.seeded ? (
-        <div className="com-access-numbering-values">
-          <div><span>Valor inicial</span><strong>{estado.seedValue}</strong></div>
-          <div><span>Próximo número</span><strong>{estado.nextNumber}</strong></div>
-        </div>
+        <>
+          <div className="com-access-numbering-values">
+            <div><span>Valor inicial</span><strong>{estado.seedValue}</strong></div>
+            <div><span>Próximo na sequência</span><strong>{estado.nextNumber}</strong></div>
+          </div>
+          <p className="com-access-hint">Ao reservar, números legados registrados são pulados.</p>
+        </>
       ) : (
         <>
           <p className="com-access-hint">Configure uma única vez, após conferir os códigos usados no CRM e no legado.</p>

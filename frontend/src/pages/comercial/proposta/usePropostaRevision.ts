@@ -143,6 +143,7 @@ export function usePropostaRevision({
       proximos.set('revisao', String(revisao.nextRevision));
       proximos.set('etapa', 'cliente');
       proximos.delete('id');
+      proximos.delete('legado');
 
       // Chegando de custos, `levantamento` já é a NOVA revisão e vence.
       if (!proximos.get('levantamento') && revisao.costEstimateId) {
@@ -170,7 +171,8 @@ export function usePropostaRevision({
   );
 
   useEffect(() => {
-    if (modo !== 'revision' || propostaId || !codigo || codigo === '—') return;
+    if (modo !== 'revision' || propostaId || params.get('legado') === '1' ||
+        !codigo || codigo === '—') return;
     const chave = `${codigo}:${revisionNumber}`;
     if (revisaoCarregada.current === chave) return;
 
@@ -207,6 +209,7 @@ export function usePropostaRevision({
   const revisaoPronta =
     modo !== 'revision' ||
     Boolean(propostaId) ||
+    (params.get('legado') === '1' && Boolean(codigo && revisionNumber > 0)) ||
     chaveDaRevisaoPronta === `${codigo}:${revisionNumber}`;
 
   return {

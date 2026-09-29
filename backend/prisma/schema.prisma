@@ -99,6 +99,7 @@ model ProposalNumberReservation {
   reservedBy       User      @relation(fields: [reservedByUserId], references: [id])
   reservedAt       DateTime  @default(now())
   firstUsedAt      DateTime?
+  legacyFirstRevision Int?
 
   @@index([reservedByUserId, reservedAt])
 }

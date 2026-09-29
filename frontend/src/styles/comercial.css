@@ -479,6 +479,10 @@
   grid-template-columns: repeat(3, 1fr);
 }
 
+.com-root .com-modo-opcoes.com-modo-quatro {
+  grid-template-columns: repeat(2, 1fr);
+}
+
 /* O cartão de opção do diálogo tem layout PRÓPRIO: o emblema redondo ocupa
    as duas linhas da grade, à esquerda do título e da descrição. */
 .com-root .com-modo-opcoes > button {
@@ -568,6 +572,17 @@
   min-width: 0;
   margin-bottom: 0;
 }
+
+.com-root .com-legado-confirmacao {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  flex: 1 1 100%;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.com-root .com-legado-confirmacao input { margin-top: 2px; }
 
 .com-root .com-levantamentos-entrada {
   display: grid;
@@ -779,6 +794,7 @@
   .com-root .com-rodape { flex-direction: column; align-items: stretch; }
 
   .com-root .com-modo-opcoes.com-modo-tres { grid-template-columns: 1fr; }
+  .com-root .com-modo-opcoes.com-modo-quatro { grid-template-columns: 1fr; }
 
   .com-root .com-rodape-acoes,
   .com-root .com-levantamentos-cabecalho,

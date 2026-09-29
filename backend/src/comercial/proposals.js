@@ -154,8 +154,9 @@ export async function prepareRevision(db, user, proposalCode) {
 }
 
 export async function createProposal(db, user, data) {
-  await assertReservedCode(db, user, data.proposalCode, data.revisionNumber);
-  const previous = data.revisionNumber > 0
+  const reservation = await assertReservedCode(db, user, data.proposalCode, data.revisionNumber);
+  const previous = data.revisionNumber > 0 &&
+    reservation.legacyFirstRevision !== data.revisionNumber
     ? await prepareRevision(db, user, data.proposalCode) : null;
   if (previous && previous.nextRevision !== data.revisionNumber) {
     throw new HttpError(409, `A próxima revisão é ${previous.nextRevision}.`);

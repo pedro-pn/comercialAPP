@@ -428,6 +428,16 @@ export async function prepararRevisaoDaProposta(codigo: string) {
   return data;
 }
 
+/** Reserva o número histórico para iniciar a primeira revisão feita neste app. */
+export async function registrarRevisaoLegada(proposalCode: string, revisionNumber: number) {
+  const { data } = await apiClient.post<{
+    proposalCode: string;
+    revisionNumber: number;
+    alreadyRegistered: boolean;
+  }>('/comercial/propostas/legado/revisao', { proposalCode, revisionNumber });
+  return data;
+}
+
 export async function listarPropostas(
   filtros: {
     busca?: string;

@@ -374,5 +374,44 @@ test('rascunhos, autoria, valores e concorrência no banco próprio', { skip: !d
     method: 'PUT', cookie: sellerCookie,
     body: { expectedUpdatedAt: completed.data.updatedAt, clientName: 'Outro' }
   })).status, 409);
+
+  const legacyPath = '/api/comercial/propostas/legado/revisao';
+  const legacyInput = { proposalCode: '8702', revisionNumber: 3 };
+  assert.equal((await request(legacyPath, {
+    method: 'POST', cookie: sellerCookie, body: legacyInput
+  })).status, 201);
+  assert.equal((await request(legacyPath, {
+    method: 'POST', cookie: sellerCookie, body: legacyInput
+  })).status, 200);
+  assert.equal((await request(legacyPath, {
+    method: 'POST', cookie: colleagueCookie, body: legacyInput
+  })).status, 409);
+  assert.equal((await request(legacyPath, {
+    method: 'POST', cookie: sellerCookie, body: { proposalCode: '8700', revisionNumber: 2 }
+  })).status, 409);
+  const legacyBody = {
+    proposalCode: '8702', revisionNumber: 3,
+    clientName: 'Cliente legado', cnpj: '12345678000100',
+    contact: 'Contato', email: 'legado@example.com', site: 'Obra',
+    sellerUserId: seller.id,
+    payload: { title: 'Revisão de proposta legada', prices: [{ value: 'R$ 200,00' }] }
+  };
+  assert.equal((await request('/api/comercial/propostas', {
+    method: 'POST', cookie: sellerCookie, body: { ...legacyBody, revisionNumber: 0 }
+  })).status, 409);
+  const legacy = await request('/api/comercial/propostas', {
+    method: 'POST', cookie: sellerCookie, body: legacyBody
+  });
+  assert.equal(legacy.status, 201);
+  assert.equal(legacy.data.revisionNumber, 3);
+  assert.equal((await request('/api/comercial/propostas/8702/revisao', {
+    cookie: sellerCookie
+  })).data.nextRevision, 4);
+  assert.equal((await request('/api/comercial/propostas', {
+    method: 'POST', cookie: sellerCookie, body: { ...legacyBody, revisionNumber: 4 }
+  })).status, 201);
+  assert.equal((await request('/api/comercial/propostas/proximo-numero', {
+    method: 'POST', cookie: sellerCookie
+  })).data.numero, 8703);
   assert.equal(manager.role, 'MANAGER');
 });
