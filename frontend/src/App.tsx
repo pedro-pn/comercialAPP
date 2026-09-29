@@ -121,7 +121,7 @@ export function App() {
           <div className="login-panel-content">
             <img className="login-logo" src="/assets/Logo/LOGO_COLORIDO.png" alt="Filtrovali" />
             <div className="login-heading">
-              <p className="login-eyebrow">ComercialAPP</p>
+              <p className="login-eyebrow">Gerador de propostas</p>
               <h1 id="login-title">Bem-vindo de volta</h1>
               <p>Entre com sua conta para acessar o Comercial.</p>
             </div>
