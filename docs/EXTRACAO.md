@@ -29,6 +29,10 @@
   bundles das cinco entradas principais.
 - [ ] Ligar as telas copiadas ao novo fluxo de navegação e revisar modelos DOCX.
 - [ ] Extrair serviços de propostas e levantamentos para backend próprio.
+- [x] Criar a persistência e as primeiras rotas de rascunhos de levantamentos e
+  propostas, com autoria, cálculo no servidor, versões salvas e conflito de edição.
+- [x] Criar reserva automática de números a partir de valor inicial único,
+  configurado pelo gestor; valor real ainda pendente.
 - [x] Criar banco PostgreSQL próprio e primeira migração de usuários e sessões.
 - [x] Implementar login próprio, cadastro inicial do gestor e permissões da
   administração de acessos.
@@ -39,12 +43,12 @@
   DNS, certificado e configuração do proxy existente nessa etapa.
 
 Os arquivos das telas de propostas já compilam, mas não foram ligados ao
-roteador. O adaptador de identidade dessas telas ainda não tem provedor, e os
-endpoints de frontend/src/api/comercial.ts ainda não existem no backend
-independente. A tela ativa cobre apenas login e gestão de acessos. Não habilitar
-os formulários de propostas antes de implementar persistência, validação do
-servidor e permissões por operação. O CSS portado ainda precisa ser conferido
-visualmente fora do FiltroAPP.
+roteador. O adaptador de identidade dessas telas ainda não tem provedor. Uma
+parte dos endpoints de `frontend/src/api/comercial.ts` existe agora, mas
+documentos, fotos, finalização, CRM e demais serviços faltam. A tela ativa cobre
+apenas login e gestão de acessos. Não habilitar os formulários de propostas
+antes da integração funcional completa. O CSS portado ainda precisa ser
+conferido visualmente fora do FiltroAPP.
 
 A primeira migração contém somente `User` e `Session`. A API cria sessões no
 PostgreSQL, armazena apenas o hash do token e usa cookie HttpOnly. O gestor

@@ -12,6 +12,29 @@ enum CommercialRole {
   VIEWER
 }
 
+enum CostEstimateMode {
+  NOVA
+  REVISAO
+}
+
+enum CostEstimateStatus {
+  RASCUNHO
+  SALVO
+}
+
+enum ProposalStatus {
+  RASCUNHO
+  FINALIZANDO
+  FINALIZADA
+  FALHA_INTEGRACAO
+}
+
+enum ProposalIntegrationStatus {
+  PENDENTE
+  SUCESSO
+  ERRO
+}
+
 model User {
   id           String          @id @default(cuid())
   username     String          @unique
@@ -22,6 +45,12 @@ model User {
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
   sessions     Session[]
+  createdEstimates  CostEstimate[]             @relation("EstimateCreator")
+  updatedEstimates  CostEstimate[]             @relation("EstimateUpdater")
+  createdProposals  Proposal[]                 @relation("ProposalCreator")
+  updatedProposals  Proposal[]                 @relation("ProposalUpdater")
+  soldProposals     Proposal[]                 @relation("ProposalSeller")
+  numberReservations ProposalNumberReservation[]
 }
 
 model Session {
@@ -34,4 +63,101 @@ model Session {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+model ProposalNumberingState {
+  id             String   @id @default("singleton")
+  seedValue      Int
+  nextNumber     Int
+  seededAt       DateTime @default(now())
+  seededByUserId String
+}
+
+model ProposalNumberReservation {
+  number           Int       @id
+  reservedByUserId String
+  reservedBy       User      @relation(fields: [reservedByUserId], references: [id])
+  reservedAt       DateTime  @default(now())
+  firstUsedAt      DateTime?
+
+  @@index([reservedByUserId, reservedAt])
+}
+
+model CostEstimate {
+  id              String             @id @default(cuid())
+  proposalCode    String
+  revisionNumber  Int                @default(0)
+  title           String
+  mode            CostEstimateMode
+  status          CostEstimateStatus @default(RASCUNHO)
+  payload         Json
+  totalCost       Decimal            @db.Decimal(14, 2)
+  salePrice       Decimal            @db.Decimal(14, 2)
+  marginPercent   Decimal            @db.Decimal(6, 2)
+  createdByUserId String
+  createdBy       User               @relation("EstimateCreator", fields: [createdByUserId], references: [id])
+  updatedByUserId String?
+  updatedBy       User?              @relation("EstimateUpdater", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+  updatedByLabel  String?
+  archivedAt      DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  versions        CostEstimateVersion[]
+  proposals       Proposal[]
+
+  @@unique([proposalCode, revisionNumber])
+  @@index([createdByUserId, archivedAt, createdAt])
+}
+
+model CostEstimateVersion {
+  id             String       @id @default(cuid())
+  costEstimateId String
+  costEstimate   CostEstimate @relation(fields: [costEstimateId], references: [id], onDelete: Cascade)
+  payloadHash    String
+  snapshot       Json
+  createdAt      DateTime     @default(now())
+
+  @@index([costEstimateId, createdAt])
+}
+
+model Proposal {
+  id                 String                    @id @default(cuid())
+  proposalCode       String
+  revisionNumber     Int                       @default(0)
+  costEstimateId     String?
+  costEstimate       CostEstimate?             @relation(fields: [costEstimateId], references: [id])
+  clientName         String
+  cnpj               String
+  contact            String
+  email              String
+  site               String
+  department         String?
+  sellerUserId       String
+  seller             User                      @relation("ProposalSeller", fields: [sellerUserId], references: [id])
+  sellerName         String
+  estimatorName      String
+  payload            Json
+  totalValue         Decimal                   @db.Decimal(14, 2)
+  status             ProposalStatus            @default(RASCUNHO)
+  finalizedAt        DateTime?
+  nectarStatus       ProposalIntegrationStatus @default(PENDENTE)
+  nectarOpportunityId String?
+  nectarPipelineId  String?
+  nectarPipelineName String?
+  sharepointStatus   ProposalIntegrationStatus @default(PENDENTE)
+  sharepointFolder   String?
+  integrationError   String?
+  createdByUserId    String
+  createdBy          User                      @relation("ProposalCreator", fields: [createdByUserId], references: [id])
+  updatedByUserId    String?
+  updatedBy          User?                     @relation("ProposalUpdater", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+  updatedByLabel     String?
+  archivedAt         DateTime?
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+
+  @@unique([proposalCode, revisionNumber])
+  @@index([createdByUserId, archivedAt, createdAt])
+  @@index([sellerUserId, createdAt])
+  @@index([status])
 }

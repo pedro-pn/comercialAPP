@@ -5,10 +5,11 @@ em 28/09/2026. O aplicativo antigo em Next/Cloudflare está preservado na branch
 legacy-next-cloudflare; ele não é a base desta implementação.
 
 O módulo Comercial do FiltroAPP é a origem funcional da extração. A biblioteca
-de regras e os arquivos das telas foram copiados. O app agora tem banco próprio,
-login local e administração de usuários pelo gestor. As telas de propostas
-continuam inativas até seus dados e endpoints serem integrados. Não use este
-esqueleto para propostas reais.
+de regras e os arquivos das telas foram copiados. O app tem banco próprio,
+login local, administração de usuários e uma primeira API para rascunhos de
+levantamentos e propostas. As telas copiadas continuam inativas até o restante
+dos serviços, documentos e integrações estar pronto. Não use este esqueleto
+para propostas reais.
 
 ## Executar localmente
 
@@ -47,8 +48,8 @@ usuários está vazia.
 
 - frontend: React e Vite, com login e gestão de acessos; arquivos das telas
   comerciais extraídos em src/pages/comercial, ainda sem rotas ativas.
-- backend: Express, Prisma e PostgreSQL; `/api/health`, `/api/auth/*` e
-  `/api/users`.
+- backend: Express, Prisma e PostgreSQL; `/api/health`, `/api/auth/*`,
+  `/api/users` e primeiras rotas `/api/comercial/*`.
 - shared/comercial: regras copiadas do módulo Comercial atual do FiltroAPP,
   com os cenários de referência do cálculo em test/goldens.
 - docs/EXTRACAO.md: proveniência, decisões e próximas etapas.
@@ -64,9 +65,10 @@ usuários está vazia.
 - Integração: Comercial envia propostas ao CRM, que escolhe o projeto e envia
   proposta e vínculo ao FiltroAPP. A aprovação vem do CRM, com seleção manual
   quando não houver retorno.
-- Numeração: o Comercial emite números automaticamente a partir de um valor
-  inicial configurado.
+- Numeração: o gestor configura o valor inicial uma única vez; o Comercial
+  reserva os números automaticamente e registra quem fez a reserva.
 
 O valor inicial, a regra de seleção manual e os contratos do CRM ainda precisam
-ser fechados antes da integração real. O app ainda não acessa CRM nem
-infraestrutura de produção.
+ser fechados antes da integração real. Veja [a etapa de rascunhos](docs/RASCUNHOS.md)
+para as rotas prontas, limites e teste com PostgreSQL. O app ainda não acessa
+CRM nem infraestrutura de produção.

@@ -16,7 +16,7 @@ if (appOrigin) {
   throw new Error('APP_ORIGIN é obrigatória em produção.');
 }
 const db = createDatabase();
-const app = createApp({ authService: createAuthService(db), appOrigin, production });
+const app = createApp({ authService: createAuthService(db), commercialDb: db, appOrigin, production });
 
 const server = app.listen(port, host, () => {
   process.stdout.write('Comercial API listening on ' + host + ':' + port + '\n');

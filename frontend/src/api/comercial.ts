@@ -210,12 +210,12 @@ export function interpretarConflitoDeEdicao(
  * Reserva o próximo número de proposta. **Consome** — pedir duas vezes gasta dois
  * números, e um número consumido não volta.
  *
- * `503` significa que a numeração ainda não foi semeada no ambiente. É recusa
+ * `503` significa que a numeração ainda não foi configurada no ambiente. É recusa
  * deliberada do servidor, não indisponibilidade: emitir sem saber o maior número já
  * usado produziria código repetido no documento que chega ao cliente.
  */
 export async function reservarProximoNumero() {
-  const { data } = await apiClient.get<{ numero: number }>(
+  const { data } = await apiClient.post<{ numero: number }>(
     '/comercial/propostas/proximo-numero'
   );
   return data.numero;

@@ -1,5 +1,7 @@
 import express from 'express';
+import { ZodError } from 'zod';
 import { HttpError, normalizeUsername, sessionDays } from './auth/service.js';
+import { createCommercialRouter } from './comercial/routes.js';
 
 const cookieName = 'comercial_session';
 const sessionMaxAge = sessionDays * 24 * 60 * 60 * 1000;
@@ -39,7 +41,7 @@ function loginLimiter() {
   };
 }
 
-export function createApp({ authService, appOrigin, production = false } = {}) {
+export function createApp({ authService, commercialDb, appOrigin, production = false } = {}) {
   const app = express();
   const limiter = loginLimiter();
   app.disable('x-powered-by');
@@ -118,9 +120,22 @@ export function createApp({ authService, appOrigin, production = false } = {}) {
     response.json({ user });
   });
 
+  if (commercialDb) app.use('/api/comercial', requireAuth, createCommercialRouter(commercialDb));
+
   app.use((error, _request, response, _next) => {
-    if (error.status && error.status >= 400 && error.status < 500) {
-      return response.status(error.status).json({ error: error.message });
+    if (error instanceof ZodError) {
+      return response.status(400).json({
+        error: 'Dados inválidos.',
+        issues: error.issues.map(issue => ({ path: issue.path.join('.'), message: issue.message }))
+      });
+    }
+    if (Number.isInteger(error.status) && error.status >= 400 && error.status < 600) {
+      return response.status(error.status).json({
+        error: error.message,
+        ...(error.code ? { code: error.code } : {}),
+        ...(error.conflict ? { conflict: error.conflict } : {}),
+        ...(error.issues ? { issues: error.issues } : {})
+      });
     }
     console.error(error);
     response.status(500).json({ error: 'Erro interno.' });

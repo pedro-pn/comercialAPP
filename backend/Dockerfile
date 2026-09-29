@@ -10,12 +10,14 @@ COPY package.json package-lock.json ./
 COPY backend/package.json ./backend/package.json
 COPY frontend/package.json ./frontend/package.json
 COPY shared/comercial/package.json ./shared/comercial/package.json
-RUN npm ci --workspace @comercialapp/backend --include-workspace-root=false
+RUN npm ci --workspace @comercialapp/backend --workspace @comercialapp/rules --include-workspace-root=false
 
+COPY shared ./shared
 COPY backend/prisma.config.ts ./backend/prisma.config.ts
 COPY backend/prisma ./backend/prisma
 COPY backend/src ./backend/src
 COPY backend/scripts ./backend/scripts
+RUN npm run build --workspace @comercialapp/rules
 RUN npm run db:generate --workspace @comercialapp/backend
 
 WORKDIR /app/backend
