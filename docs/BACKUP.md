@@ -9,7 +9,10 @@ sozinho não recupera esses arquivos.
 ## Backup
 
 Na VPS, crie `/var/backups/comercialapp` com escrita apenas para o usuário de
-implantação. A partir do checkout do ComercialAPP:
+implantação. Execute os scripts com o Docker rootless desse usuário: defina
+`DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock` na sessão e no agendador do
+backup. O volume do Comercial não existe no daemon Docker root do Caddy. A
+partir do checkout do ComercialAPP:
 
 ```bash
 BACKUP_ROOT=/var/backups/comercialapp ./deploy/backup-prod.sh

@@ -1,12 +1,6 @@
 services:
   web:
-    networks:
-      private:
-      proxy-edge:
-        aliases:
-          - comercialapp-web
-
-networks:
-  proxy-edge:
-    external: true
-    name: proxy-net
+    # Docker rootless do Comercial não compartilha a rede proxy-net do Caddy.
+    # A bridge do Docker root alcança esta porta pelo host-gateway.
+    ports:
+      - "172.17.0.1:8083:80"
