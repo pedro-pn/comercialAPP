@@ -48,6 +48,7 @@ export function App() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberUser, setRememberUser] = useState(() => Boolean(readRememberedUser()));
   const [microsoftEnabled, setMicrosoftEnabled] = useState(false);
+  const [microsoftImageLoaded, setMicrosoftImageLoaded] = useState(false);
 
   useEffect(() => {
     getAuthProviders().then(providers => setMicrosoftEnabled(providers.microsoft)).catch(() => {});
@@ -198,7 +199,19 @@ export function App() {
             {microsoftEnabled && !loading && (
               <a className="login-microsoft" href="/api/auth/microsoft"
                 aria-label="Entrar com a Microsoft">
+                <span className="login-microsoft-fallback" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path fill="#f25022" d="M1 1h10v10H1z" />
+                    <path fill="#7fba00" d="M13 1h10v10H13z" />
+                    <path fill="#00a4ef" d="M1 13h10v10H1z" />
+                    <path fill="#ffb900" d="M13 13h10v10H13z" />
+                  </svg>
+                  <span>Entrar com a Microsoft</span>
+                </span>
                 <img src="/assets/microsoft-sign-in-light.svg" width="215" height="41"
+                  className={microsoftImageLoaded ? 'is-loaded' : undefined}
+                  onLoad={() => setMicrosoftImageLoaded(true)}
+                  onError={() => setMicrosoftImageLoaded(false)}
                   alt="" aria-hidden="true" />
               </a>
             )}
