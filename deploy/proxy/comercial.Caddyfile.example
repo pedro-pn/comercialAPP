@@ -1,5 +1,6 @@
 # Adicionar ao Caddyfile do infra-proxy da VPS depois de apontar o DNS.
-# O web do ComercialAPP participa da mesma rede externa proxy-net.
+# O ComercialAPP roda em Docker rootless próprio e publica somente no gateway
+# 172.17.0.1:8083. O infra-proxy já define host.docker.internal:host-gateway.
 comercial.filtrovali.com.br {
-	reverse_proxy comercialapp-web:80
+	reverse_proxy host.docker.internal:8083
 }

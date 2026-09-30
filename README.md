@@ -71,8 +71,9 @@ usuários está vazia.
 
 - Repositório remoto privado: `pedro-pn/comercialAPP`.
 - Produção: comercial.filtrovali.com.br na mesma VPS do FiltroAPP, sob outro
-  usuário do sistema e com banco próprio. O Compose é separado e só o Nginx do
-  Comercial compartilha a rede do proxy do FiltroAPP.
+  usuário do sistema, Docker rootless e banco próprio. O Nginx do Comercial
+  publica HTTP apenas em `172.17.0.1:8083`; o Caddy compartilhado termina o
+  HTTPS e encaminha o domínio para essa porta.
 - Primeira entrega: login próprio; o gestor do Comercial administra acessos
   e papéis. Login compartilhado fica para uma etapa futura.
 - Integração: Comercial envia propostas ao CRM, que escolhe o projeto e envia
