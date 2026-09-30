@@ -1,0 +1,39 @@
+.com-root .com-api-page { display: grid; gap: 20px; }
+.com-root .com-api-page > .com-painel { margin: 0; }
+.com-root .com-api-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.com-root .com-api-grid > .com-painel { margin: 0; min-width: 0; }
+.com-root .com-api-form { display: grid; gap: 14px; justify-items: start; }
+.com-root .com-api-form .com-access-field { width: 100%; }
+.com-root .com-api-form textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--com-borda);
+  border-radius: var(--com-raio-controle);
+  padding: 11px;
+  background: var(--com-superficie);
+  color: var(--com-texto);
+  font: 14px/1.5 Arial, sans-serif;
+  resize: vertical;
+}
+.com-root .com-api-form textarea:focus-visible { outline: 2px solid var(--com-acao); outline-offset: 2px; }
+.com-root .com-api-url { overflow-wrap: anywhere; }
+.com-root .com-api-example { overflow: auto; border: 1px solid var(--com-borda); border-radius: var(--com-raio-controle); padding: 14px; background: var(--com-fundo); }
+.com-root .com-api-secret { margin-top: 20px; padding: 16px; border: 1px solid var(--com-acao); border-radius: var(--com-raio); background: var(--com-acao-suave); }
+.com-root .com-api-secret > code { display: block; padding: 12px; border: 1px solid var(--com-borda); border-radius: var(--com-raio-controle); background: var(--com-superficie); overflow-wrap: anywhere; user-select: all; }
+.com-root .com-api-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.com-root .com-api-token-list { display: grid; gap: 12px; }
+.com-root .com-api-token { display: flex; justify-content: space-between; gap: 16px; padding: 14px; border: 1px solid var(--com-borda); border-radius: var(--com-raio); }
+.com-root .com-api-token h3 { margin: 0 0 8px; }
+.com-root .com-api-token p { margin: 5px 0; overflow-wrap: anywhere; }
+.com-root .com-api-token-side { display: grid; align-content: start; justify-items: end; gap: 8px; flex: none; }
+.com-root .com-api-active { color: var(--com-marca-forte); font-weight: 700; }
+.com-root .com-api-inactive { color: var(--com-texto-fraco); font-weight: 700; }
+.com-root .com-api-result { margin-bottom: 0; padding: 12px; border-radius: var(--com-raio-controle); background: var(--com-acao-suave); }
+@media (max-width: 850px) {
+  .com-root .com-api-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 650px) {
+  .com-root .com-api-token { flex-direction: column; }
+  .com-root .com-api-token-side { justify-items: start; }
+}

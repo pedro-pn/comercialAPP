@@ -9,7 +9,9 @@
     "check": "prisma generate && prisma validate && node --test --test-concurrency=1",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
-    "db:bootstrap-manager": "node scripts/bootstrap-manager.js"
+    "db:bootstrap-manager": "node scripts/bootstrap-admin.js",
+    "db:bootstrap-admin": "node scripts/bootstrap-admin.js",
+    "db:promote-admin": "node scripts/promote-admin.js"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.0",

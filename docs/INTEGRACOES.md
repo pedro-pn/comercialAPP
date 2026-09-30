@@ -18,14 +18,18 @@ outro.
 
 O Nectar pode disparar o webhook de oportunidade **Ganhar** para
 `POST /api/integrations/nectar/webhook`, com autenticação Bearer usando
-`CRM_EVENT_TOKEN`. O ComercialAPP consulta a oportunidade na API do Nectar e
-confirma seu estado antes de registrar a aprovação. O gestor também pode usar
+`NECTAR_WEBHOOK_TOKEN` (`CRM_EVENT_TOKEN` permanece como fallback legado).
+O ComercialAPP consulta a oportunidade na API do Nectar e confirma seu estado
+antes de registrar a aprovação. O gestor também pode usar
 “Consultar aprovação no Nectar” na proposta. O evento de aprovação requer
 `status=2` (oportunidade ganha). O ID do projeto é lido do campo personalizado
 cujo **nome exato** foi configurado em `NECTAR_PROJECT_FIELD`.
 
-Também existe `POST /api/integrations/crm/events` para um integrador que já
-conheça a proposta, a revisão, a aprovação e o projeto. Corpo versão 1:
+O Prisma envia para `POST https://comercial.filtrovali.com.br/api/integrations/crm/events`.
+O administrador cria o Bearer token na **Central de API** (`/api-central`),
+com validade de 1 a 365 dias. O segredo aparece uma única vez; no banco fica
+somente seu hash. O administrador pode revogar o token, consultar uso e validar
+o contrato sem gravar um evento no playground. Corpo versão 1:
 
 ```json
 {
@@ -40,10 +44,13 @@ conheça a proposta, a revisão, a aprovação e o projeto. Corpo versão 1:
 }
 ```
 
-Ambos os endpoints exigem `Authorization: Bearer <CRM_EVENT_TOKEN>` e operam sem
-cookie de usuário. Eventos repetidos são idempotentes; eventos antigos e vínculos
-que contradizem uma entrega concluída são recusados. Se o Nectar não trouxer
-aprovação ou vínculo, somente o gestor do Comercial pode registrar manualmente
+Ambos os endpoints exigem `Authorization: Bearer <token>` e operam sem
+cookie de usuário. O token criado na UI funciona somente na rota do Prisma;
+o webhook Nectar continua com segredo separado no ambiente. Eventos repetidos
+são idempotentes; eventos antigos e vínculos que contradizem uma entrega
+concluída são recusados. O primeiro evento do Prisma vincula a oportunidade à
+proposta; eventos posteriores precisam informar o mesmo `opportunityId`. Se o Nectar não trouxer
+aprovação ou vínculo, a gestão do Comercial pode registrar manualmente
 o ID do projeto, com motivo e trilha no banco. A tela permite buscar projetos
 ativos do FiltroAPP por código, nome ou cliente.
 

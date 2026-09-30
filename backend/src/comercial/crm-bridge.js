@@ -13,10 +13,11 @@ function equalToken(actual, expected) {
 }
 
 export function requireCrmEventToken(request, _response, next) {
-  if (!process.env.CRM_EVENT_TOKEN) return next(new HttpError(503, 'CRM_EVENT_TOKEN não configurado.'));
+  const expectedToken = process.env.NECTAR_WEBHOOK_TOKEN || process.env.CRM_EVENT_TOKEN;
+  if (!expectedToken) return next(new HttpError(503, 'NECTAR_WEBHOOK_TOKEN não configurado.'));
   const match = /^Bearer (\S+)$/.exec(request.get('authorization') || '');
-  if (!equalToken(match?.[1], process.env.CRM_EVENT_TOKEN)) {
-    return next(new HttpError(401, 'Token do evento CRM inválido.'));
+  if (!equalToken(match?.[1], expectedToken)) {
+    return next(new HttpError(401, 'Token do webhook Nectar inválido.'));
   }
   next();
 }
@@ -26,7 +27,7 @@ export async function crmBridgeStatus(db, user, proposalId) {
   if (!proposal) throw new HttpError(404, 'Proposta não encontrada.');
   assertCanRead(user, proposal);
   return {
-    opportunityId: proposal.nectarOpportunityId || '',
+    opportunityId: proposal.crmOpportunityId || proposal.nectarOpportunityId || '',
     approvalStatus: proposal.crmApprovalStatus,
     approvalSource: proposal.crmApprovalSource,
     approvalAt: proposal.crmApprovalAt,
@@ -41,7 +42,15 @@ export async function crmBridgeStatus(db, user, proposalId) {
   };
 }
 
-export async function recordCrmEvent(db, event, source = 'NECTAR') {
+function matchesStoredEvent(existing, event, source, proposalId) {
+  return existing.proposalId === proposalId && existing.source === source &&
+    existing.approvalStatus === event.approvalStatus &&
+    existing.projectId === (event.projectId || null) &&
+    (!existing.opportunityId || existing.opportunityId === (event.opportunityId || null)) &&
+    existing.occurredAt.getTime() === new Date(event.occurredAt).getTime();
+}
+
+async function inspectCrmEvent(db, event, source) {
   const proposal = await db.proposal.findUnique({
     where: { proposalCode_revisionNumber: {
       proposalCode: event.proposalCode, revisionNumber: event.revisionNumber
@@ -53,33 +62,63 @@ export async function recordCrmEvent(db, event, source = 'NECTAR') {
     proposal.nectarStatus !== 'SUCESSO' ||
     String(proposal.nectarOpportunityId || '') !== event.opportunityId
   )) throw new HttpError(409, 'Oportunidade do Nectar não corresponde à proposta enviada.');
+  if (source === 'PRISMA' && proposal.crmOpportunityId &&
+      proposal.crmOpportunityId !== event.opportunityId) {
+    throw new HttpError(409, 'Oportunidade do Prisma não corresponde à proposta.');
+  }
   if (proposal.filtroStatus === 'SUCESSO' && (
     event.approvalStatus !== 'APPROVED' || event.projectId !== proposal.crmProjectId
   )) throw new HttpError(409, 'A proposta já foi entregue a outro estado ou projeto.');
   const existing = await db.crmProposalEvent.findUnique({ where: { eventId: event.eventId } });
   if (existing) {
-    if (existing.proposalId !== proposal.id || existing.approvalStatus !== event.approvalStatus ||
-        existing.projectId !== (event.projectId || null)) {
+    if (!matchesStoredEvent(existing, event, source, proposal.id)) {
       throw new HttpError(409, 'ID de evento reutilizado com conteúdo diferente.');
     }
-    return { duplicate: true, proposalId: proposal.id, approvalStatus: proposal.crmApprovalStatus,
-      deliveryStatus: proposal.filtroStatus };
+    return { proposal, existing, occurredAt: new Date(event.occurredAt) };
   }
   const occurredAt = new Date(event.occurredAt);
   if (!Number.isFinite(occurredAt.getTime())) throw new HttpError(400, 'Data do evento inválida.');
   if (proposal.crmApprovalAt && occurredAt <= proposal.crmApprovalAt) {
     throw new HttpError(409, 'Evento CRM anterior ou igual ao estado já registrado.');
   }
+  return { proposal, existing: null, occurredAt };
+}
+
+export async function previewCrmEvent(db, event, source = 'PRISMA') {
+  const { proposal, existing } = await inspectCrmEvent(db, event, source);
+  return {
+    valid: true,
+    duplicate: Boolean(existing),
+    proposalCode: proposal.proposalCode,
+    revisionNumber: proposal.revisionNumber,
+    approvalStatus: event.approvalStatus,
+    wouldAttemptDelivery: !existing && event.approvalStatus === 'APPROVED' && Boolean(event.projectId)
+  };
+}
+
+export async function recordCrmEvent(db, event, source = 'NECTAR') {
+  const { proposal, existing, occurredAt } = await inspectCrmEvent(db, event, source);
+  if (existing) {
+    return { duplicate: true, proposalId: proposal.id, approvalStatus: proposal.crmApprovalStatus,
+      deliveryStatus: proposal.filtroStatus };
+  }
   try {
     await db.$transaction(async tx => {
       await tx.crmProposalEvent.create({ data: {
         eventId: event.eventId, proposalId: proposal.id, source,
+        opportunityId: event.opportunityId || null,
         approvalStatus: event.approvalStatus, projectId: event.projectId || null,
         occurredAt, reason: event.reason || null
       } });
       const result = await tx.proposal.updateMany({
-        where: { id: proposal.id, OR: [{ crmApprovalAt: null }, { crmApprovalAt: { lt: occurredAt } }] },
+        where: { id: proposal.id, AND: [
+          { OR: [{ crmApprovalAt: null }, { crmApprovalAt: { lt: occurredAt } }] },
+          ...(source === 'PRISMA' ? [{ OR: [
+            { crmOpportunityId: null }, { crmOpportunityId: event.opportunityId }
+          ] }] : [])
+        ] },
         data: {
+          ...(source === 'PRISMA' ? { crmOpportunityId: event.opportunityId } : {}),
           crmApprovalStatus: event.approvalStatus,
           crmApprovalSource: source,
           crmApprovalAt: occurredAt,
@@ -92,8 +131,14 @@ export async function recordCrmEvent(db, event, source = 'NECTAR') {
       if (result.count !== 1) throw new HttpError(409, 'Evento CRM fora de ordem.');
     });
   } catch (error) {
-    if (error.code === 'P2002') return { duplicate: true, proposalId: proposal.id,
-      approvalStatus: proposal.crmApprovalStatus, deliveryStatus: proposal.filtroStatus };
+    if (error.code === 'P2002') {
+      const concurrent = await db.crmProposalEvent.findUnique({ where: { eventId: event.eventId } });
+      if (!concurrent || !matchesStoredEvent(concurrent, event, source, proposal.id)) {
+        throw new HttpError(409, 'ID de evento reutilizado com conteúdo diferente.');
+      }
+      return { duplicate: true, proposalId: proposal.id,
+        approvalStatus: proposal.crmApprovalStatus, deliveryStatus: proposal.filtroStatus };
+    }
     throw error;
   }
   return { duplicate: false, proposalId: proposal.id, approvalStatus: event.approvalStatus,
@@ -101,7 +146,7 @@ export async function recordCrmEvent(db, event, source = 'NECTAR') {
 }
 
 export async function recordManualSelection(db, user, proposalId, { projectId, reason }) {
-  if (user.role !== 'MANAGER') throw new HttpError(403, 'Somente o gestor do Comercial pode selecionar manualmente.');
+  if (!['ADMIN', 'MANAGER'].includes(user.role)) throw new HttpError(403, 'Somente a gestão do Comercial pode selecionar manualmente.');
   const proposal = await db.proposal.findUnique({ where: { id: proposalId } });
   if (!proposal) throw new HttpError(404, 'Proposta não encontrada.');
   if (proposal.filtroStatus === 'SUCESSO') throw new HttpError(409, 'Proposta já entregue ao FiltroAPP.');

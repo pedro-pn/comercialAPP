@@ -36,7 +36,7 @@ export async function uploadPhoto(db, user, { bytes, contentType, fileName }) {
 export async function readPhoto(db, user, id) {
   const photo = await db.scopePhotoAsset.findUnique({ where: { id } });
   if (!photo) throw new HttpError(404, 'Foto não encontrada.');
-  if (user.role !== 'MANAGER' && photo.uploadedByUserId !== user.id) {
+  if (!['ADMIN', 'MANAGER'].includes(user.role) && photo.uploadedByUserId !== user.id) {
     throw new HttpError(403, 'Foto de outro usuário.');
   }
   return {

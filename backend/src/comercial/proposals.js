@@ -19,14 +19,14 @@ export function calculateProposalTotal(payload) {
 }
 
 async function resolveSeller(db, user, sellerUserId) {
-  if (user.role !== 'MANAGER') {
+  if (!['ADMIN', 'MANAGER'].includes(user.role)) {
     if (sellerUserId !== user.id) {
       throw new HttpError(403, 'Vendedor só pode emitir proposta em nome próprio.');
     }
     return { sellerUserId: user.id, sellerName: user.name };
   }
   const seller = await db.user.findFirst({
-    where: { id: sellerUserId, isActive: true, role: { in: ['MANAGER', 'SELLER'] } }
+    where: { id: sellerUserId, isActive: true, role: { in: ['ADMIN', 'MANAGER', 'SELLER'] } }
   });
   if (!seller) throw new HttpError(422, 'Selecione um consultor ativo do Comercial.');
   return { sellerUserId: seller.id, sellerName: seller.name };

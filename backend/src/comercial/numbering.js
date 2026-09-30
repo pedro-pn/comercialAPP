@@ -86,7 +86,7 @@ export async function registerLegacyRevision(db, user, proposalCode, revisionNum
   const existing = await db.proposalNumberReservation.findUnique({ where: { number } });
   if (existing) {
     if (existing.legacyFirstRevision === revisionNumber &&
-        (existing.reservedByUserId === user.id || user.role === 'MANAGER')) {
+        (existing.reservedByUserId === user.id || ['ADMIN', 'MANAGER'].includes(user.role))) {
       return { proposalCode, revisionNumber, alreadyRegistered: true };
     }
     throw new HttpError(409, 'Este número já está reservado no Comercial. Confira o histórico.');
@@ -114,7 +114,7 @@ export async function assertReservedCode(db, user, proposalCode, revisionNumber)
   if (!reservation) {
     throw new HttpError(422, 'Reserve o número no Comercial antes de salvar.');
   }
-  if (user.role !== 'MANAGER' && reservation.reservedByUserId !== user.id) {
+  if (!['ADMIN', 'MANAGER'].includes(user.role) && reservation.reservedByUserId !== user.id) {
     throw new HttpError(403, 'Este número foi reservado por outro vendedor.');
   }
   if (reservation.legacyFirstRevision != null && revisionNumber < reservation.legacyFirstRevision) {
@@ -127,7 +127,7 @@ export async function assertReservedCode(db, user, proposalCode, revisionNumber)
     if (!previous && reservation.legacyFirstRevision !== revisionNumber) {
       throw new HttpError(409, 'A revisão anterior da proposta não existe.');
     }
-    if (previous && user.role !== 'MANAGER' && previous.createdByUserId !== user.id) {
+    if (previous && !['ADMIN', 'MANAGER'].includes(user.role) && previous.createdByUserId !== user.id) {
       throw new HttpError(403, 'A proposta pertence a outro vendedor.');
     }
   }

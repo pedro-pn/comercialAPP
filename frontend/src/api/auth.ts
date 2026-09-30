@@ -1,6 +1,6 @@
 import { apiClient } from './client';
 
-export type CommercialRole = 'MANAGER' | 'SELLER' | 'VIEWER';
+export type CommercialRole = 'ADMIN' | 'MANAGER' | 'SELLER' | 'VIEWER';
 
 export interface CommercialUser {
   id: string;

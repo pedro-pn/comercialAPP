@@ -7,6 +7,7 @@ datasource db {
 }
 
 enum CommercialRole {
+  ADMIN
   MANAGER
   SELLER
   VIEWER
@@ -55,12 +56,35 @@ model User {
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
   sessions     Session[]
+  apiCredentials ApiCredential[] @relation("ApiCredentialCreator")
+  revokedApiCredentials ApiCredential[] @relation("ApiCredentialRevoker")
   createdEstimates  CostEstimate[]             @relation("EstimateCreator")
   updatedEstimates  CostEstimate[]             @relation("EstimateUpdater")
   createdProposals  Proposal[]                 @relation("ProposalCreator")
   updatedProposals  Proposal[]                 @relation("ProposalUpdater")
   soldProposals     Proposal[]                 @relation("ProposalSeller")
   numberReservations ProposalNumberReservation[]
+}
+
+model ApiCredential {
+  id              String    @id @default(cuid())
+  name            String
+  selector        String    @unique
+  tokenHash       String
+  tokenLastFour   String
+  scopeCode       String    @default("crm.events.write")
+  createdByUserId String
+  createdBy       User      @relation("ApiCredentialCreator", fields: [createdByUserId], references: [id])
+  createdAt       DateTime  @default(now())
+  expiresAt       DateTime
+  revokedAt       DateTime?
+  revokedByUserId String?
+  revokedBy       User?     @relation("ApiCredentialRevoker", fields: [revokedByUserId], references: [id])
+  lastUsedAt      DateTime?
+  useCount        Int       @default(0)
+
+  @@index([createdAt])
+  @@index([expiresAt, revokedAt])
 }
 
 model Session {
@@ -175,6 +199,7 @@ model Proposal {
   sharepointAttemptAt DateTime?
   sharepointError    String?
   crmApprovalStatus  String    @default("PENDENTE")
+  crmOpportunityId   String?
   crmProjectId       String?
   crmApprovalSource  String?
   crmApprovalAt      DateTime?
@@ -210,6 +235,7 @@ model CrmProposalEvent {
   proposalId     String
   proposal       Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
   source         String
+  opportunityId  String?
   approvalStatus String
   projectId      String?
   occurredAt     DateTime

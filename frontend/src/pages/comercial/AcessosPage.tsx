@@ -10,7 +10,7 @@ import { ComercialChrome } from './components/ComercialChrome';
 import { NumberingSetup } from './NumberingSetup';
 
 const roleNames: Record<CommercialRole, string> = {
-  MANAGER: 'Gestor', SELLER: 'Vendedor', VIEWER: 'Consulta'
+  ADMIN: 'Administrador', MANAGER: 'Gestor', SELLER: 'Vendedor', VIEWER: 'Consulta'
 };
 
 function errorMessage(error: unknown) {
@@ -21,6 +21,8 @@ export function AcessosPage({ user, onSelfPasswordChanged }: {
   user: CommercialUser;
   onSelfPasswordChanged: () => void;
 }) {
+  const isAdmin = user.role === 'ADMIN';
+  const availableRoles = Object.entries(roleNames).filter(([role]) => isAdmin || role !== 'ADMIN');
   const [users, setUsers] = useState<CommercialUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -113,20 +115,23 @@ export function AcessosPage({ user, onSelfPasswordChanged }: {
             </div>
             <div className="com-access-user-controls">
               <label className="com-access-field com-access-role">Perfil
-                <select value={entry.role} disabled={busy || !entry.isActive || entry.id === user.id}
+                <select value={entry.role} disabled={busy || !entry.isActive || entry.id === user.id ||
+                  !isAdmin && entry.role === 'ADMIN'}
                   onChange={event => { void changeUser(entry.id, {
                     role: event.target.value as CommercialRole
                   }); }}>
-                  {Object.entries(roleNames).map(([value, label]) =>
+                  {(isAdmin || entry.role !== 'ADMIN' ? availableRoles : Object.entries(roleNames))
+                    .map(([value, label]) =>
                     <option key={value} value={value}>{label}</option>)}
                 </select>
               </label>
               <button type="button" className="com-btn com-btn-fantasma"
-                disabled={busy || entry.id === user.id}
+                disabled={busy || entry.id === user.id || !isAdmin && entry.role === 'ADMIN'}
                 onClick={() => { void changeUser(entry.id, { isActive: !entry.isActive }); }}>
                 {entry.isActive ? 'Desativar' : 'Ativar'}
               </button>
-              <button type="button" className="com-btn com-btn-fantasma" disabled={busy}
+              <button type="button" className="com-btn com-btn-fantasma"
+                disabled={busy || !isAdmin && entry.role === 'ADMIN'}
                 aria-expanded={resetUserId === entry.id}
                 onClick={() => {
                   setResetUserId(resetUserId === entry.id ? null : entry.id);
@@ -173,7 +178,7 @@ export function AcessosPage({ user, onSelfPasswordChanged }: {
             <label className="com-access-field">Perfil
               <select value={newUser.role}
                 onChange={event => setNewUser({ ...newUser, role: event.target.value as CommercialRole })}>
-                {Object.entries(roleNames).map(([value, label]) =>
+                {availableRoles.map(([value, label]) =>
                   <option key={value} value={value}>{label}</option>)}
               </select>
             </label>

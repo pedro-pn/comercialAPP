@@ -8,18 +8,18 @@ export function requireEstimator(request, _response, next) {
 }
 
 export function requireManager(request, _response, next) {
-  if (request.authUser.role !== 'MANAGER') {
+  if (!['ADMIN', 'MANAGER'].includes(request.authUser.role)) {
     return next(new HttpError(403, 'Acesso exclusivo do gestor.'));
   }
   next();
 }
 
 export function ownerFilter(user) {
-  return user.role === 'MANAGER' ? {} : { createdByUserId: user.id };
+  return ['ADMIN', 'MANAGER'].includes(user.role) ? {} : { createdByUserId: user.id };
 }
 
 export function assertCanWrite(user, record) {
-  if (user.role === 'MANAGER' || record.createdByUserId === user.id) return;
+  if (['ADMIN', 'MANAGER'].includes(user.role) || record.createdByUserId === user.id) return;
   throw new HttpError(403, 'Este registro pertence a outro vendedor.');
 }
 

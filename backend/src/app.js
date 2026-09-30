@@ -1,9 +1,12 @@
 import express from 'express';
 import { ZodError } from 'zod';
 import { HttpError, normalizeUsername, sessionDays } from './auth/service.js';
+import { createApiCredential, listApiCredentials, requireActiveApiCredential,
+  requireCrmApiCredential, revokeApiCredential } from './auth/api-credentials.js';
 import { createCommercialRouter } from './comercial/routes.js';
 import { requireCrmEventToken, recordCrmEvent, deliverToFiltro,
-  syncNectarOpportunity } from './comercial/crm-bridge.js';
+  syncNectarOpportunity, previewCrmEvent } from './comercial/crm-bridge.js';
+import { crmEventSchema } from './comercial/crm-event-schema.js';
 import { z } from 'zod';
 
 const cookieName = 'comercial_session';
@@ -75,20 +78,9 @@ export function createApp({ authService, commercialDb, crm, appOrigin, additiona
     next();
   });
 
-  const crmEventSchema = z.object({
-    contractVersion: z.literal(1),
-    eventId: z.string().uuid(),
-    proposalCode: z.string().trim().min(1).max(40),
-    revisionNumber: z.number().int().min(0),
-    opportunityId: z.string().trim().min(1),
-    approvalStatus: z.enum(['APPROVED', 'REJECTED']),
-    projectId: z.string().trim().min(1).max(200).nullable().optional(),
-    occurredAt: z.iso.datetime(),
-    reason: z.string().trim().max(1000).optional()
-  });
-  app.post('/api/integrations/crm/events', requireCrmEventToken, async (request, response) => {
+  app.post('/api/integrations/crm/events', requireCrmApiCredential(commercialDb), async (request, response) => {
     const event = crmEventSchema.parse(request.body);
-    const recorded = await recordCrmEvent(commercialDb, event);
+    const recorded = await recordCrmEvent(commercialDb, event, 'PRISMA');
     let delivery = null;
     if (recorded.approvalStatus === 'APPROVED' && event.projectId && !recorded.duplicate) {
       delivery = await deliverToFiltro(commercialDb, recorded.proposalId)
@@ -114,7 +106,14 @@ export function createApp({ authService, commercialDb, crm, appOrigin, additiona
   };
 
   const requireManager = (request, _response, next) => {
-    if (request.authUser.role !== 'MANAGER') return next(new HttpError(403, 'Acesso exclusivo do gestor.'));
+    if (!['ADMIN', 'MANAGER'].includes(request.authUser.role)) {
+      return next(new HttpError(403, 'Acesso exclusivo da gestão.'));
+    }
+    next();
+  };
+
+  const requireAdmin = (request, _response, next) => {
+    if (request.authUser.role !== 'ADMIN') return next(new HttpError(403, 'Acesso exclusivo do administrador.'));
     next();
   };
 
@@ -154,13 +153,38 @@ export function createApp({ authService, commercialDb, crm, appOrigin, additiona
   });
 
   app.post('/api/users', requireAuth, requireManager, async (request, response) => {
-    const user = await authService.createUser(request.body ?? {});
+    const user = await authService.createUser(request.body ?? {}, request.authUser);
     response.status(201).json({ user });
   });
 
   app.patch('/api/users/:id', requireAuth, requireManager, async (request, response) => {
-    const user = await authService.updateUser(request.params.id, request.body, request.authUser.id);
+    const user = await authService.updateUser(request.params.id, request.body, request.authUser);
     response.json({ user });
+  });
+
+  app.get('/api/admin/api-credentials', requireAuth, requireAdmin, async (_request, response) => {
+    response.set('Cache-Control', 'no-store').json({ items: await listApiCredentials(commercialDb) });
+  });
+
+  app.post('/api/admin/api-credentials', requireAuth, requireAdmin, async (request, response) => {
+    const input = z.object({
+      name: z.string().trim().min(3).max(100),
+      expiresInDays: z.number().int().min(1).max(365)
+    }).strict().parse(request.body);
+    response.set('Cache-Control', 'no-store').status(201)
+      .json(await createApiCredential(commercialDb, request.authUser, input));
+  });
+
+  app.post('/api/admin/api-credentials/:id/revoke', requireAuth, requireAdmin, async (request, response) => {
+    response.set('Cache-Control', 'no-store')
+      .json({ credential: await revokeApiCredential(commercialDb, request.authUser, request.params.id) });
+  });
+
+  app.post('/api/admin/api-credentials/:id/preview', requireAuth, requireAdmin, async (request, response) => {
+    await requireActiveApiCredential(commercialDb, request.params.id);
+    const event = crmEventSchema.parse(request.body);
+    response.set('Cache-Control', 'no-store')
+      .json(await previewCrmEvent(commercialDb, event, 'PRISMA'));
   });
 
   if (commercialDb) app.use('/api/comercial', requireAuth,

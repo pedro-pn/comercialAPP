@@ -46,9 +46,10 @@ test('rascunhos, autoria, valores e concorrência no banco próprio', { skip: !d
   await db.proposalNumberingState.deleteMany();
   await db.scopePhotoAsset.deleteMany();
   await db.session.deleteMany();
+  await db.apiCredential.deleteMany();
   await db.user.deleteMany();
 
-  const manager = await auth.bootstrapManager({
+  const manager = await auth.bootstrapAdmin({
     username: 'gestor', name: 'Gestor', password: 'senha-segura-123'
   });
   const sede = await salvarSede(db, manager, { sedeEndereco: 'Rua de Teste, 100, São Paulo' });
@@ -57,13 +58,13 @@ test('rascunhos, autoria, valores e concorrência no banco próprio', { skip: !d
   assert.equal((await distanciaDaSede(db, 'Avenida Teste, 200, Santos')).km, null);
   const seller = await auth.createUser({
     username: 'vendedor', name: 'Vendedor', role: 'SELLER', password: 'senha-segura-456'
-  });
+  }, manager);
   await auth.createUser({
     username: 'colega', name: 'Outro Vendedor', role: 'SELLER', password: 'senha-segura-789'
-  });
+  }, manager);
   await auth.createUser({
     username: 'consulta', name: 'Consulta', role: 'VIEWER', password: 'senha-segura-abc'
-  });
+  }, manager);
 
   const base = `http://127.0.0.1:${server.address().port}`;
   const request = async (path, { method = 'GET', body, cookie } = {}) => {
@@ -413,5 +414,5 @@ test('rascunhos, autoria, valores e concorrência no banco próprio', { skip: !d
   assert.equal((await request('/api/comercial/propostas/proximo-numero', {
     method: 'POST', cookie: sellerCookie
   })).data.numero, 8703);
-  assert.equal(manager.role, 'MANAGER');
+  assert.equal(manager.role, 'ADMIN');
 });

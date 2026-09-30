@@ -14,6 +14,8 @@ const PropostaPage = lazy(() => import('./pages/comercial/proposta/PropostaPage'
   .then(module => ({ default: module.PropostaPage })));
 const ConfiguracoesPage = lazy(() => import('./pages/comercial/configuracoes/ConfiguracoesPage')
   .then(module => ({ default: module.ConfiguracoesPage })));
+const ApiCentralPage = lazy(() => import('./pages/comercial/ApiCentralPage')
+  .then(module => ({ default: module.ApiCentralPage })));
 const REMEMBERED_USER_KEY = 'comercialapp-remembered-user';
 
 function readRememberedUser() {
@@ -89,8 +91,9 @@ export function App() {
   const contextUser: AuthUser | null = user && {
     id: user.id,
     name: user.name,
-    accountType: user.role === 'MANAGER' ? 'ADMIN' : 'INTERNAL',
-    moduleRoles: user.role === 'MANAGER' ? ['comercial:manager'] :
+    accountType: ['ADMIN', 'MANAGER'].includes(user.role) ? 'ADMIN' : 'INTERNAL',
+    moduleRoles: user.role === 'ADMIN' ? ['comercial:admin', 'comercial:manager'] :
+      user.role === 'MANAGER' ? ['comercial:manager'] :
       user.role === 'SELLER' ? ['comercial:seller'] : []
   };
 
@@ -98,7 +101,7 @@ export function App() {
     location.pathname === '/custos' || location.pathname === '/propostas' ||
     location.pathname === '/configuracoes')) {
     if (user.role === 'VIEWER' && location.pathname !== '/') return <Navigate to="/" replace />;
-    if (location.pathname === '/configuracoes' && user.role !== 'MANAGER') {
+    if (location.pathname === '/configuracoes' && !['ADMIN', 'MANAGER'].includes(user.role)) {
       return <Navigate to="/" replace />;
     }
     return (
@@ -120,7 +123,17 @@ export function App() {
     return <HistoricoRascunhosPage user={user} onLogout={handleLogout} />;
   }
 
-  if (!loading && user && (location.pathname !== '/acessos' || user.role !== 'MANAGER')) {
+  if (!loading && user && location.pathname === '/api-central') {
+    if (user.role !== 'ADMIN') return <Navigate to="/" replace />;
+    return <AuthContext.Provider value={{ user: contextUser!, logout: handleLogout }}>
+      <Suspense fallback={<main className="shell" role="status">Carregando Central de API...</main>}>
+        <ApiCentralPage />
+      </Suspense>
+    </AuthContext.Provider>;
+  }
+
+  if (!loading && user && (location.pathname !== '/acessos' ||
+    !['ADMIN', 'MANAGER'].includes(user.role))) {
     return <Navigate to="/" replace />;
   }
 
