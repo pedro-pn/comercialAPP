@@ -32,6 +32,12 @@ test('administração, tokens de API e revogação de sessão', { skip: !databas
   await db.apiCredential.deleteMany();
   await db.user.deleteMany();
 
+  await assert.rejects(() => auth.loginMicrosoft({
+    tenantId: '11111111-1111-4111-8111-111111111111',
+    objectId: '44444444-4444-4444-8444-444444444444',
+    preferredUsername: 'primeiro@filtrovali.com.br'
+  }), { status: 409 });
+
   const base = `http://127.0.0.1:${server.address().port}`;
   const request = async (path, { method = 'GET', body, cookie } = {}) => {
     const response = await fetch(base + path, {
@@ -227,4 +233,34 @@ test('administração, tokens de API e revogação de sessão', { skip: !databas
     method: 'POST', cookie: adminCookie
   })).response.status, 204);
   assert.equal((await request('/api/auth/me', { cookie: adminCookie })).response.status, 401);
+
+  const newIdentity = {
+    tenantId: '11111111-1111-4111-8111-111111111111',
+    objectId: '44444444-4444-4444-8444-444444444444',
+    preferredUsername: 'novo.vendedor@filtrovali.com.br',
+    name: 'Novo Vendedor'
+  };
+  const firstMicrosoftLogin = await auth.loginMicrosoft(newIdentity);
+  assert.equal(firstMicrosoftLogin.user.role, 'SELLER');
+  assert.equal(firstMicrosoftLogin.user.name, 'Novo Vendedor');
+  assert.equal(firstMicrosoftLogin.user.microsoftEmail, newIdentity.preferredUsername);
+  assert.equal(firstMicrosoftLogin.user.hasLocalPassword, false);
+  const newUserId = firstMicrosoftLogin.user.id;
+  assert.equal((await db.user.findUnique({ where: { id: newUserId } })).passwordHash, null);
+  await assert.rejects(() => auth.login(firstMicrosoftLogin.user.username, 'senha-qualquer'),
+    { status: 401 });
+  await assert.rejects(() => auth.updateUser(newUserId,
+    { password: 'senha-local-proibida' }, manager.json.user), { status: 409 });
+
+  const secondMicrosoftLogin = await auth.loginMicrosoft({ ...newIdentity,
+    preferredUsername: 'email.alterado@filtrovali.com.br' });
+  assert.equal(secondMicrosoftLogin.user.id, newUserId);
+  assert.equal(secondMicrosoftLogin.user.microsoftEmail, 'email.alterado@filtrovali.com.br');
+  assert.equal(await db.user.count({ where: { microsoftObjectId: newIdentity.objectId } }), 1);
+
+  const changedRole = await auth.updateUser(newUserId, { role: 'VIEWER' }, manager.json.user);
+  assert.equal(changedRole.role, 'VIEWER');
+  assert.equal((await auth.loginMicrosoft(newIdentity)).user.role, 'VIEWER');
+  await auth.updateUser(newUserId, { isActive: false }, manager.json.user);
+  await assert.rejects(() => auth.loginMicrosoft(newIdentity), { status: 403 });
 });

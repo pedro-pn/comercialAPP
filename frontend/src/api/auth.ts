@@ -6,6 +6,8 @@ export interface CommercialUser {
   id: string;
   username: string;
   name: string;
+  microsoftEmail: string | null;
+  hasLocalPassword: boolean;
   role: CommercialRole;
   isActive: boolean;
 }

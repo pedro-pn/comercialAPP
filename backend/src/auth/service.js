@@ -17,6 +17,8 @@ export function publicUser(user) {
     id: user.id,
     username: user.username,
     name: user.name,
+    microsoftEmail: user.microsoftEmail,
+    hasLocalPassword: Boolean(user.passwordHash),
     role: user.role,
     isActive: user.isActive,
     createdAt: user.createdAt,
@@ -49,6 +51,21 @@ function validPassword(value) {
 function validRole(value) {
   if (!roles.has(value)) throw new HttpError(400, 'Papel inválido.');
   return value;
+}
+
+function microsoftEmail(identity) {
+  for (const value of [identity.email, identity.preferredUsername]) {
+    const email = typeof value === 'string' ? value.trim().toLowerCase() : '';
+    if (email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return email;
+  }
+  return null;
+}
+
+function microsoftName(identity, email) {
+  const name = typeof identity.name === 'string' ? identity.name.trim() : '';
+  if (name.length >= 2 && name.length <= 120) return name;
+  const fallback = email.split('@')[0];
+  return fallback.length >= 2 && fallback.length <= 120 ? fallback : `Usuário Microsoft ${identity.objectId.slice(0, 8)}`;
 }
 
 export function tokenHash(token) {
@@ -85,12 +102,36 @@ export function createAuthService(db) {
       return createSession(user, sessionDays * 24 * 60 * 60 * 1000);
     },
 
-    async loginMicrosoft({ tenantId, objectId }) {
-      const user = await db.user.findUnique({
-        where: { microsoftTenantId_microsoftObjectId: { microsoftTenantId: tenantId,
-          microsoftObjectId: objectId } }
-      });
-      if (!user?.isActive) throw new HttpError(403, 'Conta Microsoft sem acesso ao ComercialAPP.');
+    async loginMicrosoft(identity) {
+      const { tenantId, objectId } = identity;
+      const where = { microsoftTenantId_microsoftObjectId: { microsoftTenantId: tenantId,
+        microsoftObjectId: objectId } };
+      const email = microsoftEmail(identity);
+      let user = await db.user.findUnique({ where });
+      if (!user) {
+        if (await db.user.count() === 0) {
+          throw new HttpError(409, 'Crie a conta inicial de administrador antes do primeiro login Microsoft.');
+        }
+        if (!email) throw new HttpError(403, 'A conta Microsoft não informou um e-mail válido.');
+        try {
+          user = await db.user.create({ data: {
+            username: `ms-${objectId.replaceAll('-', '')}`,
+            name: microsoftName(identity, email),
+            microsoftEmail: email,
+            microsoftTenantId: tenantId,
+            microsoftObjectId: objectId,
+            role: 'SELLER'
+          } });
+        } catch (error) {
+          if (error.code !== 'P2002') throw error;
+          user = await db.user.findUnique({ where });
+          if (!user) throw new HttpError(409, 'Já existe uma conta com este identificador.');
+        }
+      }
+      if (!user.isActive) throw new HttpError(403, 'Conta Microsoft sem acesso ao ComercialAPP.');
+      if (email && email !== user.microsoftEmail) {
+        user = await db.user.update({ where: { id: user.id }, data: { microsoftEmail: email } });
+      }
       return createSession(user, microsoftSessionHours * 60 * 60 * 1000);
     },
 
@@ -157,6 +198,9 @@ export function createAuthService(db) {
       return db.$transaction(async tx => {
         const existing = await tx.user.findUnique({ where: { id } });
         if (!existing) throw new HttpError(404, 'Usuário não encontrado.');
+        if (data.passwordHash && !existing.passwordHash) {
+          throw new HttpError(409, 'Contas criadas pela Microsoft não usam senha local.');
+        }
         if (actor.role !== 'ADMIN' && (existing.role === 'ADMIN' || data.role === 'ADMIN')) {
           throw new HttpError(403, 'Somente um administrador pode alterar o perfil de administrador.');
         }

@@ -107,7 +107,11 @@ export function AcessosPage({ user, onSelfPasswordChanged }: {
             <div className="com-access-user-heading">
               <div>
                 <strong>{entry.name}</strong>
-                <span className="com-access-username">@{entry.username}{entry.id === user.id ? ' · sua conta' : ''}</span>
+                <span className="com-access-username">
+                  {entry.microsoftEmail ?? `@${entry.username}`}
+                  {entry.microsoftEmail ? ' · Microsoft' : ''}
+                  {entry.id === user.id ? ' · sua conta' : ''}
+                </span>
               </div>
               <span className={`com-access-status${entry.isActive ? ' is-active' : ''}`}>
                 {entry.isActive ? 'Ativo' : 'Inativo'}
@@ -130,7 +134,7 @@ export function AcessosPage({ user, onSelfPasswordChanged }: {
                 onClick={() => { void changeUser(entry.id, { isActive: !entry.isActive }); }}>
                 {entry.isActive ? 'Desativar' : 'Ativar'}
               </button>
-              <button type="button" className="com-btn com-btn-fantasma"
+              {entry.hasLocalPassword && <button type="button" className="com-btn com-btn-fantasma"
                 disabled={busy || !isAdmin && entry.role === 'ADMIN'}
                 aria-expanded={resetUserId === entry.id}
                 onClick={() => {
@@ -138,7 +142,7 @@ export function AcessosPage({ user, onSelfPasswordChanged }: {
                   setResetPassword('');
                 }}>
                 {resetUserId === entry.id ? 'Cancelar' : 'Redefinir senha'}
-              </button>
+              </button>}
             </div>
             {resetUserId === entry.id && <form className="com-access-reset" onSubmit={event => {
               event.preventDefault();

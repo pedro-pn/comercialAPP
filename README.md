@@ -75,9 +75,10 @@ usuários está vazia.
   usuário do sistema, Docker rootless e banco próprio. O Nginx do Comercial
   publica HTTP apenas em `172.17.0.1:8083`; o Caddy compartilhado termina o
   HTTPS e encaminha o domínio para essa porta.
-- Primeira entrega: login próprio; o administrador controla tokens de API e
-  contas administrativas. Gestores administram o trabalho comercial e as
-  contas sem privilégio de administrador. Login Microsoft fica para uma etapa futura.
+- O administrador controla tokens de API e contas administrativas. Gestores
+  administram o trabalho comercial e as contas sem privilégio de administrador.
+  O login Microsoft cria novos usuários como Vendedor após a atribuição no Entra;
+  contas locais existentes podem ser vinculadas para preservar seu histórico.
 - Integração: Comercial envia propostas ao CRM, que escolhe o projeto e envia
   proposta e vínculo ao FiltroAPP. A aprovação vem do CRM, com seleção manual
   quando não houver retorno.

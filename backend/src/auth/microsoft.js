@@ -85,7 +85,13 @@ export function createMicrosoftAuth({ tenantId, clientId, redirectUri, privateKe
           claims?.iss !== `https://login.microsoftonline.com/${tenantId}/v2.0`) {
         throw new HttpError(401, 'Identidade Microsoft inválida.');
       }
-      return { tenantId: claims.tid.toLowerCase(), objectId: claims.oid.toLowerCase() };
+      return {
+        tenantId: claims.tid.toLowerCase(),
+        objectId: claims.oid.toLowerCase(),
+        email: claims.email,
+        preferredUsername: claims.preferred_username,
+        name: claims.name
+      };
     }
   };
 }
