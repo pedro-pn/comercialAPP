@@ -23,11 +23,11 @@ host. Nenhum contêiner consulta o banco do FiltroAPP.
    terminal. Abra `http://localhost:5174`. O Vite encaminha `/api` para a API
    publicada pelo Compose em `127.0.0.1:4300`; as duas portas usam o mesmo
    banco local. A API aceita somente as origens locais 8086 e 5174 nesse modo.
-4. Crie o primeiro gestor, digitando uma senha de pelo menos 12 caracteres:
+4. Crie o primeiro administrador, digitando uma senha de pelo menos 12 caracteres:
 
    ```bash
    read -rsp 'Senha inicial: ' COMERCIAL_INITIAL_PASSWORD
-   printf '%s\n' "$COMERCIAL_INITIAL_PASSWORD" | docker compose -f docker-compose.local.yml exec -T api npm run db:bootstrap-manager --workspace @comercialapp/backend -- gestor "Gestor Comercial"
+   printf '%s\n' "$COMERCIAL_INITIAL_PASSWORD" | docker compose -f docker-compose.local.yml exec -T api npm run db:bootstrap-admin --workspace @comercialapp/backend -- admin "Administrador Comercial"
    unset COMERCIAL_INITIAL_PASSWORD
    ```
 
@@ -107,15 +107,17 @@ O limite de upload de 22 MB já está no Nginx interno.
    O Caddy emite e renova o certificado depois que DNS e portas estiverem
    corretos. Se o domínio responder 502, verifique primeiro o acesso do Caddy a
    `host.docker.internal:8083` e o estado do contêiner `web`.
-6. Crie o primeiro gestor com senha de pelo menos 12 caracteres:
+6. Crie o primeiro administrador com senha de pelo menos 12 caracteres:
 
    ```bash
    read -rsp 'Senha inicial: ' COMERCIAL_INITIAL_PASSWORD
-   printf '%s\n' "$COMERCIAL_INITIAL_PASSWORD" | docker compose -f docker-compose.prod.yml exec -T api npm run db:bootstrap-manager --workspace @comercialapp/backend -- gestor "Gestor Comercial"
+   printf '%s\n' "$COMERCIAL_INITIAL_PASSWORD" | docker compose -f docker-compose.prod.yml exec -T api npm run db:bootstrap-admin --workspace @comercialapp/backend -- admin "Administrador Comercial"
    unset COMERCIAL_INITIAL_PASSWORD
    ```
 
-   Antes de criar propostas reais, o gestor deve configurar o número inicial
+   Se já houver um gestor criado e ainda não existir administrador, promova
+   essa conta com `docker compose -f docker-compose.prod.yml exec -T api npm run db:promote-admin --workspace @comercialapp/backend -- nome-do-usuario`.
+   Antes de criar propostas reais, a gestão deve configurar o número inicial
    após conferir o último código usado no CRM e no legado; essa operação só
    pode ser feita uma vez. Valide login, permissões, fotos, anexos de mais de
    1 MB, geração e download de DOCX/PDF pelo domínio HTTPS.

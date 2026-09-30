@@ -86,7 +86,7 @@ async function generatePair(data, type) {
 export async function previewPdf(db, user, input) {
   const { tipo, ...payload } = input;
   if (tipo !== 'commercial' && tipo !== 'technical') throw new HttpError(400, 'Tipo de documento inválido.');
-  const selectedSeller = payload.seller && user.role === 'MANAGER'
+  const selectedSeller = payload.seller && ['ADMIN', 'MANAGER'].includes(user.role)
     ? await db.user.findFirst({ where: { id: payload.seller, isActive: true } })
     : null;
   const data = { ...payload, seller: selectedSeller?.name || user.name,

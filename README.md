@@ -30,17 +30,18 @@ desenvolvimento local.
    `backend/.env` e configure `DATABASE_URL` e `APP_ORIGIN`.
 3. Execute `npm run db:generate --workspace @comercialapp/backend` e
    `npm run db:migrate --workspace @comercialapp/backend`.
-4. Crie o primeiro gestor com senha lida pela entrada padrão, por exemplo:
+4. Crie o primeiro administrador com senha lida pela entrada padrão, por exemplo:
 
    ```bash
    read -rsp 'Senha inicial: ' COMERCIAL_INITIAL_PASSWORD
-   printf '%s\n' "$COMERCIAL_INITIAL_PASSWORD" | npm run db:bootstrap-manager --workspace @comercialapp/backend -- gestor "Gestor Comercial"
+   printf '%s\n' "$COMERCIAL_INITIAL_PASSWORD" | npm run db:bootstrap-admin --workspace @comercialapp/backend -- admin "Administrador Comercial"
    unset COMERCIAL_INITIAL_PASSWORD
    ```
 
 5. Em terminais separados, execute `npm run dev:api` e `npm run dev:web`.
-6. Abra http://localhost:5174 e entre com o usuário do gestor. O gestor pode
-   criar, desativar e alterar os papéis de outros usuários.
+6. Abra http://localhost:5174 e entre como administrador. A Central de API
+   permite gerar tokens do Prisma; o gestor cuida do fluxo comercial e dos
+   usuários que não são administradores.
 7. Execute `npm run check` para compilar a interface e as regras, verificar as
    telas extraídas, testar os cálculos e validar o esquema Prisma. Para executar
    também os testes de integração, configure `TEST_DATABASE_URL` com um banco
@@ -53,7 +54,7 @@ scripts de backup. Ele é executado nos PRs para `main` e nos pushes à `main`.
 O backend escuta em 127.0.0.1:4300 por padrão. A sessão usa cookie HttpOnly;
 em produção, `APP_ORIGIN` deve ser a origem HTTPS pública e o cookie é marcado
 como Secure. As variáveis de exemplo estão em backend/.env.example e
-frontend/.env.example. O primeiro gestor só pode ser criado quando a tabela de
+frontend/.env.example. O primeiro administrador só pode ser criado quando a tabela de
 usuários está vazia.
 
 ## Estrutura
@@ -74,8 +75,9 @@ usuários está vazia.
   usuário do sistema, Docker rootless e banco próprio. O Nginx do Comercial
   publica HTTP apenas em `172.17.0.1:8083`; o Caddy compartilhado termina o
   HTTPS e encaminha o domínio para essa porta.
-- Primeira entrega: login próprio; o gestor do Comercial administra acessos
-  e papéis. Login compartilhado fica para uma etapa futura.
+- Primeira entrega: login próprio; o administrador controla tokens de API e
+  contas administrativas. Gestores administram o trabalho comercial e as
+  contas sem privilégio de administrador. Login Microsoft fica para uma etapa futura.
 - Integração: Comercial envia propostas ao CRM, que escolhe o projeto e envia
   proposta e vínculo ao FiltroAPP. A aprovação vem do CRM, com seleção manual
   quando não houver retorno.

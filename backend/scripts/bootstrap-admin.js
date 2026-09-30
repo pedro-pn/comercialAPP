@@ -4,7 +4,7 @@ import { createDatabase } from '../src/db.js';
 
 const [username, name] = process.argv.slice(2);
 if (!username || !name || process.stdin.isTTY) {
-  console.error('Uso: senha via stdin | npm run db:bootstrap-manager -- usuario "Nome do Gestor"');
+  console.error('Uso: senha via stdin | npm run db:bootstrap-admin -- usuario "Nome do Administrador"');
   process.exit(1);
 }
 
@@ -14,8 +14,8 @@ password = password.replace(/\r?\n$/, '');
 
 const db = createDatabase();
 try {
-  const user = await createAuthService(db).bootstrapManager({ username, name, password });
-  console.log(`Gestor ${user.username} criado.`);
+  const user = await createAuthService(db).bootstrapAdmin({ username, name, password });
+  console.log(`Administrador ${user.username} criado.`);
 } catch (error) {
   console.error(error.message);
   process.exitCode = 1;

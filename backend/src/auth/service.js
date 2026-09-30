@@ -2,7 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { hashPassword, verifyPassword } from './password.js';
 
 export const sessionDays = 7;
-const roles = new Set(['MANAGER', 'SELLER', 'VIEWER']);
+const roles = new Set(['ADMIN', 'MANAGER', 'SELLER', 'VIEWER']);
 
 export class HttpError extends Error {
   constructor(status, message) {
@@ -56,15 +56,15 @@ export function tokenHash(token) {
 
 export function createAuthService(db) {
   return {
-    async bootstrapManager({ username, name, password }) {
+    async bootstrapAdmin({ username, name, password }) {
       const data = {
         username: normalizeUsername(username),
         name: validName(name),
         passwordHash: await hashPassword(validPassword(password)),
-        role: 'MANAGER'
+        role: 'ADMIN'
       };
       return db.$transaction(async tx => {
-        if (await tx.user.count() !== 0) throw new HttpError(409, 'O gestor inicial já foi criado.');
+        if (await tx.user.count() !== 0) throw new HttpError(409, 'A conta inicial já foi criada.');
         return publicUser(await tx.user.create({ data }));
       }, { isolationLevel: 'Serializable' });
     },
@@ -100,7 +100,13 @@ export function createAuthService(db) {
       return (await db.user.findMany({ orderBy: { name: 'asc' } })).map(publicUser);
     },
 
-    async createUser(input) {
+    async createUser(input, actor) {
+      if (!actor || !['ADMIN', 'MANAGER'].includes(actor.role)) {
+        throw new HttpError(403, 'Acesso restrito à administração.');
+      }
+      if (input.role === 'ADMIN' && actor.role !== 'ADMIN') {
+        throw new HttpError(403, 'Somente um administrador pode criar outro administrador.');
+      }
       const data = {
         username: normalizeUsername(input.username),
         name: validName(input.name),
@@ -115,7 +121,10 @@ export function createAuthService(db) {
       }
     },
 
-    async updateUser(id, input, actorId) {
+    async updateUser(id, input, actor) {
+      if (!actor || !['ADMIN', 'MANAGER'].includes(actor.role)) {
+        throw new HttpError(403, 'Acesso restrito à administração.');
+      }
       if (!input || typeof input !== 'object' || Array.isArray(input)) {
         throw new HttpError(400, 'Dados inválidos.');
       }
@@ -135,13 +144,21 @@ export function createAuthService(db) {
       return db.$transaction(async tx => {
         const existing = await tx.user.findUnique({ where: { id } });
         if (!existing) throw new HttpError(404, 'Usuário não encontrado.');
-        if (id === actorId && (data.role && data.role !== 'MANAGER' || data.isActive === false)) {
-          throw new HttpError(409, 'O gestor não pode retirar o próprio acesso.');
+        if (actor.role !== 'ADMIN' && (existing.role === 'ADMIN' || data.role === 'ADMIN')) {
+          throw new HttpError(403, 'Somente um administrador pode alterar o perfil de administrador.');
+        }
+        if (id === actor.id && (data.role && data.role !== existing.role || data.isActive === false)) {
+          throw new HttpError(409, 'Você não pode retirar o próprio acesso.');
+        }
+        if (existing.role === 'ADMIN' && existing.isActive &&
+            (data.role && data.role !== 'ADMIN' || data.isActive === false) &&
+            await tx.user.count({ where: { role: 'ADMIN', isActive: true } }) <= 1) {
+          throw new HttpError(409, 'É necessário manter ao menos um administrador ativo.');
         }
         if (existing.role === 'MANAGER' && existing.isActive &&
-            (data.role && data.role !== 'MANAGER' || data.isActive === false) &&
-            await tx.user.count({ where: { role: 'MANAGER', isActive: true } }) <= 1) {
-          throw new HttpError(409, 'É necessário manter ao menos um gestor ativo.');
+            (data.role && !['ADMIN', 'MANAGER'].includes(data.role) || data.isActive === false) &&
+            await tx.user.count({ where: { role: { in: ['ADMIN', 'MANAGER'] }, isActive: true } }) <= 1) {
+          throw new HttpError(409, 'É necessário manter ao menos um gestor ou administrador ativo.');
         }
         const updated = await tx.user.update({ where: { id }, data });
         if (data.passwordHash || data.isActive === false || data.role && data.role !== existing.role) {

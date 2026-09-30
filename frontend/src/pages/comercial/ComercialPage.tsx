@@ -15,10 +15,10 @@ type Destino = {
   icone: ReactNode;
 };
 
-type RotaKey = 'custos' | 'propostas' | 'historico' | 'acessos' | 'configuracoes';
+type RotaKey = 'custos' | 'propostas' | 'historico' | 'acessos' | 'configuracoes' | 'api';
 
 const DESTINOS: Array<
-  Destino & { rotaKey: RotaKey; soGestor?: boolean; soOrcamentista?: boolean }
+  Destino & { rotaKey: RotaKey; soGestor?: boolean; soAdmin?: boolean; soOrcamentista?: boolean }
 > = [
   {
     titulo: 'Levantar custos',
@@ -81,6 +81,13 @@ const DESTINOS: Array<
     rotaKey: 'configuracoes',
     soGestor: true,
     icone: <><circle cx="12" cy="12" r="8" /><path d="M12 7v5l3 2" /></>
+  },
+  {
+    titulo: 'Central de API',
+    descricao: 'Crie e revogue tokens de integração e valide eventos do CRM.',
+    rotaKey: 'api',
+    soAdmin: true,
+    icone: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m9 9-3 3 3 3m6-6 3 3-3 3" /></>
   }
 ];
 
@@ -93,11 +100,13 @@ export function ComercialPage() {
   // que ele veria seria uma tela quebrada, não uma permissão que não tem.
   const ehGestor =
     user?.accountType === 'ADMIN' || Boolean(user?.moduleRoles?.includes('comercial:manager'));
+  const ehAdmin = Boolean(user?.moduleRoles?.includes('comercial:admin'));
   const ehOrcamentista =
     ehGestor || Boolean(user?.moduleRoles?.includes('comercial:seller'));
   const destinos = DESTINOS.filter(
     destino =>
-      (!destino.soGestor || ehGestor) && (!destino.soOrcamentista || ehOrcamentista)
+      (!destino.soGestor || ehGestor) && (!destino.soAdmin || ehAdmin) &&
+      (!destino.soOrcamentista || ehOrcamentista)
   );
 
   return (

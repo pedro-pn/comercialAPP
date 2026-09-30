@@ -4,6 +4,7 @@ const routes: Record<string, string> = {
   propostas: '/propostas',
   historico: '/historico',
   acessos: '/acessos',
+  api: '/api-central',
   configuracoes: '/configuracoes'
 };
 

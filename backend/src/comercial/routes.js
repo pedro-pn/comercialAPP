@@ -78,15 +78,15 @@ export function createCommercialRouter(db, { crm = createNectarClient() } = {}) 
 
   router.get('/consultores', requireEstimator, async (request, response) => {
     const user = request.authUser;
-    const users = user.role === 'MANAGER'
+    const users = ['ADMIN', 'MANAGER'].includes(user.role)
       ? await db.user.findMany({
-        where: { isActive: true, role: { in: ['MANAGER', 'SELLER'] } },
+        where: { isActive: true, role: { in: ['ADMIN', 'MANAGER', 'SELLER'] } },
         orderBy: [{ name: 'asc' }, { username: 'asc' }]
       })
       : [user];
     response.json({
       items: users.map(item => ({ id: item.id, nome: item.name, username: item.username })),
-      podeEscolher: user.role === 'MANAGER'
+      podeEscolher: ['ADMIN', 'MANAGER'].includes(user.role)
     });
   });
 
