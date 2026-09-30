@@ -11,9 +11,11 @@ sem alterar o logotipo ou suas proporções.
 
 ## Ativação na VPS
 
-1. No Entra, confirme o registro Web, a URI de retorno e a atribuição dos
-   usuários autorizados em **Aplicativos empresariais**. Se a atribuição for
-   obrigatória, conceda consentimento administrativo às permissões configuradas.
+1. No Entra, confirme o registro Web e a URI de retorno. Em **Aplicativos
+   empresariais**, configure **Atribuição necessária? = Sim**, atribua somente
+   os usuários autorizados e conceda consentimento administrativo às permissões
+   configuradas. Essa restrição é essencial porque o primeiro login agora cria
+   uma conta automaticamente no ComercialAPP.
 2. Gere um certificado fora do repositório. Na VPS, como usuário `comercial`,
    a partir de `~/apps/comercialAPP`:
 
@@ -58,7 +60,7 @@ sem alterar o logotipo ou suas proporções.
 
    A migração acrescenta os identificadores Microsoft à tabela de usuários,
    sem alterar os IDs e históricos existentes.
-5. Vincule cada conta existente pelo **Object ID** obtido em **Entra ID →
+5. Vincule cada conta local existente cujo histórico precisa ser preservado pelo **Object ID** obtido em **Entra ID →
    Usuários → usuário → Visão geral**. Para promover uma conta vinculada a
    administrador, use:
 
@@ -70,6 +72,7 @@ sem alterar o logotipo ou suas proporções.
    O script recusa vincular uma identidade a duas contas ou trocar uma
    identidade já associada. Para os demais usuários, omita `--admin`;
    seus papéis continuam sendo definidos na página **Acessos**.
+   Não vincule contas apenas pela coincidência do e-mail.
 6. Altere `ENTRA_LOGIN_ENABLED=on` e recrie a API e o web:
 
    ```sh
@@ -80,6 +83,17 @@ sem alterar o logotipo ou suas proporções.
    (deve retornar `{"microsoft":true}`),
    entre pelo botão **Entrar com conta Microsoft** e confira o papel na UI.
    O login local continua disponível durante a transição.
+
+Crie a conta inicial de administrador antes de habilitar o login Microsoft.
+No primeiro login de uma pessoa atribuída ao aplicativo no Entra que ainda
+não tem conta vinculada, o ComercialAPP cria uma conta ativa **Vendedor** sem
+senha local. O token Microsoft precisa trazer um e-mail válido (claim `email`
+ou `preferred_username`); o e-mail aparece em **Acessos** e pode ser atualizado
+em logins posteriores. A identidade da conta é o par `tid` + `oid`, nunca o
+e-mail, que pode mudar. Administradores e gestores podem alterar o papel ou
+desativar a conta em **Acessos**; só administradores podem atribuir o papel
+Administrador. Uma conta local preexistente não é vinculada automaticamente:
+use o script acima antes do primeiro login Microsoft para manter seu histórico.
 
 Se ainda não houver certificado, `ENTRA_CLIENT_SECRET` pode ser usado
 temporariamente para teste. Configure **um** método de credencial por vez.

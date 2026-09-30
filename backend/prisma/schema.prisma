@@ -50,9 +50,10 @@ model User {
   id           String          @id @default(cuid())
   username     String          @unique
   name         String
-  passwordHash String
+  passwordHash String?
   microsoftTenantId String?
   microsoftObjectId String?
+  microsoftEmail String?
   role         CommercialRole
   isActive     Boolean         @default(true)
   createdAt    DateTime        @default(now())

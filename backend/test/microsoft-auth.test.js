@@ -22,6 +22,7 @@ function setup(overrides = {}) {
       tokenRequest = input;
       return { idTokenClaims: {
         tid: tenantId, aud: clientId, oid: objectId,
+        preferred_username: 'novo.usuario@filtrovali.com.br', name: 'Novo Usuário',
         iss: `https://login.microsoftonline.com/${tenantId}/v2.0`,
         nonce: input.nonce, ...overrides
       } };
@@ -42,7 +43,8 @@ test('login Microsoft valida state, nonce, tenant, público e PKCE', async () =>
   assert.deepEqual(provider.request().scopes, ['openid', 'profile']);
   assert.deepEqual(await provider.auth.complete({
     code: 'code', state: provider.request().state, cookieValue: flow.cookieValue
-  }), { tenantId, objectId });
+  }), { tenantId, objectId, email: undefined,
+    preferredUsername: 'novo.usuario@filtrovali.com.br', name: 'Novo Usuário' });
   assert.equal(provider.request().codeChallenge,
     createHash('sha256').update(provider.tokenRequest().codeVerifier).digest('base64url'));
   await assert.rejects(() => provider.auth.complete({
@@ -68,7 +70,7 @@ test('login Microsoft rejeita identidade de outro tenant ou outro público', asy
   }
 });
 
-test('retorno Microsoft emite sessão somente para conta vinculada', async t => {
+test('retorno Microsoft entrega a identidade validada ao serviço de contas', async t => {
   let seenIdentity;
   const app = createApp({
     appOrigin: 'https://commercial.example',

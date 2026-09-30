@@ -1,0 +1,2 @@
+ALTER TABLE "User" ALTER COLUMN "passwordHash" DROP NOT NULL;
+ALTER TABLE "User" ADD COLUMN "microsoftEmail" TEXT;
