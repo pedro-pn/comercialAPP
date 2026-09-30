@@ -39,8 +39,8 @@ host. Nenhum contêiner consulta o banco do FiltroAPP.
 A API executa `prisma migrate deploy` ao iniciar, como ocorre no FiltroAPP.
 O Compose espera o banco ficar saudável antes de iniciar a API e espera a API
 antes de iniciar o Nginx do Comercial.
-O arquivo `docker-compose.local.yml` é completo e pode ser usado sozinho. Em
-produção, `docker-compose.prod.yml` complementa `docker-compose.yml`.
+Os arquivos `docker-compose.local.yml` e `docker-compose.prod.yml` são completos;
+cada um pode ser usado sozinho com um único `-f`.
 Para preparar o Nectar, preencha as variáveis `NECTAR_*` no `.env` da raiz,
 conforme [o guia do CRM](NECTAR.md), e recrie a API com o Compose. O valor
 inicial `NECTAR_MODE=off` não faz chamadas externas.
@@ -78,13 +78,13 @@ O limite de upload de 22 MB já está no Nginx interno.
    permissão `600`. Para operar sem integrações externas, deixe
    `NECTAR_MODE=off`, `SHAREPOINT_MODE=off`, `GOOGLE_MAPS_MODE=off` e
    `FILTROAPP_API_URL`/`FILTROAPP_API_TOKEN` vazios. O domínio de produção está
-   fixado em `APP_ORIGIN` no `docker-compose.yml`. Não grave credenciais no Git.
+   fixado em `APP_ORIGIN` no `docker-compose.prod.yml`. Não grave credenciais no Git.
 4. Confira e suba a stack como o usuário rootless:
 
    ```bash
-   docker compose -f docker-compose.yml -f docker-compose.prod.yml config -q
-   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-   docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+   docker compose -f docker-compose.prod.yml config -q
+   docker compose -f docker-compose.prod.yml up -d --build
+   docker compose -f docker-compose.prod.yml ps
    curl -fsS http://172.17.0.1:8083/api/health
    ```
 
@@ -111,7 +111,7 @@ O limite de upload de 22 MB já está no Nginx interno.
 
    ```bash
    read -rsp 'Senha inicial: ' COMERCIAL_INITIAL_PASSWORD
-   printf '%s\n' "$COMERCIAL_INITIAL_PASSWORD" | docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T api npm run db:bootstrap-manager --workspace @comercialapp/backend -- gestor "Gestor Comercial"
+   printf '%s\n' "$COMERCIAL_INITIAL_PASSWORD" | docker compose -f docker-compose.prod.yml exec -T api npm run db:bootstrap-manager --workspace @comercialapp/backend -- gestor "Gestor Comercial"
    unset COMERCIAL_INITIAL_PASSWORD
    ```
 
