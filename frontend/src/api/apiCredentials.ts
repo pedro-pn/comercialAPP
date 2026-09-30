@@ -9,7 +9,7 @@ export interface ApiCredential {
   createdByUserId: string;
   createdByName: string | null;
   createdAt: string;
-  expiresAt: string;
+  expiresAt: string | null;
   revokedAt: string | null;
   revokedByUserId: string | null;
   revokedByName: string | null;
@@ -31,7 +31,7 @@ export async function listApiCredentials() {
   return data.items;
 }
 
-export async function createApiCredential(input: { name: string; expiresInDays: number }) {
+export async function createApiCredential(input: { name: string; expiresInDays: number | null }) {
   const { data } = await apiClient.post<{ credential: ApiCredential; token: string }>(
     '/admin/api-credentials', input
   );

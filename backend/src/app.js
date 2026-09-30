@@ -169,7 +169,7 @@ export function createApp({ authService, commercialDb, crm, appOrigin, additiona
   app.post('/api/admin/api-credentials', requireAuth, requireAdmin, async (request, response) => {
     const input = z.object({
       name: z.string().trim().min(3).max(100),
-      expiresInDays: z.number().int().min(1).max(365)
+      expiresInDays: z.number().int().min(1).max(365).nullable()
     }).strict().parse(request.body);
     response.set('Cache-Control', 'no-store').status(201)
       .json(await createApiCredential(commercialDb, request.authUser, input));

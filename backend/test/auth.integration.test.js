@@ -174,6 +174,27 @@ test('administração, tokens de API e revogação de sessão', { skip: !databas
       Authorization: `Bearer ${issued.json.token}` }, body: '{}'
   })).status, 401);
 
+  const permanent = await request('/api/admin/api-credentials', {
+    method: 'POST', cookie: adminCookie,
+    body: { name: 'CRM Prisma sem vencimento', expiresInDays: null }
+  });
+  assert.equal(permanent.response.status, 201);
+  assert.equal(permanent.json.credential.expiresAt, null);
+  assert.equal((await db.apiCredential.findUnique({
+    where: { id: permanent.json.credential.id }
+  })).expiresAt, null);
+  assert.equal((await fetch(base + '/api/integrations/crm/events', {
+    method: 'POST', headers: { 'Content-Type': 'application/json',
+      Authorization: `Bearer ${permanent.json.token}` }, body: '{}'
+  })).status, 400);
+  assert.equal((await request(`/api/admin/api-credentials/${permanent.json.credential.id}/revoke`, {
+    method: 'POST', cookie: adminCookie
+  })).response.status, 200);
+  assert.equal((await fetch(base + '/api/integrations/crm/events', {
+    method: 'POST', headers: { 'Content-Type': 'application/json',
+      Authorization: `Bearer ${permanent.json.token}` }, body: '{}'
+  })).status, 401);
+
   const sellerLogin = await request('/api/auth/login', {
     method: 'POST', body: { username: 'vendedor', password: 'senha-segura-456' }
   });
