@@ -123,6 +123,7 @@
 
 /* Tabela larga rola DENTRO do próprio contêiner, nunca na página. */
 .com-root .com-table-wrap {
+  position: relative;
   overflow-x: auto;
   border: 1px solid var(--com-borda);
   border-radius: var(--com-raio-controle);
@@ -374,6 +375,36 @@
   min-width: 0;
 }
 
+.com-root .com-local-upload {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+  padding: 14px 16px;
+  border: 1px dashed var(--com-borda);
+  border-radius: var(--com-raio-controle);
+  background: #f8faf9;
+  font-weight: 600;
+}
+.com-root .com-local-upload input { width: 100%; min-width: 0; font-size: 12px; }
+.com-root .com-local-upload input::file-selector-button {
+  margin-right: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--com-borda);
+  border-radius: var(--com-raio-controle);
+  background: var(--com-superficie);
+  color: var(--com-marca-forte);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.com-root .com-local-file-list { list-style: none; padding: 0; margin: 12px 0; }
+.com-root .com-local-file-list li {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 8px 0; border-bottom: 1px solid #d6e1d9;
+}
+.com-root .com-local-file-list li span { flex: 1; overflow-wrap: anywhere; }
+.com-root .com-local-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+
 /* --- Diálogos -------------------------------------------------------------
 
    Porte fiel de `.proposal-mode-overlay` / `.proposal-mode-card` /
@@ -446,6 +477,10 @@
 
 .com-root .com-modo-opcoes.com-modo-tres {
   grid-template-columns: repeat(3, 1fr);
+}
+
+.com-root .com-modo-opcoes.com-modo-quatro {
+  grid-template-columns: repeat(2, 1fr);
 }
 
 /* O cartão de opção do diálogo tem layout PRÓPRIO: o emblema redondo ocupa
@@ -537,6 +572,17 @@
   min-width: 0;
   margin-bottom: 0;
 }
+
+.com-root .com-legado-confirmacao {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  flex: 1 1 100%;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.com-root .com-legado-confirmacao input { margin-top: 2px; }
 
 .com-root .com-levantamentos-entrada {
   display: grid;
@@ -748,6 +794,7 @@
   .com-root .com-rodape { flex-direction: column; align-items: stretch; }
 
   .com-root .com-modo-opcoes.com-modo-tres { grid-template-columns: 1fr; }
+  .com-root .com-modo-opcoes.com-modo-quatro { grid-template-columns: 1fr; }
 
   .com-root .com-rodape-acoes,
   .com-root .com-levantamentos-cabecalho,
@@ -1026,7 +1073,8 @@
   .com-root .com-hero-titulo { display: block; }
   .com-root .com-hero h1 { margin: 5px 0; }
   .com-root .com-conteudo { padding: 14px; }
-  .com-root .com-workflow-nav { grid-template-columns: 1fr; }
+  .com-root .com-workflow-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .com-root .com-workflow-nav button:last-child { grid-column: 1 / -1; }
 }
 
 /* ==========================================================================
@@ -1181,6 +1229,7 @@
 }
 
 .com-root .com-history-table-wrap {
+  position: relative;
   max-width: 100%;
   overflow-x: auto;
   background: var(--com-superficie);
@@ -1456,7 +1505,7 @@
   border-color: var(--com-marca-forte);
 }
 
-.com-root .com-kpi-final > span { color: #617268; }
+.com-root .com-kpi-final > span { color: #c8dbce; }
 .com-root .com-kpi-final > strong { color: #fff; }
 
 /* Editor de margem: o único campo editável fora das seções. */
@@ -1498,7 +1547,8 @@
 }
 
 @media (max-width: 480px) {
-  .com-root .com-kpis { grid-template-columns: 1fr; }
+  .com-root .com-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .com-root .com-kpi-final { grid-column: 1 / -1; }
 }
 
 /* ==========================================================================
@@ -1533,6 +1583,14 @@
   font-size: 10px;
   cursor: pointer;
   min-width: 0;
+}
+
+@media (max-width: 600px) {
+  .com-root .com-confirmacao > label {
+    flex: 1 1 100%;
+    overflow-wrap: anywhere;
+  }
+  .com-root .com-confirmacao > label b { min-width: 0; }
 }
 
 .com-root .com-confirmacao.is-confirmada {
@@ -2108,8 +2166,8 @@
   margin-top: 14px;
   padding: 13px 14px;
   border: 1px solid var(--com-borda);
-  border-radius: var(--com-raio-sm);
-  background: var(--com-fundo-suave);
+  border-radius: var(--com-raio-controle);
+  background: var(--com-acao-suave);
   cursor: pointer;
 }
 
@@ -2180,7 +2238,7 @@
 /* Campo inválido dentro de tabela: as classes `.field-invalid` do base.css
    dependem de `.field-group`, que a célula não tem. */
 .com-root .com-campo-invalido {
-  border-color: var(--rd) !important;
+  border-color: var(--com-erro) !important;
   background-color: #fff5f5 !important;
 }
 
@@ -2244,10 +2302,23 @@
 .com-root .com-dado-negativo strong { color: #9d2d2d; }
 
 .com-root .com-incluir-bloco {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  gap: 12px;
   margin-top: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--com-borda);
+  border-radius: var(--com-raio-controle);
+  background: #f8faf9;
   font-size: 12px;
   color: var(--com-texto);
+  white-space: normal;
 }
+
+.com-root .com-incluir-bloco input { flex: 0 0 16px; margin: 2px 0 0; }
+.com-root .com-incluir-bloco span { display: grid; gap: 3px; min-width: 0; }
+.com-root .com-incluir-bloco small { font-size: 11px; color: var(--com-texto-fraco); }
 
 .com-root .com-nota-alerta { color: #9d2d2d; font-weight: 700; }
 
@@ -2344,8 +2415,30 @@
   margin-top: 1.5rem;
 }
 
+.com-root .com-escopo-cabecalho > div:first-child { flex: 1 1 320px; }
+
+.com-root .com-escopo-adicionar {
+  flex: 0 1 410px;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
 .com-root .com-escopo-adicionar select {
-  min-width: min(100%, 230px);
+  flex: 1 1 230px;
+  min-width: 0;
+  width: auto;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--com-borda);
+  border-radius: var(--com-raio-controle);
+  background: var(--com-superficie);
+}
+
+.com-root .com-escopo-adicionar .com-btn-add { flex: 0 0 auto; }
+
+@media (max-width: 700px) {
+  .com-root .com-escopo-adicionar { flex-basis: 100%; flex-wrap: wrap; }
+  .com-root .com-escopo-adicionar select { flex-basis: 100%; }
 }
 
 .com-root .com-escopo-numero {
@@ -3484,6 +3577,11 @@
   .com-root .com-stepper { grid-template-columns: repeat(2, 1fr); }
   .com-root .com-hero-proposta { padding: 10px 5vw; }
   .com-root .com-hero-proposta h1 { font-size: 24px; }
+  .com-root .com-conteudo > .com-acoes-topo { display: none; }
+  .com-root .com-topbar-acoes { width: 100%; }
+  .com-root .com-topbar-acoes .com-btn { width: auto; }
+  .com-root .com-form-panel .com-rodape.com-acoes-topo { display: none; }
+  .com-root .com-form-panel > footer.com-rodape { position: static; }
 }
 
 /* Chips de integração da barra superior. O ponto é o estado: âmbar pendente,
@@ -3576,6 +3674,16 @@
   margin: 0 0 10px;
   color: var(--com-texto-fraco);
   font-size: 13px;
+}
+
+.com-root .com-fieldset .com-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 700px) {
+  .com-root .com-fieldset .com-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* Escolha do cenário contratado (T130): dois cartões de rádio lado a lado.

@@ -2,6 +2,7 @@ import { HttpError } from '../auth/service.js';
 import { lerDinheiro } from '../../../shared/comercial/dist/dinheiro.js';
 import { assertCanRead, assertCanWrite, assertVersion, ConcurrentWriteError, ownerFilter } from './access.js';
 import { assertReservedCode, markNumberUsed } from './numbering.js';
+import { describeDocuments } from './documents.js';
 
 export function calculateProposalTotal(payload) {
   const prices = Array.isArray(payload?.prices) ? payload.prices : [];
@@ -46,6 +47,9 @@ async function validateEstimateLink(db, user, id, proposalCode) {
 }
 
 function historyItem(item, viewer) {
+  const generationId = item.documents?.[0]?.generationId;
+  const current = generationId
+    ? item.documents.filter(document => document.generationId === generationId) : [];
   const output = {
     id: item.id,
     proposalCode: item.proposalCode,
@@ -60,7 +64,9 @@ function historyItem(item, viewer) {
     title: typeof item.payload?.title === 'string' ? item.payload.title : '',
     finalizedAt: item.finalizedAt,
     createdAt: item.createdAt,
-    updatedAt: item.updatedAt
+    updatedAt: item.updatedAt,
+    documents: describeDocuments(item,
+      viewer ? current.filter(document => document.kind === 'TECNICA') : current)
   };
   if (viewer) return output;
   return {
@@ -76,6 +82,9 @@ function historyItem(item, viewer) {
     nectarPipelineName: item.nectarPipelineName,
     sharepointStatus: item.sharepointStatus,
     sharepointFolder: item.sharepointFolder,
+    crmApprovalStatus: item.crmApprovalStatus,
+    crmProjectId: item.crmProjectId,
+    filtroStatus: item.filtroStatus,
     integrationError: item.integrationError
   };
 }
@@ -99,7 +108,10 @@ export async function listProposals(db, user, filters) {
       orderBy: [{ createdAt: 'desc' }, { revisionNumber: 'desc' }],
       skip: (filters.page - 1) * filters.pageSize,
       take: filters.pageSize,
-      include: { costEstimate: { select: { totalCost: true, marginPercent: true } } }
+      include: {
+        costEstimate: { select: { totalCost: true, marginPercent: true } },
+        documents: { orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }
+      }
     })
   ]);
   return { items: items.map(item => historyItem(item, user.role === 'VIEWER')), total };
@@ -142,8 +154,9 @@ export async function prepareRevision(db, user, proposalCode) {
 }
 
 export async function createProposal(db, user, data) {
-  await assertReservedCode(db, user, data.proposalCode, data.revisionNumber);
-  const previous = data.revisionNumber > 0
+  const reservation = await assertReservedCode(db, user, data.proposalCode, data.revisionNumber);
+  const previous = data.revisionNumber > 0 &&
+    reservation.legacyFirstRevision !== data.revisionNumber
     ? await prepareRevision(db, user, data.proposalCode) : null;
   if (previous && previous.nextRevision !== data.revisionNumber) {
     throw new HttpError(409, `A próxima revisão é ${previous.nextRevision}.`);

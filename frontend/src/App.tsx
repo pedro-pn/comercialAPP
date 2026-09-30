@@ -1,31 +1,50 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { lazy, Suspense, useEffect, useState, type FormEvent } from 'react';
+import { Navigate, useLocation, useNavigate } from 'react-router';
 import { ApiClientError } from './api/client';
-import {
-  createUser, getCurrentUser, listUsers, login, logout, updateUser,
-  type CommercialRole, type CommercialUser
-} from './api/auth';
+import { AuthContext } from './auth/AuthContext';
+import { getCurrentUser, login, logout, type CommercialUser } from './api/auth';
+import { HistoricoRascunhosPage } from './pages/comercial/historico/HistoricoRascunhosPage';
+import { AcessosPage } from './pages/comercial/AcessosPage';
+import { ComercialPage } from './pages/comercial/ComercialPage';
+import type { AuthUser } from './types/auth';
 
-const roleNames: Record<CommercialRole, string> = {
-  MANAGER: 'Gestor', SELLER: 'Vendedor', VIEWER: 'Consulta'
-};
+const CustosPage = lazy(() => import('./pages/comercial/custos/CustosPage')
+  .then(module => ({ default: module.CustosPage })));
+const PropostaPage = lazy(() => import('./pages/comercial/proposta/PropostaPage')
+  .then(module => ({ default: module.PropostaPage })));
+const ConfiguracoesPage = lazy(() => import('./pages/comercial/configuracoes/ConfiguracoesPage')
+  .then(module => ({ default: module.ConfiguracoesPage })));
+const REMEMBERED_USER_KEY = 'comercialapp-remembered-user';
+
+function readRememberedUser() {
+  try { return localStorage.getItem(REMEMBERED_USER_KEY) || ''; }
+  catch { return ''; }
+}
+
+function saveRememberedUser(username: string, rememberUser: boolean) {
+  try {
+    if (rememberUser) localStorage.setItem(REMEMBERED_USER_KEY, username);
+    else localStorage.removeItem(REMEMBERED_USER_KEY);
+  } catch {
+    // O login continua funcionando quando o navegador bloqueia o armazenamento local.
+  }
+}
 
 function errorMessage(error: unknown) {
   return error instanceof ApiClientError ? error.message : 'Não foi possível concluir a operação.';
 }
 
 export function App() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [user, setUser] = useState<CommercialUser | null>(null);
-  const [users, setUsers] = useState<CommercialUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(readRememberedUser);
   const [password, setPassword] = useState('');
-  const [resetUserId, setResetUserId] = useState<string | null>(null);
-  const [resetPassword, setResetPassword] = useState('');
-  const [newUser, setNewUser] = useState({
-    username: '', name: '', password: '', role: 'SELLER' as CommercialRole
-  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberUser, setRememberUser] = useState(() => Boolean(readRememberedUser()));
 
   useEffect(() => {
     getCurrentUser()
@@ -38,21 +57,21 @@ export function App() {
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    if (user?.role !== 'MANAGER') return;
-    listUsers().then(setUsers).catch((requestError: unknown) => setError(errorMessage(requestError)));
-  }, [user?.id, user?.role]);
-
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
     setError('');
     try {
-      setUser(await login(username, password));
+      const loggedInUser = await login(username, password);
+      saveRememberedUser(username, rememberUser);
+      setUser(loggedInUser);
       setPassword('');
     } catch (requestError) {
       setError(errorMessage(requestError));
-    } finally { setBusy(false); }
+    } finally {
+      setShowPassword(false);
+      setBusy(false);
+    }
   }
 
   async function handleLogout() {
@@ -61,148 +80,109 @@ export function App() {
     try {
       await logout();
       setUser(null);
-      setUsers([]);
+      navigate('/');
     } catch (requestError) {
       setError(errorMessage(requestError));
     } finally { setBusy(false); }
   }
 
-  async function handleCreateUser(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setBusy(true);
-    setError('');
-    try {
-      await createUser(newUser);
-      setUsers(await listUsers());
-      setNewUser({ username: '', name: '', password: '', role: 'SELLER' });
-    } catch (requestError) {
-      setError(errorMessage(requestError));
-    } finally { setBusy(false); }
+  const contextUser: AuthUser | null = user && {
+    id: user.id,
+    name: user.name,
+    accountType: user.role === 'MANAGER' ? 'ADMIN' : 'INTERNAL',
+    moduleRoles: user.role === 'MANAGER' ? ['comercial:manager'] :
+      user.role === 'SELLER' ? ['comercial:seller'] : []
+  };
+
+  if (!loading && user && (location.pathname === '/' ||
+    location.pathname === '/custos' || location.pathname === '/propostas' ||
+    location.pathname === '/configuracoes')) {
+    if (user.role === 'VIEWER' && location.pathname !== '/') return <Navigate to="/" replace />;
+    if (location.pathname === '/configuracoes' && user.role !== 'MANAGER') {
+      return <Navigate to="/" replace />;
+    }
+    return (
+      <AuthContext.Provider value={{
+        user: contextUser!,
+        logout: handleLogout
+      }}>
+        {location.pathname === '/' ? <ComercialPage /> :
+          <Suspense fallback={<main className="shell" role="status">Carregando Comercial...</main>}>
+            {location.pathname === '/custos' ? <CustosPage somenteLevantamento /> :
+              location.pathname === '/configuracoes' ? <ConfiguracoesPage /> :
+                <PropostaPage somenteRascunho />}
+          </Suspense>}
+      </AuthContext.Provider>
+    );
   }
 
-  async function changeUser(id: string, input: {
-    role?: CommercialRole; isActive?: boolean; password?: string;
-  }) {
-    setBusy(true);
-    setError('');
-    try {
-      await updateUser(id, input);
-      if (id === user?.id && input.password) {
-        setUser(null);
-        setUsers([]);
-      } else {
-        setUsers(await listUsers());
-      }
-      return true;
-    } catch (requestError) {
-      setError(errorMessage(requestError));
-      return false;
-    } finally { setBusy(false); }
+  if (!loading && user && location.pathname === '/historico') {
+    return <HistoricoRascunhosPage user={user} onLogout={handleLogout} />;
+  }
+
+  if (!loading && user && (location.pathname !== '/acessos' || user.role !== 'MANAGER')) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (!loading && user) {
+    return <AuthContext.Provider value={{ user: contextUser!, logout: handleLogout }}>
+      <AcessosPage user={user} onSelfPasswordChanged={() => setUser(null)} />
+    </AuthContext.Provider>;
   }
 
   return (
-    <main className="shell">
-      <div className="brand">Filtrovali · Comercial</div>
-      <section className="card">
-        {loading ? <p role="status">Verificando acesso…</p> : user ? (
-          <>
-            <div className="card-heading">
-              <div>
-                <p className="eyebrow">Acesso local</p>
-                <h1>Olá, {user.name}</h1>
-                <p>Perfil: {roleNames[user.role]}</p>
-              </div>
-              <button type="button" className="button-secondary" onClick={handleLogout} disabled={busy}>
-                Sair
-              </button>
+    <main className="login-page">
+      <section className="login-layout" aria-labelledby="login-title">
+        <div className="login-visual" aria-hidden="true">
+          <div className="login-visual-content">
+            <span className="login-visual-brand">Filtrovali</span>
+            <p>Comercial</p>
+          </div>
+        </div>
+        <div className="login-panel">
+          <div className="login-panel-content">
+            <img className="login-logo" src="/assets/Logo/LOGO_COLORIDO.png" alt="Filtrovali" />
+            <div className="login-heading">
+              <p className="login-eyebrow">Gerador de propostas</p>
+              <h1 id="login-title">Bem-vindo de volta</h1>
+              <p>Entre com sua conta para acessar o Comercial.</p>
             </div>
-            <p className="notice">As telas de propostas ainda estão em integração com o banco e o CRM.</p>
-            {user.role === 'MANAGER' && (
-              <section className="access-section" aria-labelledby="access-title">
-                <h2 id="access-title">Acessos do Comercial</h2>
-                <ul className="user-list">
-                  {users.map(entry => (
-                    <li key={entry.id} className="user-row">
-                      <div>
-                        <strong>{entry.name}</strong>
-                        <span>{entry.username} · {entry.isActive ? 'Ativo' : 'Inativo'}</span>
-                      </div>
-                      <div className="user-actions">
-                        <label>
-                          <span className="sr-only">Papel de {entry.name}</span>
-                          <select value={entry.role} disabled={busy || !entry.isActive || entry.id === user.id}
-                            onChange={event => changeUser(entry.id, { role: event.target.value as CommercialRole })}>
-                            {Object.entries(roleNames).map(([value, label]) =>
-                              <option key={value} value={value}>{label}</option>)}
-                          </select>
-                        </label>
-                        <button type="button" className="button-secondary" disabled={busy || entry.id === user.id}
-                          onClick={() => changeUser(entry.id, { isActive: !entry.isActive })}>
-                          {entry.isActive ? 'Desativar' : 'Ativar'}
-                        </button>
-                        <button type="button" className="button-secondary" disabled={busy}
-                          onClick={() => {
-                            setResetUserId(resetUserId === entry.id ? null : entry.id);
-                            setResetPassword('');
-                          }}>
-                          Redefinir senha
-                        </button>
-                      </div>
-                      {resetUserId === entry.id && (
-                        <form className="reset-form" onSubmit={event => {
-                          event.preventDefault();
-                          void changeUser(entry.id, { password: resetPassword }).then(success => {
-                            if (success) {
-                              setResetUserId(null);
-                              setResetPassword('');
-                            }
-                          });
-                        }}>
-                          <label>Nova senha de {entry.name}
-                            <input type="password" required minLength={12} maxLength={256}
-                              autoComplete="new-password" value={resetPassword}
-                              onChange={event => setResetPassword(event.target.value)} />
-                          </label>
-                          <button type="submit" disabled={busy}>Salvar senha</button>
-                        </form>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-                <h3>Criar acesso</h3>
-                <form onSubmit={handleCreateUser} className="access-form">
-                  <label>Nome<input required minLength={2} maxLength={120} value={newUser.name}
-                    onChange={event => setNewUser({ ...newUser, name: event.target.value })} /></label>
-                  <label>Usuário<input required minLength={3} maxLength={50} autoCapitalize="none"
-                    value={newUser.username}
-                    onChange={event => setNewUser({ ...newUser, username: event.target.value })} /></label>
-                  <label>Senha inicial<input required type="password" minLength={12} maxLength={256}
-                    autoComplete="new-password" value={newUser.password}
-                    onChange={event => setNewUser({ ...newUser, password: event.target.value })} /></label>
-                  <label>Papel<select value={newUser.role}
-                    onChange={event => setNewUser({ ...newUser, role: event.target.value as CommercialRole })}>
-                    {Object.entries(roleNames).map(([value, label]) =>
-                      <option key={value} value={value}>{label}</option>)}
-                  </select></label>
-                  <button type="submit" disabled={busy}>Criar usuário</button>
-                </form>
-              </section>
+            {loading ? <p className="login-status" role="status">Verificando acesso…</p> : (
+              <form onSubmit={handleLogin} className="login-form">
+                <label htmlFor="login-username">Usuário</label>
+                <input id="login-username" required autoComplete="username" autoCapitalize="none"
+                  value={username} onChange={event => setUsername(event.target.value)} />
+                <label htmlFor="login-password">Senha</label>
+                <div className="login-password-field">
+                  <input id="login-password" required type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password" value={password}
+                    onChange={event => setPassword(event.target.value)} />
+                  <button className="login-password-toggle" type="button" disabled={busy}
+                    aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                    title={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                    aria-pressed={showPassword} onMouseDown={event => event.preventDefault()}
+                    onClick={() => setShowPassword(value => !value)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+                      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6Z" />
+                      <circle cx="12" cy="12" r="2.7" />
+                      {showPassword && <path d="M3 3 21 21" />}
+                    </svg>
+                  </button>
+                </div>
+                <label className="login-remember-user">
+                  <input type="checkbox" checked={rememberUser}
+                    onChange={event => setRememberUser(event.target.checked)} />
+                  <span>Lembrar usuário</span>
+                </label>
+                <button className="login-submit" type="submit" disabled={busy}>
+                  {busy ? 'Entrando…' : 'Entrar'}
+                </button>
+              </form>
             )}
-          </>
-        ) : (
-          <>
-            <p className="eyebrow">Acesso local</p>
-            <h1>Entrar no Comercial</h1>
-            <form onSubmit={handleLogin} className="login-form">
-              <label>Usuário<input required autoComplete="username" autoCapitalize="none" value={username}
-                onChange={event => setUsername(event.target.value)} /></label>
-              <label>Senha<input required type="password" autoComplete="current-password" value={password}
-                onChange={event => setPassword(event.target.value)} /></label>
-              <button type="submit" disabled={busy}>Entrar</button>
-            </form>
-          </>
-        )}
-        {error && <p className="error" role="alert">{error}</p>}
+            {error && <p className="login-error" role="alert">{error}</p>}
+          </div>
+        </div>
       </section>
     </main>
   );

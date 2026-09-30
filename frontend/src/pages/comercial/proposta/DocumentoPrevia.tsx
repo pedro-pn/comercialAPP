@@ -23,6 +23,7 @@ import {
   observacoesTecnicasDoModelo,
   tabelasDePrecoDoModelo,
   tabelaStandby,
+  totalStandbyEquipe,
   textoJornada,
   type ModeloProposta
 } from '../../../../../shared/comercial/dist/modelo-documento.js';
@@ -578,7 +579,10 @@ export function DocumentoPrevia({
               <tbody>
                 {tabelaStandby({
                   horaExtra: dinheiro(form.overtimeRate),
-                  standbyEquipe: dinheiro(form.standbyTeam),
+                  standbyEquipe: totalStandbyEquipe(
+                    dinheiro(form.standbyTeam), form.standbyTeamQuantity ?? 1
+                  ),
+                  quantidadeColaboradores: form.standbyTeamQuantity ?? 1,
                   standbyEquipamento: dinheiro(form.standbyEquipment),
                   mobilizacaoExtra: dinheiro(form.extraMobilization)
                 }).map(([rotulo, valor]) => (

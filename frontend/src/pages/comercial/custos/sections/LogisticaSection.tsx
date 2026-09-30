@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
 import { CabecalhoRetratil } from '../../components/CabecalhoRetratil';
+import { EnderecoInput } from '../../components/EnderecoField';
 
 import {
   LOGISTICS_TRAVEL_DEFAULTS,
   normalizeCostEstimatePayload
 } from '../../../../../../shared/comercial/dist/cost-model.js';
-import { EnderecoInput } from '../../components/EnderecoField';
 import { AvisoPendencia, ConfirmacaoEscopo } from '../ConfirmacaoEscopo';
 import { DistanciaDoDestino } from './DistanciaDoDestino';
 import { money, numberValue } from '../formato';

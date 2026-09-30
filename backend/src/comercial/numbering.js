@@ -42,25 +42,66 @@ export async function initializeNumbering(db, user, initialNumber) {
 }
 
 export async function reserveNumber(db, user) {
+  // Um número legado pode estar à frente da sequência atual. Pule reservas já
+  // existentes; em uma corrida entre registro legado e reserva, repita a transação.
+  for (let tentativa = 0; tentativa < 5; tentativa++) {
+    try {
+      return await db.$transaction(async tx => {
+        while (true) {
+          const state = await tx.proposalNumberingState.update({
+            where: { id: singleton },
+            data: { nextNumber: { increment: 1 } }
+          });
+          const number = state.nextNumber - 1;
+          if (number > maxInitialNumber) throw new HttpError(409, 'A numeração atingiu o limite.');
+          if (await tx.proposalNumberReservation.findUnique({ where: { number } })) continue;
+          await tx.proposalNumberReservation.create({
+            data: { number, reservedByUserId: user.id }
+          });
+          return number;
+        }
+      });
+    } catch (error) {
+      if (error.code === 'P2025') {
+        throw new HttpError(503, 'Configure o número inicial antes de reservar propostas.');
+      }
+      if (error.code !== 'P2002') throw error;
+    }
+  }
+  throw new HttpError(409, 'A numeração foi alterada ao mesmo tempo. Tente novamente.');
+}
+
+export async function registerLegacyRevision(db, user, proposalCode, revisionNumber) {
+  if (!/^[1-9]\d*$/.test(proposalCode) || Number(proposalCode) > maxInitialNumber) {
+    throw new HttpError(422, 'Informe um número de proposta legado válido.');
+  }
+  if (!Number.isInteger(revisionNumber) || revisionNumber < 1 || revisionNumber > maxInitialNumber) {
+    throw new HttpError(422, 'A nova revisão deve ser um inteiro maior que zero.');
+  }
+  const number = Number(proposalCode);
+  const existingProposal = await db.proposal.findFirst({ where: { proposalCode } });
+  if (existingProposal) {
+    throw new HttpError(409, 'Esta proposta já existe no Comercial. Use Revisar proposta.');
+  }
+  const existing = await db.proposalNumberReservation.findUnique({ where: { number } });
+  if (existing) {
+    if (existing.legacyFirstRevision === revisionNumber &&
+        (existing.reservedByUserId === user.id || user.role === 'MANAGER')) {
+      return { proposalCode, revisionNumber, alreadyRegistered: true };
+    }
+    throw new HttpError(409, 'Este número já está reservado no Comercial. Confira o histórico.');
+  }
   try {
-    return await db.$transaction(async tx => {
-      const state = await tx.proposalNumberingState.update({
-        where: { id: singleton },
-        data: { nextNumber: { increment: 1 } }
-      });
-      const number = state.nextNumber - 1;
-      if (number > maxInitialNumber) throw new HttpError(409, 'A numeração atingiu o limite.');
-      await tx.proposalNumberReservation.create({
-        data: { number, reservedByUserId: user.id }
-      });
-      return number;
+    await db.proposalNumberReservation.create({
+      data: { number, reservedByUserId: user.id, legacyFirstRevision: revisionNumber }
     });
   } catch (error) {
-    if (error.code === 'P2025') {
-      throw new HttpError(503, 'Configure o número inicial antes de reservar propostas.');
+    if (error.code === 'P2002') {
+      throw new HttpError(409, 'Este número acabou de ser reservado. Confira o histórico.');
     }
     throw error;
   }
+  return { proposalCode, revisionNumber, alreadyRegistered: false };
 }
 
 export async function assertReservedCode(db, user, proposalCode, revisionNumber) {
@@ -76,12 +117,17 @@ export async function assertReservedCode(db, user, proposalCode, revisionNumber)
   if (user.role !== 'MANAGER' && reservation.reservedByUserId !== user.id) {
     throw new HttpError(403, 'Este número foi reservado por outro vendedor.');
   }
+  if (reservation.legacyFirstRevision != null && revisionNumber < reservation.legacyFirstRevision) {
+    throw new HttpError(409, `A primeira revisão deste número no Comercial é ${reservation.legacyFirstRevision}.`);
+  }
   if (revisionNumber > 0) {
     const previous = await db.proposal.findUnique({
       where: { proposalCode_revisionNumber: { proposalCode, revisionNumber: revisionNumber - 1 } }
     });
-    if (!previous) throw new HttpError(409, 'A revisão anterior da proposta não existe.');
-    if (user.role !== 'MANAGER' && previous.createdByUserId !== user.id) {
+    if (!previous && reservation.legacyFirstRevision !== revisionNumber) {
+      throw new HttpError(409, 'A revisão anterior da proposta não existe.');
+    }
+    if (previous && user.role !== 'MANAGER' && previous.createdByUserId !== user.id) {
       throw new HttpError(403, 'A proposta pertence a outro vendedor.');
     }
   }

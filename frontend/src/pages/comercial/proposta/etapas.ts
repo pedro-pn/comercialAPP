@@ -423,7 +423,7 @@ export type ItemDePreco = {
 
 export const CAMPOS_STANDBY = [
   { campo: 'overtimeRate', label: 'Homem/hora fora do horário previsto' },
-  { campo: 'standbyTeam', label: 'Stand-by de equipe (diária)' },
+  { campo: 'standbyTeam', label: 'Stand-by de equipe (diária por colaborador)' },
   { campo: 'standbyEquipment', label: 'Stand-by de equipamentos (diária)' },
   { campo: 'extraMobilization', label: 'Mobilização extra (por evento ida e volta)' }
 ] as const;
@@ -540,6 +540,16 @@ export function pendenciasDaComercial(
     if (!texto(form, campo)) {
       faltando.push({ campo, mensagem: `Informe ${label.toLocaleLowerCase('pt-BR')}.` });
     }
+  }
+
+  const quantidadeStandby = texto(form, 'standbyTeamQuantity');
+  if (quantidadeStandby && (!Number.isInteger(Number(quantidadeStandby)) || Number(quantidadeStandby) <= 0)) {
+    faltando.push({
+      campo: 'standbyTeamQuantity',
+      mensagem: 'Informe uma quantidade inteira de colaboradores maior que zero.'
+    });
+  } else if (!quantidadeStandby) {
+    faltando.push({ campo: 'standbyTeamQuantity', mensagem: 'Informe a quantidade de colaboradores para o stand-by.' });
   }
 
   const validade = Number(texto(form, 'validity'));

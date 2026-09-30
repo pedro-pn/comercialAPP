@@ -24,10 +24,12 @@ const KPI_OK = 'com-kpi-positivo';
 
 export function FaixaIndicadores({
   levantamento,
-  modoLabel
+  modoLabel,
+  somenteLevantamento = false
 }: {
   levantamento: Levantamento;
   modoLabel: string;
+  somenteLevantamento?: boolean;
 }) {
   const { result, assumptions, patchAssumptions } = levantamento;
   const modeloFiltrovali = assumptions.pricingModel === FILTROVALI_PRICING_MODEL;
@@ -83,7 +85,7 @@ export function FaixaIndicadores({
           className={lucro >= 0 ? KPI_OK : KPI_ATENCAO}
         />
         <Kpi
-          label="Valor da proposta"
+          label={somenteLevantamento ? 'Preço de venda estimado' : 'Valor da proposta'}
           valor={money(Number(result.salePrice) || 0)}
           className="com-kpi-final"
         />

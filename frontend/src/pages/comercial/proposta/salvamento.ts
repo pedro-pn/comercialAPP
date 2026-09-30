@@ -64,6 +64,8 @@ export function snapshotDaPropostaSalva(
 
   return {
     ...payload,
+    // Propostas anteriores guardavam apenas a diária da equipe.
+    standbyTeamQuantity: payload.standbyTeamQuantity ?? '1',
     client: proposta.clientName ?? payload.client ?? '',
     cnpj: proposta.cnpj ?? payload.cnpj ?? '',
     contact: proposta.contact ?? payload.contact ?? '',

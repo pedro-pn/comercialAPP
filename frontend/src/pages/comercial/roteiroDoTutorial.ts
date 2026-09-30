@@ -29,14 +29,14 @@ export function passosPresentes(passos: DriveStep[], existe: (seletor: string) =
   );
 }
 
-/** A entrada do módulo (`/comercial`) — o menu de dois cartões, desvio nº 9. */
+/** A entrada do módulo — levantamento opcional antes da proposta. */
 export const ROTEIRO_DA_ENTRADA: DriveStep[] = [
   {
     element: '.com-menu',
     popover: {
-      title: 'Dois caminhos, nesta ordem',
+      title: 'Escolha como começar',
       description:
-        'O levantamento de custos vem primeiro: é ele que forma o preço e carimba o número que as duas propostas vão usar. A proposta monta o documento a partir dele.'
+        'Você pode criar a proposta diretamente ou usar um levantamento concluído para aproveitar o preço e o número.'
     }
   },
   {
@@ -52,7 +52,7 @@ export const ROTEIRO_DA_ENTRADA: DriveStep[] = [
     popover: {
       title: 'Montar a proposta',
       description:
-        'Sete etapas, com trava por etapa. A prévia à direita mostra o documento como ele vai sair — o que você vê ali é o que o cliente recebe.'
+        'Monte a proposta em sete etapas. Na revisão, emita os documentos em PDF e DOCX e finalize a proposta localmente.'
     }
   },
   {
@@ -60,7 +60,7 @@ export const ROTEIRO_DA_ENTRADA: DriveStep[] = [
     popover: {
       title: 'Este tutorial fica aqui',
       description:
-        'Ele aparece sozinho uma vez só. Depois disso, é por este botão — e ele existe em cada tela do módulo.'
+        'Use este botão para rever o guia quando precisar.'
     }
   }
 ];

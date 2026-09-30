@@ -26,6 +26,7 @@ type Props = {
   blocos: ScopeBlock[];
   onBlocos: (atualizar: (atual: ScopeBlock[]) => ScopeBlock[]) => void;
   erroDe: (campo: string) => string | undefined;
+  permitirFotos?: boolean;
 };
 
 function novoId() {
@@ -41,7 +42,8 @@ function mover<T>(lista: T[], indice: number, direcao: -1 | 1): T[] {
 }
 
 /** Serviços mantêm suas tabelas/fotos; os tópicos internos geram a numeração. */
-export function EscopoStep({ titulo, onTitulo, itens, onItens, blocos, onBlocos, erroDe }: Props) {
+export function EscopoStep({ titulo, onTitulo, itens, onItens, blocos, onBlocos, erroDe,
+  permitirFotos = true }: Props) {
   const noLimite = itens.length >= MAX_SCOPE_SERVICE_ITEMS;
   const [servicoParaAdicionar, setServicoParaAdicionar] = useState('');
   const paragrafos = scopeDescriptionParagraphs(itens, { includeEmpty: true });
@@ -83,7 +85,8 @@ export function EscopoStep({ titulo, onTitulo, itens, onItens, blocos, onBlocos,
       <div className="com-secao-titulo com-escopo-cabecalho">
         <div>
           <strong>Serviços do escopo</strong>
-          <span>Cada serviço pode ter vários tópicos e subitens, além de suas tabelas e fotos.</span>
+          <span>Cada serviço pode ter tópicos, subitens e tabelas.
+            {permitirFotos ? ' Fotos também podem ser incluídas.' : ''}</span>
         </div>
         <div className="com-secao-acoes com-escopo-adicionar">
           <select aria-label="Serviço para adicionar" value={servicoParaAdicionar} disabled={noLimite}
@@ -93,7 +96,7 @@ export function EscopoStep({ titulo, onTitulo, itens, onItens, blocos, onBlocos,
             <option value={VALOR_OUTRO_SERVICO}>Outro serviço</option>
           </select>
           <button type="button" className="com-btn-add" disabled={noLimite || !servicoParaAdicionar}
-            onClick={adicionarServico}>＋ Adicionar serviço</button>
+            onClick={adicionarServico}>+ Adicionar serviço</button>
         </div>
       </div>
       {itens.length === 0 && <p className="com-vazio">Adicione um serviço para montar seus tópicos de escopo.</p>}
@@ -109,7 +112,7 @@ export function EscopoStep({ titulo, onTitulo, itens, onItens, blocos, onBlocos,
             <header className="com-fase-card-topo">
               <div className="com-escopo-numero">
                 <b aria-hidden="true">{indice + 1}</b>
-                <div><strong>Serviço {indice + 1}</strong><span>Os tópicos, tabelas e fotos abaixo pertencem a este serviço.</span></div>
+                <div><strong>Serviço {indice + 1}</strong><span>Os tópicos e conteúdos abaixo pertencem a este serviço.</span></div>
               </div>
               <div className="com-fase-acoes">
                 <span className="com-alca" role="button" tabIndex={-1}
@@ -131,7 +134,7 @@ export function EscopoStep({ titulo, onTitulo, itens, onItens, blocos, onBlocos,
             <ScopeTopicsEditor topicos={scopeTopicsForItem(item)} numeros={numeros}
               onChange={topicos => atualizarTopicos(item.id, topicos)} />
             <ScopeContentEditor itemId={item.id} blocks={blocos.filter(bloco => bloco.scopeItemId === item.id)}
-              allBlocks={blocos} onChange={onBlocos} />
+              allBlocks={blocos} onChange={onBlocos} permitirFotos={permitirFotos} />
           </article>
         );
       })}

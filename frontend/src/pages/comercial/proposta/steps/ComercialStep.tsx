@@ -3,11 +3,12 @@ import { AvisoPendencia } from '../../custos/ConfirmacaoEscopo';
 import {
   tabelasDePrecoDoModelo,
   type LocalOperacao,
-  type ModeloProposta
+  type ModeloProposta,
+  totalStandbyEquipe
 } from '../../../../../../shared/comercial/dist/modelo-documento.js';
 // O MESMO leitor de moeda do servidor e do gerador do documento. Um leitor
 // próprio aqui mostraria ao vendedor um total que o CRM não confirma.
-import { moeda, somarDinheiro } from '../../../../../../shared/comercial/dist/dinheiro.js';
+import { lerDinheiro, moeda, somarDinheiro } from '../../../../../../shared/comercial/dist/dinheiro.js';
 import {
   CAMPOS_STANDBY,
   formatarDinheiro,
@@ -160,7 +161,22 @@ export function ComercialStep({
               onChange={valor => editar({ [campo]: formatarDinheiro(valor) })}
             />
           ))}
+          <Field
+            label="Quantidade de colaboradores para stand-by"
+            type="number"
+            inputMode="numeric"
+            required
+            value={String(form.standbyTeamQuantity ?? '1')}
+            error={erroDe('standbyTeamQuantity')}
+            onChange={valor => editar({ standbyTeamQuantity: valor })}
+          />
         </div>
+        <p className="com-fieldset-nota">
+          Diária total da equipe: {moeda(totalStandbyEquipe(
+            lerDinheiro(form.standbyTeam),
+            form.standbyTeamQuantity ?? 1
+          ))}
+        </p>
       </fieldset>
 
       <div className="com-form-grid">

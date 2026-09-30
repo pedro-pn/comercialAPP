@@ -2,7 +2,7 @@ import type { LevantamentoSalvo } from '../../../api/comercial';
 
 type Props = {
   levantamentos: LevantamentoSalvo[];
-  onAbrir: (levantamento: LevantamentoSalvo) => void;
+  onAbrir?: (levantamento: LevantamentoSalvo) => void;
 };
 
 const dinheiro = new Intl.NumberFormat('pt-BR', {
@@ -44,7 +44,7 @@ export function HistoricoLevantamentosTabela({ levantamentos, onAbrir }: Props) 
             <th>Descrição</th>
             <th>Formação do preço</th>
             <th>Atualização</th>
-            <th><span className="com-sr">Ações</span></th>
+            {onAbrir && <th><span className="com-sr">Ações</span></th>}
           </tr>
         </thead>
         <tbody>
@@ -65,15 +65,14 @@ export function HistoricoLevantamentosTabela({ levantamentos, onAbrir }: Props) 
                 </small>
               </td>
               <td>{dataHora.format(new Date(levantamento.updatedAt))}</td>
-              <td>
-                <button
-                  type="button"
-                  className="com-btn com-btn-fantasma"
-                  onClick={() => onAbrir(levantamento)}
-                >
-                  Abrir levantamento
-                </button>
-              </td>
+              {onAbrir && (
+                <td>
+                  <button type="button" className="com-btn com-btn-fantasma"
+                    onClick={() => onAbrir(levantamento)}>
+                    Abrir levantamento
+                  </button>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

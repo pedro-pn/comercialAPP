@@ -12,56 +12,100 @@ host. Nenhum contêiner consulta o banco do FiltroAPP.
 2. Execute:
 
    ```bash
-   docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
+   docker compose -f docker-compose.local.yml up -d --build
    ```
 
 3. Abra `http://localhost:8086`. A API responde em
    `http://localhost:8086/api/health`.
+   Nesse modo, o frontend é servido pelo Nginx do contêiner. Para desenvolver
+   com atualização automática como no FiltroAPP, execute `npm install`,
+   `npm run build --workspace @comercialapp/rules` e `npm run dev:web` em outro
+   terminal. Abra `http://localhost:5174`. O Vite encaminha `/api` para a API
+   publicada pelo Compose em `127.0.0.1:4300`; as duas portas usam o mesmo
+   banco local. A API aceita somente as origens locais 8086 e 5174 nesse modo.
 4. Crie o primeiro gestor, digitando uma senha de pelo menos 12 caracteres:
 
    ```bash
    read -rsp 'Senha inicial: ' COMERCIAL_INITIAL_PASSWORD
-   printf '%s\n' "$COMERCIAL_INITIAL_PASSWORD" | docker compose -f docker-compose.yml -f docker-compose.local.yml exec -T api npm run db:bootstrap-manager --workspace @comercialapp/backend -- gestor "Gestor Comercial"
+   printf '%s\n' "$COMERCIAL_INITIAL_PASSWORD" | docker compose -f docker-compose.local.yml exec -T api npm run db:bootstrap-manager --workspace @comercialapp/backend -- gestor "Gestor Comercial"
    unset COMERCIAL_INITIAL_PASSWORD
    ```
 
-5. Para parar: `docker compose -f docker-compose.yml -f docker-compose.local.yml down`.
-   O volume PostgreSQL permanece. Use `down -v` apenas para descartar um ambiente
-   de teste identificado; esse comando apaga os dados da stack Comercial.
+5. Para parar: `docker compose -f docker-compose.local.yml down`.
+   Os volumes PostgreSQL e `comercial_files` permanecem. Use `down -v` apenas
+   para descartar um ambiente de teste identificado; esse comando apaga os
+   dados e os arquivos da stack Comercial.
 
 A API executa `prisma migrate deploy` ao iniciar, como ocorre no FiltroAPP.
 O Compose espera o banco ficar saudável antes de iniciar a API e espera a API
 antes de iniciar o Nginx do Comercial.
+O arquivo `docker-compose.local.yml` é completo e pode ser usado sozinho. Em
+produção, `docker-compose.prod.yml` complementa `docker-compose.yml`.
+Para preparar o Nectar, preencha as variáveis `NECTAR_*` no `.env` da raiz,
+conforme [o guia do CRM](NECTAR.md), e recrie a API com o Compose. O valor
+inicial `NECTAR_MODE=off` não faz chamadas externas.
 
 ## Produção na VPS compartilhada
 
-O arquivo `docker-compose.prod.yml` liga **somente o Nginx do Comercial** à
-rede Docker externa `filtrovali-net`, criada pelo Compose de produção do
-FiltroAPP. A API e o banco permanecem na rede privada do Comercial. O serviço
-fica disponível para o proxy existente pelo nome `comercialapp-web:80`, sem
-publicar 80/443 nem outra porta no host.
+O checkout atual da infraestrutura usa o `infra-proxy-caddy` para publicar
+80/443 e emitir os certificados TLS. O arquivo `docker-compose.prod.yml` liga
+**somente o Nginx do Comercial** à rede Docker externa `proxy-net`, compartilhada
+com esse Caddy. A API e o banco permanecem na rede privada do Comercial. O
+proxy alcança `comercialapp-web:80`; nenhum serviço do Comercial publica porta
+no host. Este desenho exige que o Compose do Comercial use o mesmo daemon Docker
+que o Caddy. A integração de dados com o FiltroAPP não é necessária.
 
-Antes de ativar o domínio:
-
-1. Prepare DNS e certificado TLS para `comercial.filtrovali.com.br`.
-2. Inclua as regras de `deploy/proxy/comercial.conf.example` no Nginx do
-   FiltroAPP **após** o certificado existir. O proxy atual é o único serviço
-   que publica 80/443 na VPS.
-3. Crie `.env` no checkout de produção com `COMERCIAL_DB_PASSWORD` aleatória e
-   mantenha esse arquivo fora do Git. Configure backup para o volume
-   `comercialapp_comercial_pgdata`.
-4. Execute como o usuário de implantação do Comercial:
+1. Publique o registro DNS de `comercial.filtrovali.com.br` apontando para a VPS.
+   Confirme que o Caddy está ativo, a rede `proxy-net` existe e 80/443 chegam ao
+   Caddy. Se usar um registro AAAA, o IPv6 também precisa alcançar a VPS.
+2. No checkout da versão que será implantada, copie `.env.example` para `.env`,
+   gere `COMERCIAL_DB_PASSWORD` com `openssl rand -hex 24` e guarde o arquivo
+   fora do Git, com permissão `600`. Para operar sem integrações externas, deixe
+   `NECTAR_MODE=off`, `SHAREPOINT_MODE=off`, `GOOGLE_MAPS_MODE=off` e
+   `FILTROAPP_API_URL`/`FILTROAPP_API_TOKEN` vazios. O domínio de produção está
+   fixado em `APP_ORIGIN` no `docker-compose.yml`.
+3. Confira e suba a stack do Comercial:
 
    ```bash
+   docker network inspect proxy-net >/dev/null
+   docker compose -f docker-compose.yml -f docker-compose.prod.yml config -q
    docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+   docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
    ```
 
-5. Crie o gestor inicial pelo mesmo comando acima, trocando a lista de arquivos
-   Compose pela de produção. Depois, valide `/api/health`, login e permissões
-   pelo domínio HTTPS.
+   A API aplica `prisma migrate deploy` ao iniciar. O volume PostgreSQL e o
+   volume dos documentos pertencem ao projeto Compose `comercialapp`.
+4. Acrescente o bloco de `deploy/proxy/comercial.Caddyfile.example` ao
+   `deploy/infra-proxy/Caddyfile` da infraestrutura na VPS. Valide e recarregue
+   o Caddy sem reiniciar os demais aplicativos:
 
-Dar ao usuário de implantação acesso ao daemon Docker pode dar privilégios
-amplos sobre a VPS. A forma de conceder esse acesso precisa ser definida na
-implantação para preservar a separação operacional entre os aplicativos.
+   ```bash
+   docker exec infra-proxy-caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+   docker exec infra-proxy-caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+   curl -fsS https://comercial.filtrovali.com.br/api/health
+   ```
 
-Esta configuração ainda não foi aplicada à VPS nem ao Nginx do FiltroAPP.
+   O Caddy emite e renova o certificado automaticamente depois que o DNS e as
+   portas estiverem corretos. O limite de upload de 22 MB está no Nginx interno;
+   não existe limite de 1 MB para downloads nesse caminho.
+5. Crie o primeiro gestor com senha de pelo menos 12 caracteres:
+
+   ```bash
+   read -rsp 'Senha inicial: ' COMERCIAL_INITIAL_PASSWORD
+   printf '%s\n' "$COMERCIAL_INITIAL_PASSWORD" | docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T api npm run db:bootstrap-manager --workspace @comercialapp/backend -- gestor "Gestor Comercial"
+   unset COMERCIAL_INITIAL_PASSWORD
+   ```
+
+   Antes de criar propostas reais, o gestor deve configurar o número inicial
+   após conferir o último código usado no CRM e no legado; essa operação só
+   pode ser feita uma vez. Valide login, permissões, fotos, anexos de mais de
+   1 MB, geração e download de DOCX/PDF pelo domínio HTTPS.
+6. Configure [backup e restauração](BACKUP.md) recorrentes do banco e de
+   `comercialapp_comercial_files`, retenção fora da VPS e um teste de
+   restauração. Monitore o estado dos
+   contêineres, espaço dos volumes e expiração do certificado.
+
+O usuário de implantação precisa de acesso ao daemon Docker usado pelo Caddy;
+esse acesso também permite administrar outros contêineres da VPS. Defina quem
+terá esse privilégio antes de concedê-lo. Esta configuração não foi aplicada
+à VPS por este repositório.

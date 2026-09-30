@@ -26,6 +26,7 @@ type Props = {
   onChange: (km: number) => void;
   invalido?: boolean;
   obrigatorio?: boolean;
+  calculoDisponivel?: boolean;
 };
 
 export function DistanciaDoDestino({
@@ -33,7 +34,8 @@ export function DistanciaDoDestino({
   km,
   onChange,
   invalido,
-  obrigatorio
+  obrigatorio,
+  calculoDisponivel = true
 }: Props) {
   const [calculando, setCalculando] = useState(false);
   const [recado, setRecado] = useState('');
@@ -73,7 +75,7 @@ export function DistanciaDoDestino({
           value={km || ''}
           onChange={evento => onChange(evento.target.value === '' ? 0 : Number(evento.target.value))}
         />
-        <button
+        {calculoDisponivel && <button
           type="button"
           className="com-btn com-btn-fantasma com-distancia-botao"
           // Sem endereço não há o que calcular, e a chamada seria desperdiçada.
@@ -86,8 +88,10 @@ export function DistanciaDoDestino({
           onClick={calcular}
         >
           {calculando ? '…' : 'Calcular'}
-        </button>
+        </button>}
       </div>
+
+      {!calculoDisponivel && <small className="field-hint">Informe a distância só de ida manualmente.</small>}
 
       {recado && (
         <small

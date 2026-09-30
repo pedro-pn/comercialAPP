@@ -1,0 +1,5 @@
+# Adicionar ao Caddyfile do infra-proxy da VPS depois de apontar o DNS.
+# O web do ComercialAPP participa da mesma rede externa proxy-net.
+comercial.filtrovali.com.br {
+	reverse_proxy comercialapp-web:80
+}

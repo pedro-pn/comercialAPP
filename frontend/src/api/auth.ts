@@ -11,7 +11,9 @@ export interface CommercialUser {
 }
 
 export async function getCurrentUser() {
-  const { data } = await apiClient.get<{ user: CommercialUser }>('/auth/me');
+  const { data } = await apiClient.get<{ user: CommercialUser }>('/auth/me', {
+    timeout: 10_000
+  });
   return data.user;
 }
 

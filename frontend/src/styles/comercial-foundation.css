@@ -1,0 +1,86 @@
+/* Base de controles usada pelo Comercial na origem (NewRDO/base.css).
+   Mantida sob .com-root para não afetar o login e a administração locais. */
+.com-root {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 14px;
+}
+
+.com-root button,
+.com-root input,
+.com-root select,
+.com-root textarea {
+  font: inherit;
+}
+
+.com-root input[type="text"],
+.com-root input[type="date"],
+.com-root input[type="time"],
+.com-root input[type="number"],
+.com-root input[type="email"],
+.com-root input[type="password"],
+.com-root select,
+.com-root textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  color: var(--com-texto);
+}
+
+.com-root input[type="date"],
+.com-root input[type="time"] {
+  min-height: 40px;
+  appearance: none;
+}
+
+.com-root .field-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.com-root .survey-required-marker {
+  margin-left: 4px;
+  color: #c81519;
+  font-weight: 700;
+}
+
+.com-root .field-invalid label {
+  color: #c81519;
+}
+
+.com-root .field-invalid input,
+.com-root .field-invalid select,
+.com-root .field-invalid textarea,
+.com-root .field-invalid-panel {
+  border-color: #c81519 !important;
+  background-color: #fff5f5 !important;
+}
+
+.com-root .field-invalid-panel {
+  border: 1px solid #c81519;
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.com-root .field-error,
+.com-root .field-hint,
+.com-root .field-group-label {
+  display: block;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.com-root .field-error {
+  color: #c81519;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.com-root .field-hint {
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+.com-root .field-group-label {
+  color: #6b7280;
+  font-weight: 600;
+}

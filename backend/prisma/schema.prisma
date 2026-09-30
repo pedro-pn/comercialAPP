@@ -35,6 +35,16 @@ enum ProposalIntegrationStatus {
   ERRO
 }
 
+enum ProposalDocumentKind {
+  COMERCIAL
+  TECNICA
+}
+
+enum ProposalDocumentFormat {
+  PDF
+  DOCX
+}
+
 model User {
   id           String          @id @default(cuid())
   username     String          @unique
@@ -73,12 +83,23 @@ model ProposalNumberingState {
   seededByUserId String
 }
 
+model ComercialSettings {
+  id                   String   @id @default("singleton")
+  sedeAddress          String   @default("")
+  sedeFormattedAddress String?
+  sedePlaceId          String?
+  updatedAt            DateTime @updatedAt
+  updatedByUserId      String?
+  updatedByLabel       String?
+}
+
 model ProposalNumberReservation {
   number           Int       @id
   reservedByUserId String
   reservedBy       User      @relation(fields: [reservedByUserId], references: [id])
   reservedAt       DateTime  @default(now())
   firstUsedAt      DateTime?
+  legacyFirstRevision Int?
 
   @@index([reservedByUserId, reservedAt])
 }
@@ -144,8 +165,26 @@ model Proposal {
   nectarOpportunityId String?
   nectarPipelineId  String?
   nectarPipelineName String?
+  nectarCompanyId   String?
+  nectarContactId   String?
+  nectarAttemptId   String?
+  nectarAttemptAt   DateTime?
   sharepointStatus   ProposalIntegrationStatus @default(PENDENTE)
   sharepointFolder   String?
+  sharepointAttemptId String?
+  sharepointAttemptAt DateTime?
+  sharepointError    String?
+  crmApprovalStatus  String    @default("PENDENTE")
+  crmProjectId       String?
+  crmApprovalSource  String?
+  crmApprovalAt      DateTime?
+  filtroStatus       String    @default("PENDENTE")
+  filtroError        String?
+  filtroDeliveredAt  DateTime?
+  filtroAttemptId    String?
+  filtroAttemptAt    DateTime?
+  filtroAttempts     Int       @default(0)
+  filtroNextRetryAt  DateTime?
   integrationError   String?
   createdByUserId    String
   createdBy          User                      @relation("ProposalCreator", fields: [createdByUserId], references: [id])
@@ -155,9 +194,68 @@ model Proposal {
   archivedAt         DateTime?
   createdAt          DateTime                  @default(now())
   updatedAt          DateTime                  @updatedAt
+  documents          ProposalDocument[]
+  attachments        ProposalAttachment[]
+  crmEvents          CrmProposalEvent[]
 
   @@unique([proposalCode, revisionNumber])
   @@index([createdByUserId, archivedAt, createdAt])
   @@index([sellerUserId, createdAt])
   @@index([status])
+}
+
+model CrmProposalEvent {
+  id             String   @id @default(cuid())
+  eventId        String   @unique
+  proposalId     String
+  proposal       Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  source         String
+  approvalStatus String
+  projectId      String?
+  occurredAt     DateTime
+  reason         String?
+  receivedAt     DateTime @default(now())
+
+  @@index([proposalId, occurredAt])
+}
+
+model ProposalDocument {
+  id           String                 @id @default(cuid())
+  proposalId   String
+  proposal     Proposal               @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  generationId String
+  payloadHash  String
+  kind         ProposalDocumentKind
+  format       ProposalDocumentFormat
+  storagePath  String
+  byteSize     Int
+  createdAt    DateTime               @default(now())
+
+  @@unique([generationId, kind, format])
+  @@index([proposalId, createdAt])
+}
+
+model ProposalAttachment {
+  id              String   @id @default(cuid())
+  proposalId      String
+  proposal        Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  storagePath     String
+  originalName    String
+  byteSize        Int
+  createdByUserId String
+  createdAt       DateTime @default(now())
+
+  @@index([proposalId, createdAt])
+}
+
+model ScopePhotoAsset {
+  id               String   @id @default(uuid())
+  assetKey         String   @unique
+  contentType      String
+  byteSize         Int
+  fileName         String
+  uploadedByUserId String
+  createdAt        DateTime @default(now())
+
+  @@index([uploadedByUserId, createdAt])
 }

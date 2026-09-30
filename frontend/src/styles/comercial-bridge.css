@@ -1,0 +1,130 @@
+/* ==========================================================================
+   PONTE: MÓDULO COMERCIAL → SISTEMA VISUAL DO filtroAPP
+   --------------------------------------------------------------------------
+   Liga os tokens `--com-*` deste módulo aos tokens do design system do app,
+   para que Comercial e filtroAPP tenham a mesma identidade.
+
+   POR QUE ISTO EXISTE
+   O comercial.css tem sete verdes fixos (#1f2923, #173b29, #214b35, #2f6446,
+   #347451, #3d7655, #9fc4ab) e NENHUM deles é o institucional #30503a.
+   Lado a lado com o resto do app isso lê como erro de impressão.
+
+   COMO FUNCIONA
+   O comercial.css NÃO é editado. Só os 11 tokens de cor e forma são
+   reapontados — o que alcança os 273 usos deles de uma vez. É o mesmo padrão
+   já usado para ligar as 13 mil linhas do base.css ao sistema novo.
+
+   SOBRE OS VALORES DE RESERVA
+   Cada `var()` traz um literal de reserva porque a camada de tokens do app
+   (styles/theme.css) ainda não existe nesta branch. Assim:
+     - hoje, sozinho: o módulo já adota o #30503a institucional;
+     - depois do merge com o design system: os tokens assumem sozinhos, e o
+       tema escuro passa a funcionar sem nenhuma outra mudança.
+   Ao remover as reservas, remova TODAS de uma vez — reserva pela metade
+   esconde exatamente o tipo de erro que ela deveria evitar.
+
+   ORDEM DE IMPORTAÇÃO
+   Este arquivo precisa vir DEPOIS de comercial.css no main.tsx.
+   ========================================================================== */
+
+.com-root {
+  /* --- Cor da marca e de ação ------------------------------------------- */
+  --com-marca-forte: var(--brand, #30503a);
+  --com-acao: var(--accent, #30503a);
+  --com-acao-suave: var(--accent-subtle, #f6f8f7);
+
+  /* --- Texto e superfície ----------------------------------------------- */
+  --com-texto: var(--fg, #2e332f);
+  --com-texto-fraco: var(--fg-muted, #606c64);
+  --com-borda: var(--border, #d9dddb);
+  --com-fundo: var(--bg, #f7f8f7);
+  --com-superficie: var(--surface, #fff);
+  --com-erro: var(--danger, #b2251a);
+
+  /* --- Cabeçalho -------------------------------------------------------
+     As duas faixas têm papéis distintos: navegação clara e identidade verde. */
+  --com-topbar-fundo: #fff;
+  --com-topbar-texto: #2e332f;
+  --com-topbar-texto-fraco: #606c64;
+  --com-topbar-linha: #dce6df;
+  --com-topbar-hover: #edf5ef;
+
+  /* --- Forma ------------------------------------------------------------- */
+  --com-raio: var(--radius-lg, 0.75rem);
+  --com-raio-controle: var(--radius-sm, 0.375rem);
+}
+
+/* ==========================================================================
+   CROMO
+   A primeira barra é uma superfície branca e recebe a marca colorida. Os
+   valores são sRGB explícitos para Chrome e Firefox renderizarem a mesma
+   hierarquia, sem depender de tokens opcionais do navegador/tema.
+   ========================================================================== */
+.com-root .com-topbar,
+.com-root .com-history-topbar {
+  background-color: var(--com-topbar-fundo);
+  background-image: none;
+  color: var(--com-topbar-texto);
+  border-bottom: 1px solid var(--com-topbar-linha);
+}
+
+.com-root .com-topbar {
+  box-shadow: 0 4px 18px #1838250a;
+}
+
+/* O Histórico não usa o ComercialChrome: monta um header próprio com 72px,
+   enquanto o resto do módulo usa 50px. Aqui as duas ficam iguais.
+   A correção definitiva é o Histórico adotar o ComercialChrome — isto é
+   ponte, não destino. */
+.com-root .com-history-topbar {
+  min-height: 50px;
+  padding-block: 6px;
+}
+
+.com-root .com-topbar .com-usuario,
+.com-root .com-history-topbar .com-usuario {
+  background: #f7faf8;
+  border-color: #cbd9cf;
+  color: var(--com-topbar-texto-fraco);
+}
+
+/* O fundo fica só no contêiner: aplicá-lo também no <b> pintava a mesma cor
+   atrás do nome, deixando-o ilegível. */
+.com-root .com-topbar .com-usuario b,
+.com-root .com-history-topbar .com-usuario b {
+  background: none;
+  color: var(--com-topbar-texto);
+}
+
+.com-root .com-topbar .com-btn-fantasma,
+.com-root .com-history-topbar .com-btn-fantasma {
+  color: var(--com-marca-forte);
+  border-color: #cbd9cf;
+  background: transparent;
+}
+
+.com-root .com-topbar .com-btn-fantasma:hover:not(:disabled),
+.com-root .com-history-topbar .com-btn-fantasma:hover:not(:disabled) {
+  background: var(--com-topbar-hover);
+  color: var(--com-marca-forte);
+}
+
+/* ==========================================================================
+   FAIXA DE CABEÇALHO (HERO)
+   A segunda faixa carrega a identidade verde do módulo. O comercial.css
+   define o gradiente, a tipografia clara, os indicadores translúcidos e os
+   elementos decorativos; a ponte não deve neutralizar nenhum deles.
+   ========================================================================== */
+
+/* ==========================================================================
+   TEXTO SOBRE A COR DE AÇÃO
+   `--com-acao` é o verde institucional: escuro no tema claro e CLARO no tema
+   escuro. O comercial.css fixa `color: #fff` por cima dele, o que daria
+   1.65:1 no escuro. O texto passa a seguir o mesmo token que o app usa.
+   ========================================================================== */
+.com-root .com-btn-primario,
+.com-root .com-btn-primario:hover:not(:disabled),
+.com-root .com-workflow-nav .is-ativa,
+.com-root .com-workflow-nav .is-ativa * {
+  color: var(--fg-on-accent, #fff);
+}
