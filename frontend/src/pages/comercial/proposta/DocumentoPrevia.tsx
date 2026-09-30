@@ -18,6 +18,7 @@ import {
   TEXTO_OBSERVACOES_GERAIS,
   TEXTO_PROPRIEDADE_INTELECTUAL,
   SERVICOS_EXTRA_ESCOPO,
+  incluirServicosExtraEscopo,
   TITULO_BLOCO_STANDBY,
   fraseHoraExtra,
   observacoesTecnicasDoModelo,
@@ -518,7 +519,7 @@ export function DocumentoPrevia({
             );
           })}
 
-          {SERVICOS_EXTRA_ESCOPO.map((observacao) => (
+          {incluirServicosExtraEscopo(servicosTecnicos) && SERVICOS_EXTRA_ESCOPO.map((observacao) => (
             <p className="com-doc-nota" key={observacao}>
               {observacao}
             </p>

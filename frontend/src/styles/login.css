@@ -199,12 +199,34 @@
 .login-submit:disabled { cursor: wait; opacity: .65; }
 
 .login-microsoft {
-  display: block;
-  width: fit-content;
+  display: grid;
+  width: 215px;
   max-width: 100%;
   margin: 16px auto 0;
 }
-.login-microsoft img { display: block; max-width: 100%; height: auto; }
+.login-microsoft-fallback,
+.login-microsoft img { grid-area: 1 / 1; }
+.login-microsoft-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 41px;
+  border: 1px solid #8c8c8c;
+  background: #fff;
+  color: #333;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.login-microsoft-fallback svg { width: 20px; height: 20px; flex: none; }
+.login-microsoft img {
+  display: block;
+  width: 100%;
+  height: auto;
+  opacity: 0;
+}
+.login-microsoft img.is-loaded { opacity: 1; }
 .login-microsoft:focus-visible { outline: 3px solid #247b5d; outline-offset: 3px; }
 
 .login-status { color: #496456; }

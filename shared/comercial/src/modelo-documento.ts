@@ -961,6 +961,19 @@ export const SERVICOS_EXTRA_ESCOPO: readonly string[] = [
   "Para a contratação do serviço de filtragem de óleo sobressalente, ou para contratar o serviço fora do escopo desta proposta, será cobrado o valor de R$ 3,00 por litro de óleo, além dos custos com mobilização e desmobilização do equipamento, caso ele não esteja em campo.",
 ];
 
+/** As cláusulas 7.1 e 7.2 se aplicam quando há tratamento de óleo no serviço. */
+export function incluirServicosExtraEscopo(
+  servicos: readonly ({ serviceId?: string } | null)[] | null | undefined,
+): boolean {
+  return Boolean(servicos?.some((servico) => {
+    const id = servico?.serviceId || "";
+    return id === "flushing_primario"
+      || id === "flushing_secundario"
+      || id.startsWith("filtragem_")
+      || id.startsWith("desidratacao_oleo");
+  }));
+}
+
 /**
  * Comentário #6 do documento de hidrojateamento, e é regra de composição, não
  * recado: **o preço de frete é só ida.** Um frete para ir e outro para voltar,

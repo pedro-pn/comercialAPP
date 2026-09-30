@@ -8,8 +8,10 @@ import { DOMParser, XMLSerializer } from '@xmldom/xmldom';
 
 import {
   categoriaCanonicaResponsabilidade,
+  incluirServicosExtraEscopo,
   ordenarLinhasDeResponsabilidade,
   rotuloStandbyEquipe,
+  SERVICOS_EXTRA_ESCOPO,
   tabelasDePrecoDoModelo,
   textoJornada,
   totalStandbyEquipe
@@ -514,6 +516,32 @@ function ajustarJornada(doc, jornada, modelo) {
   }
 }
 
+/** Mostra as cláusulas 7.1 e 7.2 apenas para serviços de tratamento de óleo. */
+function ajustarServicosExtraEscopo(doc, servicos) {
+  const inicio = tituloDoCorpo(doc, '- Descrição dos valores:');
+  const fim = tituloDoCorpo(doc, '- Condições de pagamento:');
+  if (!inicio || !fim || inicio.parentNode !== fim.parentNode) return;
+
+  const paragrafos = [];
+  let atual = inicio.nextSibling;
+  while (atual && atual !== fim) {
+    if (atual.nodeType === 1 && atual.nodeName === 'w:p'
+      && /^Para a contratação do serviço de (?:desidratação|filtragem) de óleo/u.test(elementText(atual))) {
+      paragrafos.push(atual);
+    }
+    atual = atual.nextSibling;
+  }
+
+  if (!incluirServicosExtraEscopo(servicos)) {
+    paragrafos.forEach(removeNode);
+  } else if (paragrafos.length === 0) {
+    // O modelo de hidrojateamento não traz as cláusulas; a regra vale nele também.
+    for (const texto of SERVICOS_EXTRA_ESCOPO) {
+      fim.parentNode.insertBefore(paragrafoDeTexto(doc, texto), fim);
+    }
+  }
+}
+
 /**
  * O capítulo 7 da proposta técnica é montado apenas com os serviços escolhidos.
  *
@@ -716,6 +744,7 @@ export async function preencherProposta(dados, tipo) {
       ajustarPrevisaoDeAtendimento(doc, dados.attendance);
       ajustarColunaDeValorUnitario(doc, dados.includeUnitValue);
       ajustarJornada(doc, String(dados.workday || '').trim(), modelo);
+      if (tipo === 'commercial') ajustarServicosExtraEscopo(doc, dados.technicalServices);
       if (tipo === 'technical') ajustarEscopoTecnico(doc, dados.technicalServices);
       ajustarTextosEditaveis(doc, dados, tipo);
     }
