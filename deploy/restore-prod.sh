@@ -5,7 +5,8 @@ umask 077
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${PROJECT_DIR:-$(dirname "$SCRIPT_DIR")}"
 PROJECT_NAME="${PROJECT_NAME:-comercialapp}"
-COMPOSE_OVERRIDE_FILE="${COMPOSE_OVERRIDE_FILE-docker-compose.prod.yml}"
+COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
+COMPOSE_OVERRIDE_FILE="${COMPOSE_OVERRIDE_FILE:-}"
 FILES_VOLUME="${FILES_VOLUME:-${PROJECT_NAME}_comercial_files}"
 BACKUP_ROOT="${BACKUP_ROOT:-/var/backups/comercialapp}"
 BACKUP_SOURCE="${BACKUP_SOURCE:-${1:-}}"
@@ -57,7 +58,11 @@ mkdir -p "$BACKUP_ROOT"
 exec 9>"$BACKUP_ROOT/backup.lock"
 flock -n 9 || { echo '[restore] outro backup ou restore está em andamento' >&2; exit 1; }
 
-COMPOSE=(docker compose -p "$PROJECT_NAME" -f "$PROJECT_DIR/docker-compose.yml")
+if [[ "$COMPOSE_FILE" = /* ]]; then
+  COMPOSE=(docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE")
+else
+  COMPOSE=(docker compose -p "$PROJECT_NAME" -f "$PROJECT_DIR/$COMPOSE_FILE")
+fi
 if [[ -n "$COMPOSE_OVERRIDE_FILE" ]]; then
   if [[ "$COMPOSE_OVERRIDE_FILE" = /* ]]; then
     COMPOSE+=(-f "$COMPOSE_OVERRIDE_FILE")

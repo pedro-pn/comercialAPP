@@ -1,6 +1,87 @@
+name: comercialapp
+
 services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: comercialapp
+      POSTGRES_USER: comercial
+      POSTGRES_PASSWORD: ${COMERCIAL_DB_PASSWORD:?Configure COMERCIAL_DB_PASSWORD em .env}
+    volumes:
+      - comercial_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U comercial -d comercialapp"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - private
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://comercial:${COMERCIAL_DB_PASSWORD:?Configure COMERCIAL_DB_PASSWORD em .env}@db:5432/comercialapp?schema=public
+      APP_ORIGIN: https://comercial.filtrovali.com.br
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 4300
+      COMERCIAL_DIR: /data/comercial
+      NECTAR_MODE: ${NECTAR_MODE:-off}
+      NECTAR_API_TOKEN: ${NECTAR_API_TOKEN:-}
+      NECTAR_PIPELINE_IDS: ${NECTAR_PIPELINE_IDS:-}
+      NECTAR_RESPONSAVEL_ID: ${NECTAR_RESPONSAVEL_ID:-}
+      NECTAR_PROJECT_FIELD: ${NECTAR_PROJECT_FIELD:-}
+      SHAREPOINT_MODE: ${SHAREPOINT_MODE:-off}
+      MICROSOFT_TENANT_ID: ${MICROSOFT_TENANT_ID:-}
+      MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:-}
+      MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
+      SHAREPOINT_DRIVE_ID: ${SHAREPOINT_DRIVE_ID:-}
+      SHAREPOINT_SITE_ID: ${SHAREPOINT_SITE_ID:-}
+      SHAREPOINT_HOSTNAME: ${SHAREPOINT_HOSTNAME:-}
+      SHAREPOINT_SITE_PATH: ${SHAREPOINT_SITE_PATH:-}
+      SHAREPOINT_BASE_FOLDER: ${SHAREPOINT_BASE_FOLDER:-}
+      GOOGLE_MAPS_MODE: ${GOOGLE_MAPS_MODE:-off}
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+      GOOGLE_MAPS_MAX_DIA: ${GOOGLE_MAPS_MAX_DIA:-200}
+      GOOGLE_MAPS_MAX_DIA_SUGESTOES: ${GOOGLE_MAPS_MAX_DIA_SUGESTOES:-300}
+      CRM_EVENT_TOKEN: ${CRM_EVENT_TOKEN:-}
+      FILTROAPP_API_URL: ${FILTROAPP_API_URL:-}
+      FILTROAPP_API_TOKEN: ${FILTROAPP_API_TOKEN:-}
+    volumes:
+      - comercial_files:/data/comercial
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4300/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - private
+
   web:
-    # Docker rootless do Comercial não compartilha a rede proxy-net do Caddy.
-    # A bridge do Docker root alcança esta porta pelo host-gateway.
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    # O Caddy do daemon root alcança esta porta pelo host-gateway.
+    # Não exponha o Nginx em 0.0.0.0:8083.
     ports:
       - "172.17.0.1:8083:80"
+    networks:
+      - private
+
+volumes:
+  comercial_pgdata:
+  comercial_files:
+
+networks:
+  private:

@@ -5,7 +5,8 @@ umask 077
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${PROJECT_DIR:-$(dirname "$SCRIPT_DIR")}"
 PROJECT_NAME="${PROJECT_NAME:-comercialapp}"
-COMPOSE_OVERRIDE_FILE="${COMPOSE_OVERRIDE_FILE-docker-compose.prod.yml}"
+COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
+COMPOSE_OVERRIDE_FILE="${COMPOSE_OVERRIDE_FILE:-}"
 FILES_VOLUME="${FILES_VOLUME:-${PROJECT_NAME}_comercial_files}"
 BACKUP_ROOT="${BACKUP_ROOT:-/var/backups/comercialapp}"
 B2_URI="${B2_URI:-}"
@@ -16,7 +17,11 @@ if [[ ! "$PROJECT_NAME" =~ ^[a-z0-9][a-z0-9_-]*$ ]]; then
   exit 1
 fi
 
-COMPOSE=(docker compose -p "$PROJECT_NAME" -f "$PROJECT_DIR/docker-compose.yml")
+if [[ "$COMPOSE_FILE" = /* ]]; then
+  COMPOSE=(docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE")
+else
+  COMPOSE=(docker compose -p "$PROJECT_NAME" -f "$PROJECT_DIR/$COMPOSE_FILE")
+fi
 if [[ -n "$COMPOSE_OVERRIDE_FILE" ]]; then
   if [[ "$COMPOSE_OVERRIDE_FILE" = /* ]]; then
     COMPOSE+=(-f "$COMPOSE_OVERRIDE_FILE")

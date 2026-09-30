@@ -59,6 +59,6 @@ restauração periodicamente em um ambiente separado. Backup e restore usam o
 mesmo arquivo de trava em `BACKUP_ROOT`; informe o mesmo valor nas duas operações.
 
 Para ensaios isolados, `PROJECT_NAME` altera o projeto Compose e o volume
-esperado; `COMPOSE_OVERRIDE_FILE` pode apontar para outro arquivo ou ser vazio
-para usar só `docker-compose.yml`. Nunca use o projeto de produção em um ensaio
-de restauração.
+esperado. `COMPOSE_FILE` pode apontar para outro arquivo completo; o padrão é
+`docker-compose.prod.yml`. `COMPOSE_OVERRIDE_FILE` é opcional e acrescenta um
+arquivo de ajustes. Nunca use o projeto de produção em um ensaio de restauração.
