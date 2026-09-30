@@ -196,8 +196,10 @@ export function App() {
               </form>
             )}
             {microsoftEnabled && !loading && (
-              <a className="login-microsoft" href="/api/auth/microsoft">
-                Entrar com conta Microsoft
+              <a className="login-microsoft" href="/api/auth/microsoft"
+                aria-label="Entrar com a Microsoft">
+                <img src="/assets/microsoft-sign-in-light.svg" width="215" height="41"
+                  alt="" aria-hidden="true" />
               </a>
             )}
             {(error || location.search.includes('auth_error=microsoft')) &&
