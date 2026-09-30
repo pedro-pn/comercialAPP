@@ -7,5 +7,6 @@
 !**/.env.example
 *.log
 coverage
+secrets
 docs
 README.md

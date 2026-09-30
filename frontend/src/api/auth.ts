@@ -17,6 +17,11 @@ export async function getCurrentUser() {
   return data.user;
 }
 
+export async function getAuthProviders() {
+  const { data } = await apiClient.get<{ microsoft: boolean }>('/auth/providers');
+  return data;
+}
+
 export async function login(username: string, password: string) {
   const { data } = await apiClient.post<{ user: CommercialUser }>('/auth/login', { username, password });
   return data.user;

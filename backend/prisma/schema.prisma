@@ -51,6 +51,8 @@ model User {
   username     String          @unique
   name         String
   passwordHash String
+  microsoftTenantId String?
+  microsoftObjectId String?
   role         CommercialRole
   isActive     Boolean         @default(true)
   createdAt    DateTime        @default(now())
@@ -64,6 +66,8 @@ model User {
   updatedProposals  Proposal[]                 @relation("ProposalUpdater")
   soldProposals     Proposal[]                 @relation("ProposalSeller")
   numberReservations ProposalNumberReservation[]
+
+  @@unique([microsoftTenantId, microsoftObjectId])
 }
 
 model ApiCredential {
