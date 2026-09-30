@@ -6,6 +6,8 @@ da integração SharePoint. O retorno em produção é
 O código solicita `openid` e `profile`; a biblioteca MSAL inclui
 `offline_access` automaticamente. Nenhum escopo de leitura de e-mails
 é necessário.
+O botão de login usa o [SVG claro oficial da Microsoft](https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-branding-in-apps)
+sem alterar o logotipo ou suas proporções.
 
 ## Ativação na VPS
 
@@ -93,3 +95,11 @@ Em desenvolvimento, o retorno local exige outra URI Web cadastrada no Entra:
 `http://localhost:8086/api/auth/microsoft/callback` com o Compose local, ou
 `http://localhost:5174/api/auth/microsoft/callback` usando o proxy do Vite.
 Use `APP_ORIGIN` correspondente.
+
+## Permissões de usuários novos
+
+Atribuir uma pessoa ao aplicativo empresarial no Entra não cria sua conta no
+ComercialAPP. Sem uma conta local vinculada ao `tid` e `oid`, o login é
+recusado e nenhum papel é concedido. Crie a conta na página **Acessos** com
+o papel desejado e vincule seu Object ID com `db:link-microsoft` sem
+`--admin`. O papel da conta local define as permissões no aplicativo.
