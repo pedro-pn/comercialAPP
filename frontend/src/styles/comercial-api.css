@@ -1,9 +1,11 @@
 .com-root .com-api-page { display: grid; gap: 20px; }
 .com-root .com-api-page > .com-painel { margin: 0; }
-.com-root .com-api-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.com-root .com-api-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
 .com-root .com-api-grid > .com-painel { margin: 0; min-width: 0; }
 .com-root .com-api-form { display: grid; gap: 14px; justify-items: start; }
+.com-root .com-api-grid > .com-painel:first-child .com-api-form { max-width: 460px; }
 .com-root .com-api-form .com-access-field { width: 100%; }
+.com-root .com-api-page code, .com-root .com-api-page pre { font-family: Arial, sans-serif; }
 .com-root .com-api-form textarea {
   width: 100%;
   min-width: 0;
@@ -19,6 +21,24 @@
 .com-root .com-api-form textarea:focus-visible { outline: 2px solid var(--com-acao); outline-offset: 2px; }
 .com-root .com-api-url { overflow-wrap: anywhere; }
 .com-root .com-api-example { overflow: auto; border: 1px solid var(--com-borda); border-radius: var(--com-raio-controle); padding: 14px; background: var(--com-fundo); }
+.com-root .com-api-contract-section + .com-api-contract-section { border-top: 1px solid var(--com-borda); margin-top: 22px; padding-top: 20px; }
+.com-root .com-api-contract-section h3 { margin: 0 0 10px; color: var(--com-marca-forte); font-size: 17px; }
+.com-root .com-api-contract-section p { line-height: 1.5; }
+.com-root .com-api-endpoint { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 12px; border: 1px solid var(--com-borda); border-radius: var(--com-raio-controle); background: var(--com-fundo); }
+.com-root .com-api-endpoint .com-api-url { flex: 1; min-width: 180px; }
+.com-root .com-api-method { color: var(--com-marca-forte); background: var(--com-acao-suave); border-radius: 4px; padding: 6px 9px; font-weight: 700; }
+.com-root .com-api-headers { display: flex; flex-wrap: wrap; gap: 8px; }
+.com-root .com-api-headers code { display: block; padding: 8px 10px; border: 1px solid var(--com-borda); border-radius: var(--com-raio-controle); overflow-wrap: anywhere; }
+.com-root .com-api-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; }
+.com-root .com-api-tabs button { border: 1px solid var(--com-borda); border-radius: var(--com-raio-controle); padding: 8px 14px; color: var(--com-texto); background: var(--com-superficie); cursor: pointer; font: inherit; }
+.com-root .com-api-tabs button.is-selected { border-color: var(--com-acao); color: var(--com-marca-forte); background: var(--com-acao-suave); font-weight: 700; }
+.com-root .com-api-tabs button:focus-visible { outline: 2px solid var(--com-acao); outline-offset: 2px; }
+.com-root .com-api-hint { margin: 0; color: var(--com-texto-fraco); font-size: 13px; line-height: 1.5; }
+.com-root .com-api-contract-section > .com-api-hint { margin-top: 14px; }
+.com-root .com-api-response-wrap { overflow-x: auto; }
+.com-root .com-api-response-table { width: 100%; border-collapse: collapse; text-align: left; }
+.com-root .com-api-response-table th, .com-root .com-api-response-table td { padding: 9px 12px; border-bottom: 1px solid var(--com-borda); vertical-align: top; }
+.com-root .com-api-response-table th:first-child, .com-root .com-api-response-table td:first-child { width: 90px; white-space: nowrap; font-weight: 700; }
 .com-root .com-api-secret { margin-top: 20px; padding: 16px; border: 1px solid var(--com-acao); border-radius: var(--com-raio); background: var(--com-acao-suave); }
 .com-root .com-api-secret > code { display: block; padding: 12px; border: 1px solid var(--com-borda); border-radius: var(--com-raio-controle); background: var(--com-superficie); overflow-wrap: anywhere; user-select: all; }
 .com-root .com-api-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
@@ -30,9 +50,6 @@
 .com-root .com-api-active { color: var(--com-marca-forte); font-weight: 700; }
 .com-root .com-api-inactive { color: var(--com-texto-fraco); font-weight: 700; }
 .com-root .com-api-result { margin-bottom: 0; padding: 12px; border-radius: var(--com-raio-controle); background: var(--com-acao-suave); }
-@media (max-width: 850px) {
-  .com-root .com-api-grid { grid-template-columns: 1fr; }
-}
 @media (max-width: 650px) {
   .com-root .com-api-token { flex-direction: column; }
   .com-root .com-api-token-side { justify-items: start; }

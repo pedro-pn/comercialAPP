@@ -24,7 +24,9 @@ function fakeCredentialDb() {
       async updateMany({ where, data }) {
         const record = records.get(where.id);
         if (!record || where.revokedAt === null && record.revokedAt ||
-          where.expiresAt && record.expiresAt <= where.expiresAt.gt) return { count: 0 };
+          where.OR && record.expiresAt && record.expiresAt <= where.OR[1].expiresAt.gt) {
+          return { count: 0 };
+        }
         const { useCount, ...changes } = data;
         Object.assign(record, changes);
         if (useCount?.increment) record.useCount += useCount.increment;
@@ -47,6 +49,19 @@ test('token só aparece na emissão, autentica e deixa de funcionar ao revogar',
   db.records.get(issued.credential.id).expiresAt = new Date(Date.now() - 1000);
   await assert.rejects(() => authenticateApiCredential(db, issued.token), { status: 401 });
   db.records.get(issued.credential.id).expiresAt = new Date(Date.now() + 1000);
+  await revokeApiCredential(db, admin, issued.credential.id);
+  await assert.rejects(() => authenticateApiCredential(db, issued.token), { status: 401 });
+});
+
+test('token sem vencimento continua válido até a revogação', async () => {
+  const db = fakeCredentialDb();
+  const admin = { id: 'admin', role: 'ADMIN' };
+  const issued = await createApiCredential(db, admin, {
+    name: 'CRM Prisma permanente', expiresInDays: null
+  });
+  assert.equal(issued.credential.expiresAt, null);
+  assert.equal((await listApiCredentials(db))[0].expiresAt, null);
+  assert.equal((await authenticateApiCredential(db, issued.token)).id, issued.credential.id);
   await revokeApiCredential(db, admin, issued.credential.id);
   await assert.rejects(() => authenticateApiCredential(db, issued.token), { status: 401 });
 });

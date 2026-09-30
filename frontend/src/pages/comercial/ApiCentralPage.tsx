@@ -5,15 +5,17 @@ import { createApiCredential, listApiCredentials, previewCrmEvent, revokeApiCred
 import { moduleRoutePath } from '../../modules/registry';
 import { ComercialChrome } from './components/ComercialChrome';
 
-function exampleEvent() {
+type ExampleOutcome = 'APPROVED' | 'REJECTED';
+
+function exampleEvent(outcome: ExampleOutcome) {
   return JSON.stringify({
     contractVersion: 1,
     eventId: crypto.randomUUID(),
-    proposalCode: 'CODIGO-DA-PROPOSTA',
+    proposalCode: '1234',
     revisionNumber: 0,
-    opportunityId: 'ID-DA-OPORTUNIDADE-PRISMA',
-    approvalStatus: 'APPROVED',
-    projectId: 'ID-DO-PROJETO',
+    opportunityId: 'OPORTUNIDADE-123',
+    approvalStatus: outcome,
+    ...(outcome === 'APPROVED' ? { projectId: 'PROJETO-456' } : {}),
     occurredAt: new Date().toISOString()
   }, null, 2);
 }
@@ -27,7 +29,7 @@ function dateLabel(value: string | null) {
 }
 
 function isActive(item: ApiCredential) {
-  return !item.revokedAt && new Date(item.expiresAt).getTime() > Date.now();
+  return !item.revokedAt && (!item.expiresAt || new Date(item.expiresAt).getTime() > Date.now());
 }
 
 export function ApiCentralPage() {
@@ -42,10 +44,14 @@ export function ApiCentralPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState('CRM Prisma');
-  const [expiresInDays, setExpiresInDays] = useState(90);
+  const [expiresInDays, setExpiresInDays] = useState<number | null>(90);
   const [issued, setIssued] = useState<{ token: string; credential: ApiCredential } | null>(null);
   const [selectedId, setSelectedId] = useState('');
-  const [eventText, setEventText] = useState(exampleEvent);
+  const [eventText, setEventText] = useState(() => exampleEvent('APPROVED'));
+  const [exampleOutcome, setExampleOutcome] = useState<ExampleOutcome>('APPROVED');
+  const [contractExamples] = useState(() => ({
+    APPROVED: exampleEvent('APPROVED'), REJECTED: exampleEvent('REJECTED')
+  }));
   const [preview, setPreview] = useState<CrmEventPreview | null>(null);
   const [revokeId, setRevokeId] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -111,14 +117,13 @@ export function ApiCentralPage() {
     } finally { setBusy(false); }
   }
 
-  async function copyToken() {
-    if (!issued) return;
+  async function copyText(value: string, successMessage: string) {
     try {
-      await navigator.clipboard.writeText(issued.token);
+      await navigator.clipboard.writeText(value);
       setError('');
-      setMessage('Token copiado. Guarde-o no cofre de segredos.');
+      setMessage(successMessage);
     } catch {
-      setError('Não foi possível copiar automaticamente. Selecione e copie o token exibido.');
+      setError('Não foi possível copiar automaticamente. Selecione e copie o texto exibido.');
     }
   }
 
@@ -147,13 +152,17 @@ export function ApiCentralPage() {
                 onChange={event => setName(event.target.value)} placeholder="CRM Prisma" />
             </label>
             <label className="com-access-field">Validade
-              <select value={expiresInDays} onChange={event => setExpiresInDays(Number(event.target.value))}>
+              <select value={expiresInDays === null ? 'never' : String(expiresInDays)}
+                onChange={event => setExpiresInDays(event.target.value === 'never'
+                  ? null : Number(event.target.value))}>
                 <option value={30}>30 dias</option>
                 <option value={90}>90 dias</option>
                 <option value={180}>180 dias</option>
                 <option value={365}>365 dias</option>
+                <option value="never">Nunca expira</option>
               </select>
             </label>
+            {expiresInDays === null && <p className="com-api-hint">O token ficará ativo até ser revogado nesta página.</p>}
             <button className="com-btn com-btn-primario" disabled={busy || Boolean(issued)} type="submit">
               {busy ? 'Gerando…' : 'Gerar token'}
             </button>
@@ -163,25 +172,85 @@ export function ApiCentralPage() {
             <p>Depois de fechar esta área, o valor não poderá ser recuperado.</p>
             <code tabIndex={0}>{issued.token}</code>
             <div className="com-api-actions">
-              <button type="button" className="com-btn com-btn-primario" onClick={() => void copyToken()}>Copiar token</button>
+              <button type="button" className="com-btn com-btn-primario"
+                onClick={() => void copyText(issued.token, 'Token copiado. Guarde-o no cofre de segredos.')}>
+                Copiar token
+              </button>
               <button type="button" className="com-btn com-btn-fantasma" onClick={() => setIssued(null)}>Concluí, ocultar</button>
             </div>
           </div>}
         </section>
 
-        <section className="com-painel" aria-labelledby="api-contract-title">
+        <section className="com-painel com-api-contract" aria-labelledby="api-contract-title">
           <div className="com-secao-titulo"><div>
             <h2 id="api-contract-title">Contrato do CRM</h2>
-            <p>O token funciona somente neste endpoint de escrita.</p>
+            <p>Exemplo completo para configurar o retorno de aprovação e rejeição no Prisma.</p>
           </div></div>
-          <p><strong>POST</strong> <code className="com-api-url">{eventUrl}</code></p>
-          <p><code>Authorization: Bearer &lt;token&gt;</code><br /><code>Content-Type: application/json</code></p>
-          <p>Corpo v1: <code>eventId</code> UUID, código e revisão da proposta, ID da oportunidade no Prisma,
-            <code> approvalStatus</code> (<code>APPROVED</code> ou <code>REJECTED</code>),
-            <code> occurredAt</code> ISO 8601 e <code>projectId</code> quando houver.</p>
-          <p>Eventos novos retornam HTTP 202; reenvios idênticos retornam 200.
-            Propostas inexistentes ou não finalizadas são recusadas.</p>
-          <pre className="com-api-example"><code>{curlExample}</code></pre>
+          <div className="com-api-contract-section">
+            <h3>1. Configure a chamada no Prisma</h3>
+            <div className="com-api-endpoint">
+              <span className="com-api-method">POST</span>
+              <code className="com-api-url">{eventUrl}</code>
+              <button type="button" className="com-btn com-btn-fantasma"
+                onClick={() => void copyText(eventUrl, 'URL do callback copiada.')}>Copiar URL</button>
+            </div>
+            <p>Envie um JSON com estes cabeçalhos. Use o token gerado acima somente no campo Authorization:</p>
+            <div className="com-api-headers">
+              <code>Authorization: Bearer &lt;token&gt;</code>
+              <code>Content-Type: application/json</code>
+            </div>
+          </div>
+          <div className="com-api-contract-section">
+            <h3>2. Envie um evento</h3>
+            <p>Escolha o resultado para ver o corpo correspondente. Troque o código, a revisão e os IDs pelos dados reais.</p>
+            <div className="com-api-tabs" role="group" aria-label="Resultado do evento de exemplo">
+              <button type="button" className={exampleOutcome === 'APPROVED' ? 'is-selected' : ''}
+                aria-pressed={exampleOutcome === 'APPROVED'} onClick={() => setExampleOutcome('APPROVED')}>
+                Aprovação
+              </button>
+              <button type="button" className={exampleOutcome === 'REJECTED' ? 'is-selected' : ''}
+                aria-pressed={exampleOutcome === 'REJECTED'} onClick={() => setExampleOutcome('REJECTED')}>
+                Rejeição
+              </button>
+            </div>
+            <pre className="com-api-example"><code>{contractExamples[exampleOutcome]}</code></pre>
+            <div className="com-api-actions">
+              <button type="button" className="com-btn com-btn-fantasma"
+                onClick={() => void copyText(contractExamples[exampleOutcome], 'JSON de exemplo copiado.')}>
+                Copiar JSON
+              </button>
+              <button type="button" className="com-btn com-btn-fantasma" onClick={() => {
+                setEventText(contractExamples[exampleOutcome]);
+                setPreview(null);
+                document.getElementById('api-playground-title')?.scrollIntoView({ behavior: 'smooth' });
+              }}>Usar no teste sem gravação</button>
+            </div>
+            <p className="com-api-hint"><code>eventId</code> deve ser um UUID novo para cada mudança; no reenvio
+              da mesma mudança, reutilize o mesmo ID e o mesmo conteúdo. A proposta precisa estar finalizada.
+              O <code>opportunityId</code> deve continuar igual nos eventos seguintes. Informe
+              <code> projectId</code> na aprovação quando o projeto já estiver definido; sem ele,
+              a entrega ao FiltroAPP fica pendente.</p>
+          </div>
+          <div className="com-api-contract-section">
+            <h3>3. Confira a resposta</h3>
+            <div className="com-api-response-wrap"><table className="com-api-response-table">
+              <thead><tr><th>HTTP</th><th>Significado</th></tr></thead>
+              <tbody>
+                <tr><td>202</td><td>Evento novo registrado.</td></tr>
+                <tr><td>200</td><td>Mesmo evento recebido novamente, sem duplicação.</td></tr>
+                <tr><td>400 / 401</td><td>JSON inválido ou token inválido, revogado ou expirado.</td></tr>
+                <tr><td>404 / 409</td><td>Proposta não encontrada ou conflito com o estado já registrado.</td></tr>
+              </tbody>
+            </table></div>
+            <p className="com-api-hint">HTTP 202 confirma o registro do evento. Se a aprovação incluir
+              um projeto, confira <code>delivery.status</code> na resposta para saber o resultado
+              da entrega ao FiltroAPP.</p>
+            <p>Exemplo por linha de comando: salve o JSON acima como <code>evento.json</code> e
+              configure <code>PRISMA_CRM_TOKEN</code> no ambiente de quem executa a chamada.</p>
+            <pre className="com-api-example"><code>{curlExample}</code></pre>
+            <button type="button" className="com-btn com-btn-fantasma"
+              onClick={() => void copyText(curlExample, 'Comando cURL copiado.')}>Copiar cURL</button>
+          </div>
         </section>
       </div>
 
@@ -197,7 +266,8 @@ export function ApiCentralPage() {
                 <h3>{item.name}</h3>
                 <p><code>{item.tokenPrefix}_…{item.tokenLastFour}</code></p>
                 <p>Emitido em {dateLabel(item.createdAt)}{item.createdByName ? ` por ${item.createdByName}` : ''}
-                  {' · '}Vence em {dateLabel(item.expiresAt)} · Usos: {item.useCount}</p>
+                  {' · '}{item.expiresAt ? `Vence em ${dateLabel(item.expiresAt)}` : 'Nunca expira'}
+                  {' · '}Usos: {item.useCount}</p>
                 <p>Último uso: {dateLabel(item.lastUsedAt)}</p>
                 {item.revokedAt && <p>Revogado em {dateLabel(item.revokedAt)}
                   {item.revokedByName ? ` por ${item.revokedByName}` : ''}</p>}

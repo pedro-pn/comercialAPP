@@ -1,0 +1,1 @@
+ALTER TABLE "ApiCredential" ALTER COLUMN "expiresAt" DROP NOT NULL;

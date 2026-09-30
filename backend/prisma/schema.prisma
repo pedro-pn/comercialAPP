@@ -76,7 +76,7 @@ model ApiCredential {
   createdByUserId String
   createdBy       User      @relation("ApiCredentialCreator", fields: [createdByUserId], references: [id])
   createdAt       DateTime  @default(now())
-  expiresAt       DateTime
+  expiresAt       DateTime?
   revokedAt       DateTime?
   revokedByUserId String?
   revokedBy       User?     @relation("ApiCredentialRevoker", fields: [revokedByUserId], references: [id])

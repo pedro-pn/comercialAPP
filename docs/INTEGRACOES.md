@@ -27,7 +27,8 @@ cujo **nome exato** foi configurado em `NECTAR_PROJECT_FIELD`.
 
 O Prisma envia para `POST https://comercial.filtrovali.com.br/api/integrations/crm/events`.
 O administrador cria o Bearer token na **Central de API** (`/api-central`),
-com validade de 1 a 365 dias. O segredo aparece uma única vez; no banco fica
+com validade de 1 a 365 dias ou sem vencimento. Um token sem vencimento permanece
+ativo até ser revogado. O segredo aparece uma única vez; no banco fica
 somente seu hash. O administrador pode revogar o token, consultar uso e validar
 o contrato sem gravar um evento no playground. Corpo versão 1:
 

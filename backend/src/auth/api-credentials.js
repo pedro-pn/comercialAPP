@@ -30,7 +30,7 @@ function publicCredential(record) {
 }
 
 export function credentialIsActive(record, now = new Date()) {
-  return Boolean(record && !record.revokedAt && record.expiresAt > now);
+  return Boolean(record && !record.revokedAt && (!record.expiresAt || record.expiresAt > now));
 }
 
 export async function listApiCredentials(db) {
@@ -52,7 +52,7 @@ export async function createApiCredential(db, actor, { name, expiresInDays }) {
     tokenLastFour: secret.slice(-4),
     scopeCode: CRM_EVENTS_SCOPE,
     createdByUserId: actor.id,
-    expiresAt: new Date(Date.now() + expiresInDays * DAY_MS)
+    expiresAt: expiresInDays === null ? null : new Date(Date.now() + expiresInDays * DAY_MS)
   }, include: { createdBy: { select: { name: true } } } });
   return { credential: publicCredential(record), token };
 }
@@ -88,7 +88,8 @@ export async function authenticateApiCredential(db, rawToken, scopeCode = CRM_EV
     throw new HttpError(401, 'Token de API inválido, revogado ou expirado.');
   }
   const updated = await db.apiCredential.updateMany({
-    where: { id: record.id, revokedAt: null, expiresAt: { gt: new Date() } },
+    where: { id: record.id, revokedAt: null,
+      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
     data: { lastUsedAt: new Date(), useCount: { increment: 1 } }
   });
   if (updated.count !== 1) throw new HttpError(401, 'Token de API inválido, revogado ou expirado.');
