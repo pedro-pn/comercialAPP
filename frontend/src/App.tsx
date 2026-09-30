@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useState, type FormEvent } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 import { ApiClientError } from './api/client';
 import { AuthContext } from './auth/AuthContext';
-import { getCurrentUser, login, logout, type CommercialUser } from './api/auth';
+import { getAuthProviders, getCurrentUser, login, logout, type CommercialUser } from './api/auth';
 import { HistoricoRascunhosPage } from './pages/comercial/historico/HistoricoRascunhosPage';
 import { AcessosPage } from './pages/comercial/AcessosPage';
 import { ComercialPage } from './pages/comercial/ComercialPage';
@@ -47,8 +47,10 @@ export function App() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberUser, setRememberUser] = useState(() => Boolean(readRememberedUser()));
+  const [microsoftEnabled, setMicrosoftEnabled] = useState(false);
 
   useEffect(() => {
+    getAuthProviders().then(providers => setMicrosoftEnabled(providers.microsoft)).catch(() => {});
     getCurrentUser()
       .then(setUser)
       .catch((requestError: unknown) => {
@@ -193,7 +195,15 @@ export function App() {
                 </button>
               </form>
             )}
-            {error && <p className="login-error" role="alert">{error}</p>}
+            {microsoftEnabled && !loading && (
+              <a className="login-microsoft" href="/api/auth/microsoft">
+                Entrar com conta Microsoft
+              </a>
+            )}
+            {(error || location.search.includes('auth_error=microsoft')) &&
+              <p className="login-error" role="alert">
+                {error || 'Não foi possível entrar com a conta Microsoft. Verifique seu acesso ou tente novamente.'}
+              </p>}
           </div>
         </div>
       </section>

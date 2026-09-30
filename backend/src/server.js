@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { createApp } from './app.js';
 import { createAuthService } from './auth/service.js';
+import { createMicrosoftAuthFromEnv } from './auth/microsoft.js';
 import { createDatabase } from './db.js';
 import { retryPendingFiltro } from './comercial/crm-bridge.js';
 
@@ -25,7 +26,8 @@ for (const origin of additionalOrigins) {
 }
 const db = createDatabase();
 const app = createApp({ authService: createAuthService(db), commercialDb: db,
-  appOrigin, additionalOrigins, production });
+  appOrigin, additionalOrigins, production,
+  microsoftAuth: createMicrosoftAuthFromEnv(appOrigin) });
 
 const server = app.listen(port, host, () => {
   process.stdout.write('Comercial API listening on ' + host + ':' + port + '\n');

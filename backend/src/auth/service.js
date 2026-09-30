@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { hashPassword, verifyPassword } from './password.js';
 
 export const sessionDays = 7;
+export const microsoftSessionHours = 24;
 const roles = new Set(['ADMIN', 'MANAGER', 'SELLER', 'VIEWER']);
 
 export class HttpError extends Error {
@@ -55,6 +56,12 @@ export function tokenHash(token) {
 }
 
 export function createAuthService(db) {
+  async function createSession(user, lifetimeMs) {
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + lifetimeMs);
+    await db.session.create({ data: { tokenHash: tokenHash(token), userId: user.id, expiresAt } });
+    return { token, expiresAt, user: publicUser(user) };
+  }
   return {
     async bootstrapAdmin({ username, name, password }) {
       const data = {
@@ -75,10 +82,16 @@ export function createAuthService(db) {
       const user = username ? await db.user.findUnique({ where: { username } }) : null;
       const valid = await verifyPassword(String(password ?? ''), user?.passwordHash);
       if (!user || !user.isActive || !valid) throw new HttpError(401, 'Usuário ou senha inválidos.');
-      const token = randomBytes(32).toString('hex');
-      const expiresAt = new Date(Date.now() + sessionDays * 24 * 60 * 60 * 1000);
-      await db.session.create({ data: { tokenHash: tokenHash(token), userId: user.id, expiresAt } });
-      return { token, expiresAt, user: publicUser(user) };
+      return createSession(user, sessionDays * 24 * 60 * 60 * 1000);
+    },
+
+    async loginMicrosoft({ tenantId, objectId }) {
+      const user = await db.user.findUnique({
+        where: { microsoftTenantId_microsoftObjectId: { microsoftTenantId: tenantId,
+          microsoftObjectId: objectId } }
+      });
+      if (!user?.isActive) throw new HttpError(403, 'Conta Microsoft sem acesso ao ComercialAPP.');
+      return createSession(user, microsoftSessionHours * 60 * 60 * 1000);
     },
 
     async authenticate(token) {

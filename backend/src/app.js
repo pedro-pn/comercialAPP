@@ -1,6 +1,6 @@
 import express from 'express';
 import { ZodError } from 'zod';
-import { HttpError, normalizeUsername, sessionDays } from './auth/service.js';
+import { HttpError, microsoftSessionHours, normalizeUsername, sessionDays } from './auth/service.js';
 import { createApiCredential, listApiCredentials, requireActiveApiCredential,
   requireCrmApiCredential, revokeApiCredential } from './auth/api-credentials.js';
 import { createCommercialRouter } from './comercial/routes.js';
@@ -10,13 +10,15 @@ import { crmEventSchema } from './comercial/crm-event-schema.js';
 import { z } from 'zod';
 
 const cookieName = 'comercial_session';
+const microsoftFlowCookieName = 'comercial_microsoft_flow';
 const sessionMaxAge = sessionDays * 24 * 60 * 60 * 1000;
 
-function readSessionCookie(request) {
+function readCookie(request, name) {
   const cookie = request.headers.cookie?.split(';').map(part => part.trim())
-    .find(part => part.startsWith(`${cookieName}=`));
-  return cookie?.slice(cookieName.length + 1) ?? null;
+    .find(part => part.startsWith(`${name}=`));
+  return cookie?.slice(name.length + 1) ?? null;
 }
+const readSessionCookie = request => readCookie(request, cookieName);
 
 function sessionCookieOptions(production) {
   return { httpOnly: true, secure: production, sameSite: 'strict', path: '/api' };
@@ -47,7 +49,8 @@ function loginLimiter() {
   };
 }
 
-export function createApp({ authService, commercialDb, crm, appOrigin, additionalOrigins = [], production = false } = {}) {
+export function createApp({ authService, commercialDb, crm, appOrigin, additionalOrigins = [],
+  production = false, microsoftAuth = null } = {}) {
   const app = express();
   const limiter = loginLimiter();
   const allowedOrigins = new Set([appOrigin, ...additionalOrigins].filter(Boolean));
@@ -135,6 +138,45 @@ export function createApp({ authService, commercialDb, crm, appOrigin, additiona
     } catch (error) {
       if (error.status === 401) limiter.failed(key);
       throw error;
+    }
+  });
+
+  app.get('/api/auth/providers', (_request, response) => {
+    response.set('Cache-Control', 'no-store').json({ microsoft: Boolean(microsoftAuth) });
+  });
+
+  app.get('/api/auth/microsoft', async (_request, response) => {
+    if (!microsoftAuth) throw new HttpError(404, 'Login Microsoft indisponível.');
+    const flow = await microsoftAuth.start();
+    response.cookie(microsoftFlowCookieName, flow.cookieValue, {
+      httpOnly: true, secure: production, sameSite: 'lax',
+      path: '/api/auth/microsoft/callback', maxAge: 10 * 60 * 1000
+    });
+    response.set('Cache-Control', 'no-store').redirect(302, flow.url);
+  });
+
+  app.get('/api/auth/microsoft/callback', async (request, response) => {
+    if (!microsoftAuth) throw new HttpError(404, 'Login Microsoft indisponível.');
+    const cookieValue = readCookie(request, microsoftFlowCookieName);
+    response.clearCookie(microsoftFlowCookieName, {
+      httpOnly: true, secure: production, sameSite: 'lax',
+      path: '/api/auth/microsoft/callback'
+    });
+    try {
+      if (request.query.error) throw new HttpError(401, 'Login Microsoft cancelado.');
+      const identity = await microsoftAuth.complete({
+        code: request.query.code, state: request.query.state, cookieValue
+      });
+      const result = await authService.loginMicrosoft(identity);
+      response.cookie(cookieName, result.token, {
+        ...sessionCookieOptions(production),
+        maxAge: microsoftSessionHours * 60 * 60 * 1000
+      });
+      response.set('Cache-Control', 'no-store').redirect(303, `${appOrigin}/`);
+    } catch (error) {
+      if (!Number.isInteger(error?.status)) console.error('Falha no login Microsoft:', error);
+      response.set('Cache-Control', 'no-store')
+        .redirect(303, `${appOrigin}/?auth_error=microsoft`);
     }
   });
 

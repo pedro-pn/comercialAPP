@@ -50,6 +50,21 @@ test('administração, tokens de API e revogação de sessão', { skip: !databas
     username: 'admin', name: 'Administrador Comercial', password: 'senha-segura-123'
   });
   assert.equal(admin.role, 'ADMIN');
+  await assert.rejects(() => auth.loginMicrosoft({
+    tenantId: '11111111-1111-4111-8111-111111111111',
+    objectId: '33333333-3333-4333-8333-333333333333'
+  }), { status: 403 });
+  await db.user.update({ where: { id: admin.id }, data: {
+    microsoftTenantId: '11111111-1111-4111-8111-111111111111',
+    microsoftObjectId: '33333333-3333-4333-8333-333333333333'
+  } });
+  const microsoftLogin = await auth.loginMicrosoft({
+    tenantId: '11111111-1111-4111-8111-111111111111',
+    objectId: '33333333-3333-4333-8333-333333333333'
+  });
+  assert.equal(microsoftLogin.user.id, admin.id);
+  assert.equal(microsoftLogin.user.role, 'ADMIN');
+  assert.ok(microsoftLogin.expiresAt.getTime() - Date.now() <= 24 * 60 * 60 * 1000);
   await assert.rejects(() => auth.bootstrapAdmin({
     username: 'outro', name: 'Outro Gestor', password: 'senha-segura-123'
   }), { status: 409 });
