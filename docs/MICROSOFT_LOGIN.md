@@ -6,8 +6,8 @@ da integração SharePoint. O retorno em produção é
 O código solicita `openid` e `profile`; a biblioteca MSAL inclui
 `offline_access` automaticamente. Nenhum escopo de leitura de e-mails
 é necessário.
-O botão de login usa o [SVG claro oficial da Microsoft](https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-branding-in-apps)
-sem alterar o logotipo ou suas proporções.
+O botão Microsoft ocupa a mesma largura do botão Entrar e mostra o símbolo colorido
+ao lado do texto, sem depender de uma imagem externa para aparecer.
 
 ## Ativação na VPS
 
