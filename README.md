@@ -26,6 +26,10 @@ O mesmo guia mostra como usar o Vite na porta 5174 com a API do Compose para
 desenvolvimento local.
 Para a VPS, siga os guias de [backup, Backblaze B2 e crontab](docs/BACKUP.md)
 e de [restauração](docs/RESTORE.md).
+Para homologação HTTP na mesma VPS do FiltroAPP, use o
+[guia de staging](docs/STAGING.md), `docker-compose.staging.yml` e
+`.env.staging.example`. O Comercial publica a porta 8087 e usa somente login
+local, com banco, arquivos e sessão separados da produção.
 
 1. Crie um banco PostgreSQL exclusivo e um usuário próprio para este app.
 2. Execute `npm install` na raiz, copie `backend/.env.example` para
