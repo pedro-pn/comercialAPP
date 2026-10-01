@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   baixarAnexoDaProposta, baixarDocumento, emitirDocumentos,
-  enviarAnexoDaProposta, finalizarPropostaLocal, listarAnexosDaProposta,
+  enviarAnexoDaProposta, listarAnexosDaProposta,
   listarDocumentosDaProposta, mensagemDeErro, removerAnexoDaProposta,
   regerarDocumentosDaProposta,
   type AnexoDaProposta, type DocumentoEmitido
@@ -21,16 +21,16 @@ function download(blob: Blob, name: string) {
 }
 
 export function FinalizacaoLocalPanel({ proposalId, status, save, validate,
-  onFinalized }: {
+  busy, onBusyChange: setBusy }: {
   proposalId: string;
   status: string;
   save: () => Promise<string | null>;
   validate: () => boolean;
-  onFinalized: () => void;
+  busy: boolean;
+  onBusyChange: (busy: boolean) => void;
 }) {
   const [docs, setDocs] = useState<DocumentoEmitido[]>([]);
   const [attachments, setAttachments] = useState<AnexoDaProposta[]>([]);
-  const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const finalized = status === 'FINALIZADA';
 
@@ -45,7 +45,7 @@ export function FinalizacaoLocalPanel({ proposalId, status, save, validate,
       })
       .catch(error => { if (live) setMessage(mensagemDeErro(error, 'Falha ao carregar arquivos.')); });
     return () => { live = false; };
-  }, [proposalId]);
+  }, [proposalId, status]);
 
   async function issue() {
     if (!validate()) return;
@@ -64,25 +64,6 @@ export function FinalizacaoLocalPanel({ proposalId, status, save, validate,
       setMessage('Propostas comercial e técnica disponíveis em PDF e DOCX.');
     } catch (error) {
       setMessage(mensagemDeErro(error, 'Não foi possível emitir os documentos.'));
-    } finally { setBusy(false); }
-  }
-
-  async function finalize() {
-    if (!proposalId || !validate()) return;
-    setBusy(true);
-    setMessage('Salvando e finalizando a proposta...');
-    try {
-      const id = await save();
-      if (!id) {
-        setMessage('Salve as alterações antes de finalizar.');
-        return;
-      }
-      const result = await finalizarPropostaLocal(id);
-      setDocs(result.documentos);
-      onFinalized();
-      setMessage('Proposta finalizada neste aplicativo. Os arquivos permanecem disponíveis no histórico.');
-    } catch (error) {
-      setMessage(mensagemDeErro(error, 'Não foi possível finalizar a proposta.'));
     } finally { setBusy(false); }
   }
 
@@ -169,11 +150,6 @@ export function FinalizacaoLocalPanel({ proposalId, status, save, validate,
       <button type="button" className="com-btn com-btn-primario" disabled={busy}
         onClick={() => void issue()}>
         {busy ? 'Aguarde...' : docs.length ? 'Atualizar documentos' : 'Emitir PDF e DOCX'}
-      </button>
-      <button type="button" className="com-btn com-btn-fantasma"
-        disabled={busy || !proposalId || docs.length < 4}
-        onClick={() => void finalize()}>
-        Finalizar proposta
       </button>
     </div>}
     {message && <p className="com-recado" role="status">{message}</p>}

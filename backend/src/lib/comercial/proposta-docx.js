@@ -10,6 +10,7 @@ import {
   categoriaCanonicaResponsabilidade,
   incluirServicosExtraEscopo,
   ordenarLinhasDeResponsabilidade,
+  paragrafosDaJornada,
   rotuloStandbyEquipe,
   SERVICOS_EXTRA_ESCOPO,
   tabelasDePrecoDoModelo,
@@ -388,9 +389,13 @@ function ajustarRelatorios(doc, servicos) {
   }
 }
 
-function paragrafoDeTexto(doc, texto, { negrito = false, titulo = false } = {}) {
+function paragrafoDeTexto(doc, texto, { negrito = false, titulo = false, nivelLista = null } = {}) {
+  const estilo = titulo ? '<w:pStyle w:val="Ttulo2"/>'
+    : nivelLista !== null ? '<w:pStyle w:val="PargrafodaLista"/>' : '';
+  const numeracao = nivelLista !== null
+    ? `<w:numPr><w:ilvl w:val="${nivelLista}"/><w:numId w:val="2"/></w:numPr>` : '';
   const xml = `<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-    <w:pPr>${titulo ? '<w:pStyle w:val="Ttulo2"/>' : ''}<w:spacing w:before="${titulo ? 200 : 0}" w:after="120" w:line="360" w:lineRule="auto"/></w:pPr>
+    <w:pPr>${estilo}${numeracao}<w:spacing w:before="${titulo ? 200 : 0}" w:after="120" w:line="360" w:lineRule="auto"/><w:jc w:val="${titulo ? 'left' : 'both'}"/></w:pPr>
     <w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:b w:val="${negrito}"/><w:bCs w:val="${negrito}"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t xml:space="preserve">${escapar(texto)}</w:t></w:r>
   </w:p>`;
   return new DOMParser().parseFromString(xml, 'text/xml').documentElement;
@@ -510,7 +515,12 @@ function ajustarJornada(doc, jornada, modelo) {
   const ancora = limparEntreTitulos(doc, '- Jornada de trabalho:', proximoTitulo);
   if (!ancora) return;
 
-  for (const paragrafo of paragrafosDeTexto(doc, jornada || textoJornada(modelo))) {
+  for (const item of paragrafosDaJornada(jornada || textoJornada(modelo))) {
+    const paragrafo = paragrafoDeTexto(doc, item.texto, {
+      titulo: item.nivel === 1,
+      nivelLista: item.nivel === 2 ? 2 : null
+    });
+    preserveWordTextLineBreaks(paragrafo);
     ancora.parentNode.insertBefore(paragrafo, ancora);
   }
 }
@@ -533,12 +543,32 @@ function ajustarServicosExtraEscopo(doc, servicos) {
 
   if (!incluirServicosExtraEscopo(servicos)) {
     paragrafos.forEach(removeNode);
-  } else if (paragrafos.length === 0) {
+    return;
+  }
+  if (paragrafos.length === 0) {
     // O modelo de hidrojateamento não traz as cláusulas; a regra vale nele também.
     for (const texto of SERVICOS_EXTRA_ESCOPO) {
-      fim.parentNode.insertBefore(paragrafoDeTexto(doc, texto), fim);
+      const paragrafo = paragrafoDeTexto(doc, texto);
+      fim.parentNode.insertBefore(paragrafo, fim);
+      paragrafos.push(paragrafo);
     }
   }
+  // Separa o item 7.1 da tabela de preços com 12 pt de espaço antes do texto.
+  const primeiro = paragrafos[0];
+  let propriedades = primeiro.getElementsByTagName('w:pPr').item(0);
+  if (!propriedades) {
+    propriedades = doc.createElement('w:pPr');
+    primeiro.insertBefore(propriedades, primeiro.firstChild);
+  }
+  let espacamento = propriedades.getElementsByTagName('w:spacing').item(0);
+  if (!espacamento) {
+    espacamento = doc.createElement('w:spacing');
+    propriedades.insertBefore(espacamento,
+      propriedades.getElementsByTagName('w:jc').item(0)
+        || propriedades.getElementsByTagName('w:rPr').item(0) || null);
+  }
+  espacamento.setAttribute('w:before', '240');
+  espacamento.removeAttribute('w:beforeAutospacing');
 }
 
 /**

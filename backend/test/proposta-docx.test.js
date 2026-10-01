@@ -195,6 +195,27 @@ for (const modelo of ['padrao', 'hidrojateamento']) {
     assert.equal(spacing.getAttribute('w:after'), '120');
   });
 
+  for (const tipo of ['commercial', 'technical']) {
+    test(`documento ${tipo} ${modelo} preserva os subitens da jornada`, async () => {
+      const zip = new AdmZip(await preencherProposta({ modelo }, tipo));
+      const doc = lerParte(zip, 'word/document.xml');
+      const corpo = doc.getElementsByTagName('w:body').item(0);
+      const paragrafos = Array.from(corpo.childNodes).filter(no => no.nodeName === 'w:p');
+      const turnos = paragrafos.filter(no => /^Turno diurno/u.test(texto(no)));
+      assert.equal(turnos.length, modelo === 'padrao' ? 1 : 2);
+      for (const turno of turnos) {
+        assert.equal(turno.getElementsByTagName('w:pStyle').item(0)?.getAttribute('w:val'), 'Ttulo2');
+      }
+      const horarios = paragrafos.filter(no => /^(?:Segunda|Sexta)/u.test(texto(no)));
+      assert.equal(horarios.length, modelo === 'padrao' ? 2 : 3);
+      for (const horario of horarios) {
+        assert.equal(horario.getElementsByTagName('w:ilvl').item(0)?.getAttribute('w:val'), '2');
+        assert.equal(horario.getElementsByTagName('w:numId').item(0)?.getAttribute('w:val'), '2');
+        assert.equal(horario.getElementsByTagName('w:jc').item(0)?.getAttribute('w:val'), 'both');
+      }
+    });
+  }
+
   for (const serviceId of [
     'flushing_primario',
     'flushing_secundario',

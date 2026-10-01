@@ -41,9 +41,11 @@ Os totais mudam durante o preenchimento. Use o rodapé e as mensagens de pendên
 para localizar o que falta. Confirme explicitamente as opções de escopo quando
 não houver insumos ou logística, conforme solicitado pelo formulário.
 
-Salve o rascunho para continuar depois. Para concluir, resolva as pendências e
-confira o código apresentado. Um levantamento concluído pode ser selecionado na
-criação da proposta, aproveitando o número, os preços e os serviços vinculados.
+Salve o rascunho para continuar depois. Para concluir, resolva as pendências,
+confira o código apresentado e clique em **Salvar e criar proposta** no resumo.
+O aplicativo salva o levantamento e abre a criação da proposta com ele vinculado,
+aproveitando o número, os preços e os serviços. Um levantamento concluído também
+pode ser selecionado posteriormente na criação da proposta.
 
 Quando Maps estiver habilitado e a sede cadastrada, use as sugestões de endereço
 e o cálculo de distância. Se o serviço estiver desligado ou não localizar o
@@ -88,9 +90,12 @@ preenchido pode ter formato inválido: confira a mensagem junto ao CNPJ ou e-mai
    em cada formato.
 4. Baixe e confira os arquivos. Se editar a proposta, use **Atualizar documentos**
    antes de finalizar.
-5. Clique em **Finalizar proposta**. A finalização exige documentos atualizados
-   e limite agregado de 20 MB para os PDFs, o CSV de custos quando houver e os
-   anexos.
+5. Clique em **Finalizar proposta** nas ações do topo ou do rodapé. O aplicativo
+   valida todas as etapas, salva as alterações e emite os documentos atualizados
+   antes de finalizar. Você também pode finalizar diretamente por esse botão,
+   sem emitir os arquivos antes. O limite agregado é de 20 MB para os PDFs, o CSV
+   de custos quando houver e os anexos. **Salvar rascunho** mantém a proposta
+   aberta para continuar depois.
 
 A finalização local funciona sem CRM, SharePoint ou Maps. Depois dela, os dados
 da proposta ficam bloqueados para edição; use uma nova revisão para alterar o
