@@ -17,6 +17,7 @@ const ConfiguracoesPage = lazy(() => import('./pages/comercial/configuracoes/Con
 const ApiCentralPage = lazy(() => import('./pages/comercial/ApiCentralPage')
   .then(module => ({ default: module.ApiCentralPage })));
 const REMEMBERED_USER_KEY = 'comercialapp-remembered-user';
+const LOGIN_IMAGES = ['/assets/Comercial/img_login.png', '/assets/Comercial/img_login2.png'];
 
 type SessionState =
   | { status: 'checking' }
@@ -68,6 +69,7 @@ export function App() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberUser, setRememberUser] = useState(() => Boolean(readRememberedUser()));
   const [microsoftEnabled, setMicrosoftEnabled] = useState(false);
+  const [loginImage] = useState(() => LOGIN_IMAGES[Math.floor(Math.random() * LOGIN_IMAGES.length)]);
 
   useEffect(() => {
     let active = true;
@@ -199,10 +201,7 @@ export function App() {
     <main className="login-page">
       <section className="login-layout" aria-labelledby="login-title">
         <div className="login-visual" aria-hidden="true">
-          <div className="login-visual-content">
-            <span className="login-visual-brand">Filtrovali</span>
-            <p>Comercial</p>
-          </div>
+          <img className="login-visual-image" src={loginImage} alt="" />
         </div>
         <div className="login-panel">
           <div className="login-panel-content">
