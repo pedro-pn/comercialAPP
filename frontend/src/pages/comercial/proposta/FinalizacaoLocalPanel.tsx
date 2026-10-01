@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
-  baixarAnexoDaProposta, baixarDocumento, emitirDocumentos,
+  atualizarDocumentosDaProposta, baixarAnexoDaProposta, baixarDocumento, emitirDocumentos,
   enviarAnexoDaProposta, listarAnexosDaProposta,
   listarDocumentosDaProposta, mensagemDeErro, removerAnexoDaProposta,
   regerarDocumentosDaProposta,
@@ -34,6 +34,7 @@ export function FinalizacaoLocalPanel({ proposalId, status, save, validate,
 }) {
   const [attachments, setAttachments] = useState<AnexoDaProposta[]>([]);
   const [message, setMessage] = useState('');
+  const pending = useRef(false);
   const finalized = status === 'FINALIZADA';
 
   useEffect(() => {
@@ -49,7 +50,9 @@ export function FinalizacaoLocalPanel({ proposalId, status, save, validate,
   }, [proposalId, status]);
 
   async function issue() {
+    if (busy || pending.current) return;
     if (!validate()) return;
+    pending.current = true;
     setBusy(true);
     setMessage('Salvando e gerando os documentos...');
     try {
@@ -66,7 +69,32 @@ export function FinalizacaoLocalPanel({ proposalId, status, save, validate,
       setMessage('Propostas comercial e técnica disponíveis em PDF e DOCX.');
     } catch (error) {
       setMessage(mensagemDeErro(error, 'Não foi possível emitir os documentos.'));
-    } finally { setBusy(false); }
+    } finally { pending.current = false; setBusy(false); }
+  }
+
+  async function downloadDocument(item: DocumentoEmitido) {
+    if (busy || pending.current) return;
+    const editable = status === 'RASCUNHO';
+    if (editable && !validate()) return;
+    pending.current = true;
+    setBusy(true);
+    setMessage('Conferindo e atualizando os documentos para download...');
+    try {
+      const id = editable ? await save() : proposalId;
+      if (!id) {
+        setMessage('Não foi possível salvar a proposta para atualizar os documentos.');
+        return;
+      }
+      const result = await atualizarDocumentosDaProposta(id);
+      onDocumentsChange(id, result.documentos);
+      const current = result.documentos.find(document =>
+        document.kind === item.kind && document.format === item.format);
+      if (!current) throw new Error('O documento solicitado não está disponível.');
+      download(await baixarDocumento(current.id), current.fileName);
+      setMessage('Documento atualizado e pronto para download.');
+    } catch (error) {
+      setMessage(mensagemDeErro(error, 'Não foi possível atualizar e baixar o documento.'));
+    } finally { pending.current = false; setBusy(false); }
   }
 
   async function upload(files: File[]) {
@@ -105,7 +133,7 @@ export function FinalizacaoLocalPanel({ proposalId, status, save, validate,
     <div className="com-secao-titulo">
       <div>
         <h2>Documentos e finalização</h2>
-        <p>Os arquivos ficam guardados neste aplicativo antes do envio ao CRM.</p>
+        <p>Ao baixar, os arquivos são atualizados com os dados e modelos atuais da proposta.</p>
       </div>
     </div>
 
@@ -133,19 +161,21 @@ export function FinalizacaoLocalPanel({ proposalId, status, save, validate,
 
     {docs.length > 0 && <div className="com-local-documents">
       <strong>Arquivos gerados</strong>
+      {docs.some(item => item.outdated) && <p className="com-recado" role="status">
+        Há alterações desde a última geração. Os quatro arquivos serão atualizados ao baixar.
+      </p>}
       <ul className="com-local-file-list">
         {docs.map(item => <li key={item.id}>
           <span>{item.fileName}</span>
           <button type="button" className="com-btn com-btn-fantasma" disabled={busy}
-            onClick={() => void baixarDocumento(item.id)
-              .then(blob => download(blob, item.fileName))
-              .catch(error => setMessage(mensagemDeErro(error, 'Falha ao baixar o documento.')))}>
+            onClick={() => void downloadDocument(item)}>
             Baixar
           </button>
         </li>)}
       </ul>
       {finalized && docs.length === 4 && <RegerarDocumentosButton
         proposalId={proposalId}
+        disabled={busy} onBusyChange={setBusy}
         onRegenerated={documents => onDocumentsChange(proposalId, documents)} />}
     </div>}
 

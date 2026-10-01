@@ -243,9 +243,10 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
   const [salvando, setSalvando] = useState(false);
   const [ocupadoLocal, setOcupadoLocal] = useState(false);
   const [finalizandoLocal, setFinalizandoLocal] = useState(false);
-  const documentosLocais = useDocumentosDaProposta(somenteRascunho ? propostaId : '');
   const [versaoCarregada, setVersaoCarregada] = useState('');
   const [statusProposta, setStatusProposta] = useState('RASCUNHO');
+  const documentosLocais = useDocumentosDaProposta(somenteRascunho ? propostaId : '',
+    etapa === 'revisao' ? `${versaoCarregada}:${statusProposta}` : '');
   const [pendenciaFinalizacao, setPendenciaFinalizacao] =
     useState<PendenciaDaFinalizacao | null>(null);
   const [etapaParaFocar, setEtapaParaFocar] = useState<EtapaProposta | null>(null);

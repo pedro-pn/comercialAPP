@@ -88,8 +88,10 @@ preenchido pode ter formato inválido: confira a mensagem junto ao CNPJ ou e-mai
 3. Na revisão, em **Documentos e finalização**, clique em **Emitir PDF e DOCX**.
    O aplicativo salva a proposta e gera os quatro arquivos: técnico e comercial
    em cada formato.
-4. Baixe e confira os arquivos. Se editar a proposta, use **Atualizar documentos**
-   antes de finalizar.
+4. Baixe e confira os arquivos. Cada download confere os dados, os modelos Word
+   e o gerador; se houver alterações, o aplicativo atualiza os quatro arquivos
+   antes de baixar o formato escolhido. **Atualizar documentos** também permite
+   forçar uma nova geração.
 5. Clique em **Finalizar proposta** nas ações do topo ou do rodapé. O aplicativo
    valida todas as etapas, salva as alterações e emite os documentos atualizados
    antes de finalizar. Você também pode finalizar diretamente por esse botão,

@@ -91,6 +91,8 @@ hidrojateamento; passagem de PIG e pré-engenharia.
   **8 fotos por proposta** e **1,5 MB por foto processada**.
 - Upload, download e remoção de anexos enquanto a proposta está em rascunho.
 - Finalização local com documentos correspondentes à última versão salva.
+  Na revisão, cada download confere os dados, os modelos Word e o gerador e
+  atualiza os quatro arquivos quando necessário, preservando os anteriores.
   O conjunto de PDFs, CSV de custos quando houver e anexos deve caber em **20 MB**.
 - CSV de custos enviado às integrações quando existe levantamento vinculado.
   A finalização preserva os dados desse levantamento para a entrega da proposta.

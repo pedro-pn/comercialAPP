@@ -6,7 +6,7 @@ import {
 } from '../../../api/comercial';
 
 /** Compartilha a geração atual entre a finalização e a lista de downloads. */
-export function useDocumentosDaProposta(proposalId: string) {
+export function useDocumentosDaProposta(proposalId: string, refreshKey = '') {
   const [geracao, setGeracao] = useState<{
     proposalId: string;
     documentos: DocumentoEmitido[];
@@ -44,7 +44,7 @@ export function useDocumentosDaProposta(proposalId: string) {
         }
       });
     return () => { ativo = false; };
-  }, [proposalId]);
+  }, [proposalId, refreshKey]);
 
   return {
     documentos: geracao?.proposalId === proposalId ? geracao.documentos : [],

@@ -5,6 +5,7 @@ import path from 'node:path';
 import { ATTACHMENT_LIMITS } from '../../../shared/schemas/comercial.js';
 import { HttpError } from '../auth/service.js';
 import { preencherProposta } from '../lib/comercial/proposta-docx.js';
+import { proposalRendererHash } from '../lib/comercial/document-renderer.js';
 import { planilhaDeCustos } from '../lib/comercial/cost-csv.js';
 import { convertDocxToPdf } from '../lib/report-pdf-from-docx.js';
 import { assertCanRead, assertCanWrite } from './access.js';
@@ -60,13 +61,21 @@ export async function currentDocuments(db, proposalId) {
   });
 }
 
-export async function listDocuments(db, user, proposalId) {
+function documentsMatch(items, hash, rendererHash) {
+  return items.length === 4 && items.every(item =>
+    item.payloadHash === hash && item.rendererHash === rendererHash);
+}
+
+export async function listDocuments(db, user, proposalId, rendererHashFn = proposalRendererHash) {
   const proposal = await db.proposal.findUnique({ where: { id: proposalId } });
   if (!proposal) throw new HttpError(404, 'Proposta não encontrada.');
   if (user.role !== 'VIEWER') assertCanRead(user, proposal);
   const docs = await currentDocuments(db, proposalId);
+  const outdated = docs.length > 0 && !documentsMatch(docs,
+    payloadHash(proposal), await rendererHashFn(proposal));
   return { items: describeDocuments(proposal,
-    user.role === 'VIEWER' ? docs.filter(item => item.kind === 'TECNICA') : docs) };
+    user.role === 'VIEWER' ? docs.filter(item => item.kind === 'TECNICA') : docs)
+    .map(item => ({ ...item, outdated })) };
 }
 
 async function generatePair(data, type) {
@@ -110,22 +119,48 @@ function validateDocumentData(proposal) {
   }
 }
 
-export async function issueDocuments(db, user, proposalId, generatePairFn = generatePair) {
+export async function issueDocuments(db, user, proposalId, generatePairFn = generatePair,
+  rendererHashFn = proposalRendererHash) {
   const proposal = await db.proposal.findUnique({ where: { id: proposalId } });
   if (!proposal) throw new HttpError(404, 'Proposta não encontrada.');
   assertCanWrite(user, proposal);
   validateIssue(proposal);
   const hash = payloadHash(proposal);
+  const rendererHash = await rendererHashFn(proposal);
   const current = await currentDocuments(db, proposalId);
-  if (current.length === 4 && current.every(item => item.payloadHash === hash)) {
+  if (documentsMatch(current, hash, rendererHash)) {
     return { proposalId, proposalCode: proposal.proposalCode,
       documentos: describeDocuments(proposal, current) };
   }
-  return storeGeneration(db, user, proposal, current, generatePairFn);
+  return storeGeneration(db, user, proposal, current, generatePairFn, rendererHash, rendererHashFn);
+}
+
+/** Atualiza o conjunto para download sem recriar arquivos que já estão atuais. */
+export async function refreshDocuments(db, user, proposalId, generatePairFn = generatePair,
+  rendererHashFn = proposalRendererHash) {
+  if (user.role === 'VIEWER') throw new HttpError(403, 'O perfil de consulta não pode atualizar documentos.');
+  const proposal = await db.proposal.findUnique({ where: { id: proposalId } });
+  if (!proposal) throw new HttpError(404, 'Proposta não encontrada.');
+  assertCanWrite(user, proposal);
+  if (proposal.archivedAt || proposal.status === 'FINALIZANDO') {
+    throw new HttpError(409, 'A proposta está arquivada ou com finalização em andamento.');
+  }
+  validateDocumentData(proposal);
+  const current = await currentDocuments(db, proposalId);
+  if (proposal.status !== 'RASCUNHO' && current.length !== 4) {
+    throw new HttpError(409, 'Emita os documentos da proposta antes de atualizá-los.');
+  }
+  const rendererHash = await rendererHashFn(proposal);
+  if (documentsMatch(current, payloadHash(proposal), rendererHash)) {
+    return { proposalId, proposalCode: proposal.proposalCode,
+      documentos: describeDocuments(proposal, current) };
+  }
+  return storeGeneration(db, user, proposal, current, generatePairFn, rendererHash, rendererHashFn);
 }
 
 /** Recria os arquivos usando apenas os dados salvos, sem editar a proposta. */
-export async function regenerateDocuments(db, user, proposalId, generatePairFn = generatePair) {
+export async function regenerateDocuments(db, user, proposalId, generatePairFn = generatePair,
+  rendererHashFn = proposalRendererHash) {
   if (user.role === 'VIEWER') throw new HttpError(403, 'O perfil de consulta não pode regerar documentos.');
   const proposal = await db.proposal.findUnique({ where: { id: proposalId } });
   if (!proposal) throw new HttpError(404, 'Proposta não encontrada.');
@@ -138,10 +173,11 @@ export async function regenerateDocuments(db, user, proposalId, generatePairFn =
   if (current.length !== 4) {
     throw new HttpError(409, 'Emita os documentos da proposta antes de regerá-los.');
   }
-  return storeGeneration(db, user, proposal, current, generatePairFn);
+  return storeGeneration(db, user, proposal, current, generatePairFn,
+    await rendererHashFn(proposal), rendererHashFn);
 }
 
-async function storeGeneration(db, user, proposal, current, generatePairFn) {
+async function storeGeneration(db, user, proposal, current, generatePairFn, rendererHash, rendererHashFn) {
   const hash = payloadHash(proposal);
   const data = { ...documentData(proposal),
     lerFoto: block => readPhoto(db, user, block.id) };
@@ -157,9 +193,12 @@ async function storeGeneration(db, user, proposal, current, generatePairFn) {
       for (const [format, bytes] of [['DOCX', pair.docx], ['PDF', pair.pdf]]) {
         const relative = path.posix.join(directory, `${type}.${format.toLowerCase()}`);
         const file = await storeFile(relative, bytes);
-        stored.push({ generationId, payloadHash: hash, proposalId: proposal.id,
+        stored.push({ generationId, payloadHash: hash, rendererHash, proposalId: proposal.id,
           kind, format, ...file });
       }
+    }
+    if (await rendererHashFn(proposal) !== rendererHash) {
+      throw new HttpError(409, 'O modelo mudou durante a geração. Tente novamente.');
     }
     const items = await db.$transaction(async tx => {
       // Trava somente a publicação, depois da conversão. Uma geração ou edição
@@ -184,7 +223,7 @@ async function storeGeneration(db, user, proposal, current, generatePairFn) {
   }
 }
 
-export async function finalizeLocal(db, user, proposalId) {
+export async function finalizeLocal(db, user, proposalId, rendererHashFn = proposalRendererHash) {
   const proposal = await db.proposal.findUnique({ where: { id: proposalId } });
   if (!proposal) throw new HttpError(404, 'Proposta não encontrada.');
   assertCanWrite(user, proposal);
@@ -194,7 +233,7 @@ export async function finalizeLocal(db, user, proposalId) {
   }
   validateIssue(proposal);
   const docs = await currentDocuments(db, proposalId);
-  if (docs.length !== 4 || docs.some(item => item.payloadHash !== payloadHash(proposal))) {
+  if (!documentsMatch(docs, payloadHash(proposal), await rendererHashFn(proposal))) {
     throw new HttpError(409, 'Emita os documentos atualizados antes de finalizar.');
   }
   const attachments = await db.proposalAttachment.aggregate({
