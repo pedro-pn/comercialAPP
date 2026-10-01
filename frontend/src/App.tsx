@@ -1,6 +1,8 @@
 import { lazy, Suspense, useEffect, useState, type FormEvent } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 import { ApiClientError } from './api/client';
+import loginImageUrl from './assets/login/img_login.png';
+import loginImage2Url from './assets/login/img_login2.png';
 import { AuthContext } from './auth/AuthContext';
 import { getAuthProviders, getCurrentUser, login, logout, type CommercialUser } from './api/auth';
 import { HistoricoRascunhosPage } from './pages/comercial/historico/HistoricoRascunhosPage';
@@ -17,7 +19,7 @@ const ConfiguracoesPage = lazy(() => import('./pages/comercial/configuracoes/Con
 const ApiCentralPage = lazy(() => import('./pages/comercial/ApiCentralPage')
   .then(module => ({ default: module.ApiCentralPage })));
 const REMEMBERED_USER_KEY = 'comercialapp-remembered-user';
-const LOGIN_IMAGES = ['/assets/Comercial/img_login.png', '/assets/Comercial/img_login2.png'];
+const LOGIN_IMAGES = [loginImageUrl, loginImage2Url];
 
 type SessionState =
   | { status: 'checking' }

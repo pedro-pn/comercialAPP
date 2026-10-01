@@ -230,6 +230,7 @@ valida os arquivos Compose e os scripts de backup.
 | Diretório | Conteúdo |
 | --- | --- |
 | [frontend](frontend/) | React, TypeScript e Vite; login, navegação e telas comerciais. |
+| [frontend/src/assets/login](frontend/src/assets/login/) | Imagens do login; o build gera URLs com hash para atualizar o cache quando os arquivos mudam. |
 | [backend](backend/) | Express, Prisma, PostgreSQL, autenticação, APIs, arquivos e integrações. |
 | [shared/comercial](shared/comercial/) | Motor de custos, dimensionamento, catálogo técnico e regras dos documentos. |
 | [shared/schemas](shared/schemas/) | Contratos e validações compartilhados. |
