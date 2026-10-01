@@ -7,6 +7,7 @@ import { assertCanRead, assertCanWrite } from './access.js';
 import { currentDocuments, describeDocuments, payloadHash } from './documents.js';
 import { createNectarClient, nectarUnavailable } from './nectar.js';
 import { loadFile } from './storage.js';
+import { estimateForFinalizedProposal } from './finalized-estimate.js';
 
 const ATTEMPT_LEASE_MS = 2 * 60_000;
 
@@ -46,7 +47,7 @@ export async function outgoingFiles(db, proposal, funnel) {
   })));
 
   if (proposal.costEstimateId) {
-    const estimate = await db.costEstimate.findUnique({ where: { id: proposal.costEstimateId } });
+    const estimate = await estimateForFinalizedProposal(db, proposal);
     if (estimate) files.push(planilhaDeCustos(estimate, {
       proposalCode: proposal.proposalCode,
       sellerName: proposal.sellerName,
