@@ -125,6 +125,14 @@ de levantamentos e propostas. Abra um registro para retomar o rascunho ou
 consultar a revisão. Baixe os documentos disponíveis na tabela. A visibilidade
 dos registros e valores depende do perfil.
 
+Para aplicar uma atualização dos modelos a uma proposta já emitida, clique em
+**Regerar PDF e DOCX** na coluna **Documentos**. A ação usa os dados salvos e
+recria os arquivos técnico e comercial, inclusive de propostas finalizadas,
+mantendo número, revisão e status. Os arquivos anteriores são preservados;
+se a geração falhar ou a proposta mudar durante o processo, os downloads
+anteriores continuam disponíveis. Arquivos já enviados ao CRM ou SharePoint
+continuam com a versão enviada.
+
 O aplicativo oferece salvamento no servidor e recuperação de rascunho local.
 Confira o indicador de salvamento antes de sair. Se aparecer um conflito de
 edição, revise a versão mais recente antes de escolher como continuar.

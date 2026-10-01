@@ -351,6 +351,7 @@ export interface PropostaSalva {
   estimatorName?: string;
   title?: string;
   finalizedAt?: string | null;
+  archivedAt?: string | null;
   createdAt?: string;
   /** Ausentes para o papel de consulta, como `totalValue`. */
   totalCost?: string | number | null;
@@ -738,6 +739,16 @@ export async function listarDocumentosDaProposta(proposalId: string) {
     `/comercial/propostas/${proposalId}/documentos`
   );
   return data.items;
+}
+
+/** Recria PDF e DOCX com o modelo atual e os dados salvos, sem criar revisão. */
+export async function regerarDocumentosDaProposta(proposalId: string) {
+  const { data } = await apiClient.post<{
+    proposalId: string;
+    proposalCode: string;
+    documentos: DocumentoEmitido[];
+  }>(`/comercial/propostas/${proposalId}/documentos/regerar`, {});
+  return data;
 }
 
 export async function finalizarPropostaLocal(proposalId: string) {

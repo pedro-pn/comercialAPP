@@ -98,6 +98,10 @@ function validateIssue(proposal) {
   if (proposal.archivedAt || proposal.status !== 'RASCUNHO') {
     throw new HttpError(409, 'Somente rascunhos ativos podem emitir documentos.');
   }
+  validateDocumentData(proposal);
+}
+
+function validateDocumentData(proposal) {
   const payload = proposal.payload || {};
   if (!String(payload.title || '').trim() || !Array.isArray(payload.scopeItems) ||
       !payload.scopeItems.length || !Array.isArray(payload.prices) ||
@@ -117,7 +121,28 @@ export async function issueDocuments(db, user, proposalId, generatePairFn = gene
     return { proposalId, proposalCode: proposal.proposalCode,
       documentos: describeDocuments(proposal, current) };
   }
+  return storeGeneration(db, user, proposal, current, generatePairFn);
+}
 
+/** Recria os arquivos usando apenas os dados salvos, sem editar a proposta. */
+export async function regenerateDocuments(db, user, proposalId, generatePairFn = generatePair) {
+  if (user.role === 'VIEWER') throw new HttpError(403, 'O perfil de consulta não pode regerar documentos.');
+  const proposal = await db.proposal.findUnique({ where: { id: proposalId } });
+  if (!proposal) throw new HttpError(404, 'Proposta não encontrada.');
+  assertCanWrite(user, proposal);
+  if (proposal.archivedAt || proposal.status === 'FINALIZANDO') {
+    throw new HttpError(409, 'A proposta está arquivada ou com finalização em andamento.');
+  }
+  validateDocumentData(proposal);
+  const current = await currentDocuments(db, proposalId);
+  if (current.length !== 4) {
+    throw new HttpError(409, 'Emita os documentos da proposta antes de regerá-los.');
+  }
+  return storeGeneration(db, user, proposal, current, generatePairFn);
+}
+
+async function storeGeneration(db, user, proposal, current, generatePairFn) {
+  const hash = payloadHash(proposal);
   const data = { ...documentData(proposal),
     lerFoto: block => readPhoto(db, user, block.id) };
   for (const block of Array.isArray(data.scopeBlocks) ? data.scopeBlocks : []) {
@@ -132,13 +157,26 @@ export async function issueDocuments(db, user, proposalId, generatePairFn = gene
       for (const [format, bytes] of [['DOCX', pair.docx], ['PDF', pair.pdf]]) {
         const relative = path.posix.join(directory, `${type}.${format.toLowerCase()}`);
         const file = await storeFile(relative, bytes);
-        stored.push({ generationId, payloadHash: hash, proposalId,
+        stored.push({ generationId, payloadHash: hash, proposalId: proposal.id,
           kind, format, ...file });
       }
     }
-    const items = await db.$transaction(stored.map(({ storagePath, byteSize, ...rest }) =>
-      db.proposalDocument.create({ data: { ...rest, storagePath, byteSize } })));
-    return { proposalId, proposalCode: proposal.proposalCode,
+    const items = await db.$transaction(async tx => {
+      // Trava somente a publicação, depois da conversão. Uma geração ou edição
+      // concorrente não pode publicar um conjunto baseado em dados antigos.
+      await tx.$queryRaw`SELECT "id" FROM "Proposal" WHERE "id" = ${proposal.id} FOR UPDATE`;
+      const latest = await tx.proposal.findUnique({ where: { id: proposal.id } });
+      const latestDocuments = await currentDocuments(tx, proposal.id);
+      if (!latest || latest.archivedAt || latest.status !== proposal.status
+        || latest.updatedAt.getTime() !== proposal.updatedAt.getTime()
+        || payloadHash(latest) !== hash
+        || latestDocuments[0]?.generationId !== current[0]?.generationId) {
+        throw new HttpError(409,
+          'A proposta ou seus documentos mudaram durante a geração. Recarregue e tente novamente.');
+      }
+      return Promise.all(stored.map(data => tx.proposalDocument.create({ data })));
+    });
+    return { proposalId: proposal.id, proposalCode: proposal.proposalCode,
       documentos: describeDocuments(proposal, items) };
   } catch (error) {
     await Promise.all(stored.map(item => removeFile(item.storagePath).catch(() => {})));

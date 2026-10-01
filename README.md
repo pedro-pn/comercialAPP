@@ -84,6 +84,9 @@ hidrojateamento; passagem de PIG e pré-engenharia.
   projeto e LibreOffice para a conversão em PDF.
 - Armazenamento e download dos arquivos pelo aplicativo e pelo histórico,
   conforme as permissões do usuário.
+- **Regerar PDF e DOCX** aplica os modelos atuais aos dados salvos, inclusive
+  em propostas finalizadas, mantendo número, revisão e status. Os arquivos
+  anteriores são preservados e a publicação exige os quatro novos documentos.
 - Fotos de escopo otimizadas no navegador e validadas no servidor, com até
   **8 fotos por proposta** e **1,5 MB por foto processada**.
 - Upload, download e remoção de anexos enquanto a proposta está em rascunho.
