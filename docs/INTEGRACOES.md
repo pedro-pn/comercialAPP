@@ -25,17 +25,19 @@ antes de registrar a aprovação. O gestor também pode usar
 `status=2` (oportunidade ganha). O ID do projeto é lido do campo personalizado
 cujo **nome exato** foi configurado em `NECTAR_PROJECT_FIELD`.
 
-O Prisma envia para `POST https://comercial.filtrovali.com.br/api/integrations/crm/events`.
+O CRM Prisma envia para `POST /api/integrations/crm/events` na origem HTTPS do
+ComercialAPP configurada no ambiente.
 O administrador cria o Bearer token na **Central de API** (`/api-central`),
 com validade de 1 a 365 dias ou sem vencimento. Um token sem vencimento permanece
 ativo até ser revogado. O segredo aparece uma única vez; no banco fica
 somente seu hash. O administrador pode revogar o token, consultar uso e validar
-o contrato sem gravar um evento no playground. Corpo versão 1:
+o contrato sem gravar um evento no playground. Corpo versão 1, com valores
+fictícios de exemplo:
 
 ```json
 {
   "contractVersion": 1,
-  "eventId": "c8994e3f-7dc0-429a-9d15-20f9ba635925",
+  "eventId": "00000000-0000-4000-8000-000000000001",
   "proposalCode": "CODIGO-EXEMPLO",
   "revisionNumber": 0,
   "opportunityId": "ID-EXEMPLO",
@@ -90,9 +92,9 @@ do ComercialAPP. Propostas já marcadas como `SUCESSO` não são reenviadas pela
 rotina automática; para preencher o novo resumo nelas será necessária uma
 rotina específica de atualização.
 
-O receptor está na `main` local do FiltroAPP, commit `4bc5def0`, preparado em
-um worktree isolado e depois integrado por avanço direto. É preciso implantar
-essa revisão no ambiente do FiltroAPP antes de ativar `FILTROAPP_API_URL`.
+É preciso implantar uma versão do FiltroAPP que implemente esse contrato receptor
+antes de ativar `FILTROAPP_API_URL`. A presença do emissor neste repositório não
+comprova que o receptor esteja ativo em outro ambiente.
 
 ## SharePoint e Google Maps
 
@@ -112,4 +114,6 @@ editável manualmente. Os limites diários são `GOOGLE_MAPS_MAX_DIA` e
 
 SharePoint e Maps foram validados em modo `fake`. O uso real depende das
 credenciais e destinos preenchidos no ambiente; os `.env.example` listam todas
-as variáveis.
+as variáveis. Guarde valores reais, tokens e identificadores dos serviços somente
+no ambiente ou no cofre de segredos. Os exemplos de documentação devem permanecer
+fictícios, conforme a [política do projeto](../README.md#informações-sensíveis-na-documentação).

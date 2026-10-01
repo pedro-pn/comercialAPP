@@ -48,19 +48,23 @@ Para preparar o Nectar, preencha as variáveis `NECTAR_*` no `.env` da raiz,
 conforme [o guia do CRM](NECTAR.md), e recrie a API com o Compose. O valor
 inicial `NECTAR_MODE=off` não faz chamadas externas.
 
-## Produção na VPS compartilhada
+## Produção com proxy HTTPS
 
-O `infra-proxy-caddy` da VPS publica 80/443 e emite os certificados TLS. O
-ComercialAPP roda sob um usuário e **Docker rootless próprios**, como o
-filtroboard. Esse daemon não participa da `proxy-net` do Caddy. O Nginx do
-Comercial publica HTTP somente em `172.17.0.1:8083`, gateway da bridge do
-Docker root; o Caddy alcança essa porta por `host.docker.internal:8083`.
-API e PostgreSQL ficam apenas na rede privada do Comercial, sem portas no host.
-O limite de upload de 22 MB já está no Nginx interno.
+A implantação de produção usa um daemon Docker rootless dedicado e um proxy
+HTTPS separado. API e PostgreSQL ficam na rede privada do Comercial. O Nginx
+publica HTTP em um endereço do host acessível ao proxy; o limite de upload de
+22 MB já está no Nginx interno.
 
-1. Prepare o usuário de implantação com Docker rootless e `linger` habilitado
-   para o daemon iniciar no boot. Entre como esse usuário, **sem `sudo docker`**,
-   e confirme que está falando com o daemon correto:
+Os dados do ambiente não devem ser copiados para este guia. Ajuste a origem
+HTTPS (`APP_ORIGIN`) e o vínculo de porta do serviço `web` em
+[docker-compose.prod.yml](../docker-compose.prod.yml), além do
+[exemplo de Caddy](../deploy/proxy/comercial.Caddyfile.example), para a
+infraestrutura escolhida. Esses campos estão definidos diretamente nos arquivos;
+alterar somente o `.env` não substitui seus valores. Guarde a configuração
+preenchida do ambiente em local restrito.
+
+1. Prepare uma conta de implantação com Docker rootless e `linger` habilitado
+   para o daemon iniciar no boot. Entre como essa conta e confirme o daemon:
 
    ```bash
    export DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock
@@ -68,48 +72,50 @@ O limite de upload de 22 MB já está no Nginx interno.
    docker compose version
    ```
 
-   Na VPS, confirme também que `docker0` possui o endereço `172.17.0.1` e que
-   a porta 8083 está livre (`ip -4 addr show docker0` e
-   `ss -ltn '( sport = :8083 )'`). Se o gateway for outro, ajuste o endereço no
-   `docker-compose.prod.yml` e no roteamento do Caddy. Não publique o Nginx em
-   `0.0.0.0`: isso permitiria acesso HTTP direto, fora do Caddy.
-2. Publique o registro DNS de `comercial.filtrovali.com.br` apontando para a
-   VPS. Confirme que o Caddy está ativo e que 80/443 chegam à VPS. Se houver
-   registro AAAA, o IPv6 também precisa chegar à VPS.
+   Verifique o endereço do host alcançável pelo proxy e a disponibilidade da
+   porta configurada. Com um proxy em outro daemon, uma rede Docker privada
+   do Comercial não é compartilhada automaticamente. Restrinja a publicação
+   HTTP ao endereço usado pelo proxy e não a libere no firewall público.
+2. Configure o DNS do domínio escolhido e o proxy TLS, com acesso às portas
+   públicas 80/443. Nos exemplos, use `comercial.example.com`; substitua pelo
+   domínio real apenas na configuração do ambiente. Se houver registro AAAA,
+   confira também o acesso IPv6.
 3. No checkout da versão a implantar, copie `.env.example` para `.env`, gere
    `COMERCIAL_DB_PASSWORD` com `openssl rand -hex 24` e proteja o arquivo com
-   permissão `600`. Para operar sem integrações externas, deixe
-   `NECTAR_MODE=off`, `SHAREPOINT_MODE=off`, `GOOGLE_MAPS_MODE=off` e
-   `FILTROAPP_API_URL`/`FILTROAPP_API_TOKEN` vazios. O domínio de produção está
-   fixado em `APP_ORIGIN` no `docker-compose.prod.yml`. Não grave credenciais no Git.
-4. Confira e suba a stack como o usuário rootless:
+   permissão `600`. Para operar sem integrações, deixe `NECTAR_MODE=off`,
+   `SHAREPOINT_MODE=off`, `GOOGLE_MAPS_MODE=off` e
+   `FILTROAPP_API_URL`/`FILTROAPP_API_TOKEN` vazios.
+4. Valide e suba a stack como a conta rootless:
 
    ```bash
    docker compose -f docker-compose.prod.yml config -q
    docker compose -f docker-compose.prod.yml up -d --build
    docker compose -f docker-compose.prod.yml ps
-   curl -fsS http://172.17.0.1:8083/api/health
    ```
 
-   A API aplica `prisma migrate deploy` ao iniciar. O volume PostgreSQL e o
-   volume dos documentos pertencem ao projeto Compose `comercialapp` **desse
-   usuário rootless**. A porta 8083 é interna à VPS e não deve ser liberada no
-   firewall público.
-5. O operador do proxy deve acrescentar o bloco de
-   `deploy/proxy/comercial.Caddyfile.example` ao
-   `deploy/infra-proxy/Caddyfile` do FiltroAPP na VPS e validar/recarregar o
-   Caddy **no daemon Docker root**, separado do daemon do Comercial. Em uma
-   sessão do operador com acesso a esse daemon:
+   A API aplica `prisma migrate deploy` ao iniciar. Os volumes PostgreSQL e
+   de documentos pertencem ao projeto Compose `comercialapp` desse daemon.
+   Configure `COMERCIAL_INTERNAL_ORIGIN` na sessão do operador com o endereço
+   HTTP interno escolhido e confira a API:
 
    ```bash
-   docker exec infra-proxy-caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
-   docker exec infra-proxy-caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
-   curl -fsS https://comercial.filtrovali.com.br/api/health
+   curl -fsS "$COMERCIAL_INTERNAL_ORIGIN/api/health"
    ```
 
-   O Caddy emite e renova o certificado depois que DNS e portas estiverem
-   corretos. Se o domínio responder 502, verifique primeiro o acesso do Caddy a
-   `host.docker.internal:8083` e o estado do contêiner `web`.
+5. O operador do proxy deve adaptar o exemplo de Caddy ao domínio e ao destino
+   HTTP configurados, validar e recarregar o proxy no daemon que o executa.
+   Configure `PROXY_CONTAINER` com o nome do contêiner e
+   `COMERCIAL_PUBLIC_ORIGIN` com a origem HTTPS somente na sessão do operador:
+
+   ```bash
+   docker exec "$PROXY_CONTAINER" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+   docker exec "$PROXY_CONTAINER" caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+   curl -fsS "$COMERCIAL_PUBLIC_ORIGIN/api/health"
+   ```
+
+   O Caddy emite e renova o certificado quando DNS e acesso estiverem corretos.
+   Em caso de 502, verifique a conexão do proxy ao destino HTTP e o estado de
+   `web` e `api`.
 6. Crie o primeiro administrador com senha de pelo menos 12 caracteres:
 
    ```bash
@@ -119,17 +125,18 @@ O limite de upload de 22 MB já está no Nginx interno.
    ```
 
    Se já houver um gestor criado e ainda não existir administrador, promova
-   essa conta com `docker compose -f docker-compose.prod.yml exec -T api npm run db:promote-admin --workspace @comercialapp/backend -- nome-do-usuario`.
-   Antes de criar propostas reais, a gestão deve configurar o número inicial
-   após conferir o último código usado no CRM e no legado; essa operação só
-   pode ser feita uma vez. Valide login, permissões, fotos, anexos de mais de
-   1 MB, geração e download de DOCX/PDF pelo domínio HTTPS.
-7. Configure [backup](BACKUP.md) recorrente do banco e de
-   `comercialapp_comercial_files` **no daemon rootless do Comercial**. O usuário
-   precisa de escrita em `BACKUP_ROOT`; mantenha retenção fora da VPS e faça um
-   teste conforme o [guia de restauração](RESTORE.md). Monitore contêineres,
-   espaço dos volumes rootless e expiração do certificado.
+   essa conta com `docker compose -f docker-compose.prod.yml exec -T api npm run db:promote-admin --workspace @comercialapp/backend -- NOME_USUARIO`.
+   Antes de criar propostas reais, configure o número inicial após conferir
+   os códigos do CRM e do legado. Valide login, permissões, fotos, anexos e
+   geração/download de DOCX/PDF pela origem HTTPS.
+7. Configure [backup](BACKUP.md) recorrente do banco e do volume de arquivos
+   no mesmo daemon rootless. A conta precisa de escrita em `BACKUP_ROOT`.
+   Mantenha retenção fora da VPS e faça um teste de [restauração](RESTORE.md).
+   Monitore contêineres, espaço dos volumes e certificados.
 
-O usuário do Comercial não precisa de acesso ao daemon Docker root do Caddy.
-O operador do proxy faz a etapa 5 separadamente. Esta configuração ainda não
-foi aplicada à VPS por este repositório.
+O operador do proxy e a conta de implantação podem ter acessos separados.
+Habilite o [login Microsoft](MICROSOFT_LOGIN.md) e as
+[integrações externas](INTEGRACOES.md) conforme a configuração do ambiente.
+Senhas, URLs reais, nomes de contas e detalhes da infraestrutura devem permanecer
+fora dos documentos, conforme a
+[política do projeto](../README.md#informações-sensíveis-na-documentação).

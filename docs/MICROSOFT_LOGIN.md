@@ -2,7 +2,8 @@
 
 O login Microsoft usa um registro de aplicativo **Web, tenant único**, separado
 da integração SharePoint. O retorno em produção é
-`https://comercial.filtrovali.com.br/api/auth/microsoft/callback`.
+`https://comercial.example.com/api/auth/microsoft/callback` (domínio fictício;
+substitua pela origem HTTPS do ambiente).
 O código solicita `openid` e `profile`; a biblioteca MSAL inclui
 `offline_access` automaticamente. Nenhum escopo de leitura de e-mails
 é necessário.
@@ -16,8 +17,8 @@ ao lado do texto, sem depender de uma imagem externa para aparecer.
    os usuários autorizados e conceda consentimento administrativo às permissões
    configuradas. Essa restrição é essencial porque o primeiro login agora cria
    uma conta automaticamente no ComercialAPP.
-2. Gere um certificado fora do repositório. Na VPS, como usuário `comercial`,
-   a partir de `~/apps/comercialAPP`:
+2. Gere um certificado fora do repositório. Na VPS, como usuário de implantação,
+   a partir do checkout do projeto:
 
    ```sh
    umask 077
@@ -47,15 +48,17 @@ ao lado do texto, sem depender de uma imagem externa para aparecer.
    mantenha `ENTRA_LOGIN_ENABLED=off`
    durante a primeira implantação. As variáveis `MICROSOFT_*` continuam
    pertencendo ao SharePoint.
-4. Depois que a PR for mesclada à `main`, atualize e implante a versão com
-   a migração:
+4. Após publicar a versão a implantar, atualize o checkout e aplique a migração.
+   No comando abaixo, informe a origem HTTPS em `COMERCIAL_PUBLIC_ORIGIN`
+   somente na sessão do operador:
 
    ```sh
+   read -r -p 'Origem HTTPS do ComercialAPP: ' COMERCIAL_PUBLIC_ORIGIN
    git pull --ff-only origin main
    docker compose -f docker-compose.prod.yml config -q
    docker compose -f docker-compose.prod.yml up -d --build
    docker compose -f docker-compose.prod.yml ps
-   curl -fsS https://comercial.filtrovali.com.br/api/health
+   curl -fsS "$COMERCIAL_PUBLIC_ORIGIN/api/health"
    ```
 
    A migração acrescenta os identificadores Microsoft à tabela de usuários,
@@ -79,7 +82,7 @@ ao lado do texto, sem depender de uma imagem externa para aparecer.
    docker compose -f docker-compose.prod.yml up -d --build
    ```
 
-   Verifique `https://comercial.filtrovali.com.br/api/auth/providers`
+   Verifique `GET /api/auth/providers` na origem HTTPS configurada
    (deve retornar `{"microsoft":true}`),
    entre pelo botão **Entrar com conta Microsoft** e confira o papel na UI.
    O login local continua disponível durante a transição.
@@ -112,8 +115,14 @@ Use `APP_ORIGIN` correspondente.
 
 ## Permissões de usuários novos
 
-Atribuir uma pessoa ao aplicativo empresarial no Entra não cria sua conta no
-ComercialAPP. Sem uma conta local vinculada ao `tid` e `oid`, o login é
-recusado e nenhum papel é concedido. Crie a conta na página **Acessos** com
-o papel desejado e vincule seu Object ID com `db:link-microsoft` sem
-`--admin`. O papel da conta local define as permissões no aplicativo.
+A atribuição ao aplicativo empresarial no Entra autoriza o login; a conta no
+ComercialAPP é criada no primeiro acesso válido, como **Vendedor**, quando ainda
+não existe vínculo ao par `tid` + `oid`. O administrador inicial deve existir
+antes desse acesso. Administradores/gestores podem ajustar o papel depois em
+**Acessos**, conforme suas permissões.
+
+Para uma conta local já existente, vincule o Object ID antes do primeiro acesso
+Microsoft para preservar o histórico e o papel. Não registre tenant IDs,
+Object IDs reais, e-mails, impressões digitais de certificados ou credenciais
+na documentação. Veja o [tutorial de uso](TUTORIAL.md) e a
+[política de informações sensíveis](../README.md#informações-sensíveis-na-documentação).
