@@ -82,7 +82,7 @@ export function FinalizacaoLocalPanel({ proposalId, status, save, validate,
     try {
       const id = editable ? await save() : proposalId;
       if (!id) {
-        setMessage('Não foi possível salvar a proposta para atualizar os documentos.');
+        setMessage('A proposta ainda não está disponível para atualizar os documentos.');
         return;
       }
       const result = await atualizarDocumentosDaProposta(id);

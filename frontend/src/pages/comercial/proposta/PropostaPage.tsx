@@ -245,6 +245,14 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
   const [finalizandoLocal, setFinalizandoLocal] = useState(false);
   const [versaoCarregada, setVersaoCarregada] = useState('');
   const [statusProposta, setStatusProposta] = useState('RASCUNHO');
+  // O download pode aguardar o autosave; depois do await precisa do id e da
+  // versão recém-gravados, inclusive antes de o React concluir o render.
+  const propostaSalvaRef = useRef({ id: propostaId, updatedAt: versaoCarregada, status: statusProposta });
+  propostaSalvaRef.current = { id: propostaId, updatedAt: versaoCarregada, status: statusProposta };
+  const salvamentoEmAndamento = useRef<Promise<string | null> | null>(null);
+  const erroDeSalvamento = useRef<unknown>(null);
+  const salvarAtual = useRef(salvar);
+  salvarAtual.current = salvar;
   const documentosLocais = useDocumentosDaProposta(somenteRascunho ? propostaId : '',
     etapa === 'revisao' ? `${versaoCarregada}:${statusProposta}` : '');
   const [pendenciaFinalizacao, setPendenciaFinalizacao] =
@@ -847,13 +855,27 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
    * abertura da tela. Ele **consome** — abrir o assistente e desistir não pode
    * gastar um número, porque o próximo sairia com um buraco no meio.
    */
-  async function salvar(
+  function salvar(
     forceOverwrite = false,
     automatico = false
   ): Promise<string | null> {
-    if (salvando) return null;
-    if (propostaId && !versaoCarregada) {
-      setRecado('Aguarde a proposta terminar de carregar antes de salvar.');
+    if (salvamentoEmAndamento.current) return salvamentoEmAndamento.current;
+    const operacao = executarSalvamento(forceOverwrite, automatico)
+      .finally(() => { salvamentoEmAndamento.current = null; });
+    salvamentoEmAndamento.current = operacao;
+    return operacao;
+  }
+
+  async function executarSalvamento(
+    forceOverwrite = false,
+    automatico = false
+  ): Promise<string | null> {
+    erroDeSalvamento.current = null;
+    const propostaSalva = propostaSalvaRef.current;
+    if (propostaSalva.id && !propostaSalva.updatedAt) {
+      const erro = new Error('Aguarde a proposta terminar de carregar antes de salvar.');
+      erroDeSalvamento.current = erro;
+      setRecado(erro.message);
       return null;
     }
     setSalvando(true);
@@ -870,9 +892,9 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
 
       const entrada = entradaDaProposta(conteudo(codigoAtual), levantamentoId);
 
-      const salva = propostaId
-        ? await atualizarProposta(propostaId, entrada, {
-            expectedUpdatedAt: versaoCarregada,
+      const salva = propostaSalva.id
+        ? await atualizarProposta(propostaSalva.id, entrada, {
+            expectedUpdatedAt: propostaSalva.updatedAt,
             forceOverwrite
           })
         : await criarProposta(entrada);
@@ -880,22 +902,23 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
       // Gravada no servidor, o rascunho local não pode sobrar para reaparecer
       // depois como se fosse trabalho não salvo.
       rascunho.limparTudo();
-      if (!propostaId) {
+      if (!propostaSalva.id) {
         // O conteúdo já é exatamente o que o POST devolveu. Marcar o id evita
         // que o efeito de reabertura faça um GET e aplique esse snapshot por
         // cima de uma edição digitada enquanto o autosave terminava.
         idCarregado.current = salva.id;
         trocarParametros({ id: salva.id });
       }
+      propostaSalvaRef.current = { id: salva.id, updatedAt: salva.updatedAt || '',
+        status: salva.status || 'RASCUNHO' };
       if (salva.updatedAt) setVersaoCarregada(salva.updatedAt);
       setStatusProposta(salva.status || 'RASCUNHO');
       setConflitoDeEdicao(null);
-      if (!automatico) {
-        autosave.marcarSalvo(snapshot);
-        setRecado('');
-      }
+      autosave.marcarSalvo(snapshot);
+      if (!automatico) setRecado('');
       return salva.id;
     } catch (error) {
+      erroDeSalvamento.current = error;
       if (error instanceof ComercialConcurrentWriteError) {
         setConflitoDeEdicao(error);
         setRecado('');
@@ -906,6 +929,20 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     } finally {
       setSalvando(false);
     }
+  }
+
+  async function salvarParaDocumentos(): Promise<string> {
+    if (salvamentoEmAndamento.current) {
+      const id = await salvamentoEmAndamento.current;
+      if (!id) throw erroDeSalvamento.current || new Error('Não foi possível salvar a proposta.');
+    }
+    const atual = propostaSalvaRef.current;
+    if (atual.id && (atual.status !== 'RASCUNHO' || !autosave.temAlteracoesPendentes())) {
+      return atual.id;
+    }
+    const id = await salvarAtual.current();
+    if (!id) throw erroDeSalvamento.current || new Error('Não foi possível salvar a proposta.');
+    return id;
   }
 
   /**
@@ -1330,11 +1367,12 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
                 <p><strong>Código:</strong> {codigoExibido}</p>
               </section>
               <FinalizacaoLocalPanel proposalId={propostaId} status={statusProposta}
-                save={() => salvar()} validate={validarParaEmissaoLocal}
+                save={salvarParaDocumentos} validate={validarParaEmissaoLocal}
                 docs={documentosLocais.documentos}
                 documentsError={documentosLocais.erro}
                 onDocumentsChange={documentosLocais.atualizarDocumentos}
-                busy={salvando || ocupadoLocal || gerandoPdf}
+                busy={salvando || ocupadoLocal || gerandoPdf || Boolean(propostaId && !versaoCarregada) ||
+                  (statusProposta === 'RASCUNHO' && !propostaProntaParaSalvar)}
                 onBusyChange={setOcupadoLocal} />
             </>
           ) : (
