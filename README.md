@@ -24,6 +24,8 @@ Para executar os três serviços em Docker, use o
 imagem Nginx; a API Node e o PostgreSQL ficam em contêineres separados.
 O mesmo guia mostra como usar o Vite na porta 5174 com a API do Compose para
 desenvolvimento local.
+Para a VPS, siga os guias de [backup, Backblaze B2 e crontab](docs/BACKUP.md)
+e de [restauração](docs/RESTORE.md).
 
 1. Crie um banco PostgreSQL exclusivo e um usuário próprio para este app.
 2. Execute `npm install` na raiz, copie `backend/.env.example` para

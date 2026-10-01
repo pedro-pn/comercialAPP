@@ -1,3 +1,13 @@
+.auth-loading {
+  display: grid;
+  min-height: 100vh;
+  min-height: 100dvh;
+  place-items: center;
+  color: #496456;
+  background: #f3f7f6;
+  font-weight: 600;
+}
+
 .login-page {
   display: grid;
   min-height: 100vh;
