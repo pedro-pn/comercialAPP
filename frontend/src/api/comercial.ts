@@ -240,6 +240,13 @@ export async function configurarNumeracaoInicial(initialNumber: number) {
   return data;
 }
 
+export async function alterarNumeracaoInicial(initialNumber: number) {
+  const { data } = await apiClient.put<EstadoDaNumeracao>(
+    '/comercial/numeracao/inicial', { initialNumber }
+  );
+  return data;
+}
+
 export interface Consultor {
   id: string;
   nome: string;

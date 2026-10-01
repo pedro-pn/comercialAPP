@@ -14,6 +14,13 @@ export function requireManager(request, _response, next) {
   next();
 }
 
+export function requireAdmin(request, _response, next) {
+  if (request.authUser.role !== 'ADMIN') {
+    return next(new HttpError(403, 'Acesso exclusivo do administrador.'));
+  }
+  next();
+}
+
 export function ownerFilter(user) {
   return ['ADMIN', 'MANAGER'].includes(user.role) ? {} : { createdByUserId: user.id };
 }

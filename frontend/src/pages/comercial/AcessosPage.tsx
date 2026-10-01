@@ -163,7 +163,7 @@ export function AcessosPage({ user, onSelfPasswordChanged }: {
       </section>
 
       <div className="com-access-side">
-        <NumberingSetup />
+        <NumberingSetup isAdmin={isAdmin} />
         <section className="com-painel" aria-labelledby="create-access-title">
           <div className="com-secao-titulo"><div>
             <h2 id="create-access-title">Criar acesso</h2>

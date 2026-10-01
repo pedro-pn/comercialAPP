@@ -35,7 +35,41 @@ export async function initializeNumbering(db, user, initialNumber) {
     };
   } catch (error) {
     if (error.code === 'P2002') {
-      throw new HttpError(409, 'A numeração já foi configurada. Não é possível reiniciá-la.');
+      throw new HttpError(409, 'A numeração já foi configurada. Apenas o administrador pode alterá-la.');
+    }
+    throw error;
+  }
+}
+
+export async function updateInitialNumber(db, user, initialNumber) {
+  if (user.role !== 'ADMIN') {
+    throw new HttpError(403, 'Acesso exclusivo do administrador.');
+  }
+  if (typeof initialNumber !== 'number' || !Number.isInteger(initialNumber) ||
+      initialNumber < 1 || initialNumber > maxInitialNumber) {
+    throw new HttpError(400, 'O número inicial deve ser um inteiro positivo válido.');
+  }
+  try {
+    // A atualização atômica usa a mesma linha das reservas. Reservas anteriores
+    // permanecem registradas e reserveNumber continua pulando esses números.
+    const state = await db.proposalNumberingState.update({
+      where: { id: singleton },
+      data: {
+        seedValue: initialNumber,
+        nextNumber: initialNumber,
+        seededAt: new Date(),
+        seededByUserId: user.id
+      }
+    });
+    return {
+      seeded: true,
+      seededAt: state.seededAt,
+      seedValue: state.seedValue,
+      nextNumber: state.nextNumber
+    };
+  } catch (error) {
+    if (error.code === 'P2025') {
+      throw new HttpError(409, 'Configure o número inicial antes de alterar a numeração.');
     }
     throw error;
   }

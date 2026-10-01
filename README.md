@@ -102,9 +102,9 @@ hidrojateamento; passagem de PIG e pré-engenharia.
   e aviso ao sair com alterações pendentes.
 - Detecção de conflito quando outra pessoa salva uma versão mais recente,
   permitindo revisar a decisão antes de substituir o conteúdo.
-- Sequência de números configurada uma única vez pela gestão; a reserva registra
-  o autor, consome o número e evita reutilização, inclusive de números legados
-  registrados no aplicativo.
+- Sequência de números configurada pela gestão e alterável pelo administrador
+  mediante diálogo de confirmação. A reserva registra o autor, consome o número
+  e evita reutilização, inclusive de números legados registrados no aplicativo.
 - Revisões com reaproveitamento dos dados anteriores e do vínculo com o CRM.
 - Histórico com busca, paginação, reabertura dos registros, download dos
   documentos emitidos e situação das integrações.

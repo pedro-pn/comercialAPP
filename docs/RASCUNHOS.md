@@ -9,14 +9,21 @@ A segunda migração é `20260929120000_commercial_drafts` e entra com o mesmo
 
 - `GET /api/comercial/numeracao/status`: mostra se existe valor inicial.
 - `POST /api/comercial/numeracao/inicializar`: administrador/gestor informa
-  `{ "initialNumber": 1000 }` **uma única vez**. O número do exemplo não é um
+  `{ "initialNumber": 1000 }` para configurar uma sequência ainda não iniciada.
+  O número do exemplo não é um
   valor aprovado para produção.
+- `PUT /api/comercial/numeracao/inicial`: somente o administrador altera uma
+  sequência já configurada com `{ "initialNumber": 1000 }`. O valor inicial e o
+  próximo número passam a usar o valor informado, com data e autor atualizados.
+  Reservas e propostas anteriores são preservadas; números já reservados,
+  inclusive os legados registrados, continuam sendo pulados.
 - `POST /api/comercial/propostas/proximo-numero`: administrador, gestor ou vendedor reserva e
   consome um número. A operação registra autor e não reutiliza números. Não há
   emissão enquanto o valor inicial não for configurado.
 
 O valor inicial real precisa ser comparado com os códigos do CRM e do legado
-antes do primeiro uso. A API não consulta esses sistemas para fazer a checagem.
+antes do primeiro uso ou de uma alteração. A tela pede confirmação em um diálogo
+antes de gravar. A API não consulta esses sistemas para fazer a checagem.
 Não configurar produção com um número de exemplo.
 
 ## Rascunhos
