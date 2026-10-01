@@ -68,7 +68,7 @@ for (const [arquivo, tipo, modelo, capitulos] of modelos) {
       const heading = estiloPorId(styles, `Ttulo${level}`);
       assert.equal(heading.getElementsByTagName('w:outlineLvl').item(0).getAttribute('w:val'), String(level - 1));
       assert.equal(heading.getElementsByTagName('w:rFonts').item(0).getAttribute('w:ascii'), 'Arial');
-      assert.equal(heading.getElementsByTagName('w:sz').item(0).getAttribute('w:val'), '24');
+      assert.equal(heading.getElementsByTagName('w:sz').item(0).getAttribute('w:val'), '20');
       assert.equal(heading.getElementsByTagName('w:spacing').item(0).getAttribute('w:line'), '360');
     }
   });
@@ -97,17 +97,17 @@ for (const [arquivo, tipo, modelo, capitulos] of modelos) {
       .getElementsByTagName('w:sz').item(0).getAttribute('w:val'), '24');
     const jornada = paragrafos(doc).find(p => texto(p) === 'Jornada ajustada para esta obra.');
     assert.ok(jornada);
-    assert.equal(jornada.getElementsByTagName('w:sz').item(0).getAttribute('w:val'), '24');
+    assert.equal(jornada.getElementsByTagName('w:sz').item(0).getAttribute('w:val'), '20');
     assert.equal(jornada.getElementsByTagName('w:spacing').item(0).getAttribute('w:line'), '360');
     if (tipo === 'technical') {
       const servico = paragrafos(doc).find(p => texto(p) === 'Limpeza química contratada');
       assert.ok(servico);
       assert.equal(estilo(servico), 'Ttulo2');
-      assert.equal(servico.getElementsByTagName('w:sz').item(0).getAttribute('w:val'), '24');
+      assert.equal(servico.getElementsByTagName('w:sz').item(0).getAttribute('w:val'), '20');
     }
     const tabela = Array.from(doc.getElementsByTagName('w:tbl')).find(t => /CircuitoVolumeA100 L/.test(texto(t)));
     assert.ok(tabela);
-    assert.equal(tabela.getElementsByTagName('w:sz').item(0).getAttribute('w:val'), '24');
+    assert.equal(tabela.getElementsByTagName('w:sz').item(0).getAttribute('w:val'), '20');
     assert.equal(tabela.getElementsByTagName('w:spacing').item(0).getAttribute('w:line'), '360');
     assert.doesNotMatch(texto(doc), /\{\{/);
     assert.equal(parse(zip.readAsText('word/settings.xml')).getElementsByTagName('w:updateFields')

@@ -3505,6 +3505,28 @@
   color: var(--com-marca-forte);
 }
 
+/* 10 pt em A4 (595,28 pt de largura), proporcionais à folha da prévia. */
+.com-root .com-pagina-conteudo {
+  container-type: inline-size;
+}
+
+.com-root .com-pagina-conteudo .com-pagina-corpo,
+.com-root .com-pagina-conteudo .com-pagina-data,
+.com-root .com-pagina-conteudo .com-pagina-numero {
+  font-size: 1.68cqw;
+}
+
+.com-root .com-pagina-conteudo h3,
+.com-root .com-pagina-conteudo h4,
+.com-root .com-pagina-conteudo .com-doc-tabela,
+.com-root .com-pagina-conteudo .com-doc-foto figcaption {
+  font-size: inherit;
+}
+
+.com-root .com-pagina .com-doc-subitem {
+  font-weight: 400;
+}
+
 .com-root .com-doc-servico {
   margin-bottom: 4px;
 }
