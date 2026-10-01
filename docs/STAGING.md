@@ -7,12 +7,12 @@ certificado ou segredo. A API aplica as migrações automaticamente ao iniciar.
 
 ## Como convive com o staging do FiltroAPP
 
-Considerando que o FiltroAPP já publica a porta **80 do host**, o ComercialAPP
+Se outro aplicativo já publica a porta **80 do host**, o ComercialAPP
 publica **8087 do host → 80 do seu contêiner Nginx**:
 
 | Aplicativo | Endereço no navegador | Porta na VPS |
 | --- | --- | --- |
-| FiltroAPP staging existente | `http://IP_DA_VPS` | 80 |
+| Outro aplicativo de staging (exemplo) | `http://IP_DA_VPS` | 80 |
 | ComercialAPP staging | `http://IP_DA_VPS:8087` | 8087 |
 
 Cada contêiner pode ouvir na porta 80 da sua própria rede. O conflito só acontece
@@ -31,19 +31,20 @@ Não use `-p comercialapp` nem combine este arquivo com o Compose de produção.
 
 ## 1. Preparar o checkout e o ambiente
 
-Na VPS, entre como `root`, no mesmo daemon Docker usado pelo staging do FiltroAPP.
-Não é necessário configurar Docker rootless para este staging. Requer Git,
+Na VPS, use a conta de implantação e o daemon Docker escolhidos para staging.
+Não é necessário configurar Docker rootless para este Compose. Requer Git,
 Docker Engine e o plugin `docker compose` já instalados.
 
 Para um checkout novo:
 
 ```bash
-mkdir -p /root/apps
-git clone git@github.com:pedro-pn/comercialAPP.git /root/apps/comercialAPP-staging
-cd /root/apps/comercialAPP-staging
+mkdir -p "$HOME/apps"
+git clone URL_DO_REPOSITORIO "$HOME/apps/comercialAPP-staging"
+cd "$HOME/apps/comercialAPP-staging"
 ```
 
-O repositório é privado; use a chave Git já autorizada na VPS. Faça checkout do
+Substitua `URL_DO_REPOSITORIO` pela URL autorizada, sem incluir credenciais no
+comando ou na documentação. Faça checkout do
 branch ou commit que contém estes arquivos antes de continuar. Se já existe
 um checkout exclusivo de staging, entre nele em vez de clonar novamente.
 
@@ -56,8 +57,8 @@ ss -ltn '( sport = :8087 )'
 ```
 
 Se a porta estiver ocupada, escolha outra em `STAGING_HTTP_PORT` e atualize também
-`STAGING_APP_ORIGIN`. Use o daemon root do staging do FiltroAPP; não reutilize a
-sessão com `DOCKER_HOST` do usuário rootless de produção do Comercial.
+`STAGING_APP_ORIGIN`. Use o daemon escolhido para staging; não reutilize a
+sessão com `DOCKER_HOST` de produção do Comercial.
 
 Crie o arquivo de configuração:
 
@@ -154,7 +155,7 @@ e no env em conjunto.
 ## Se quiser os dois apps na porta 80, sem porta na URL
 
 Será necessário um **único proxy na porta 80**, encaminhando por hostname,
-por exemplo `filtro-staging.seudominio.com` e `comercial-staging.seudominio.com`.
+por exemplo `filtro-staging.example.com` e `comercial-staging.example.com`.
 Se a porta 80 pertence hoje diretamente ao contêiner do FiltroAPP, esse serviço
 precisa assumir o roteamento dos dois hostnames ou liberar a porta para um proxy
 compartilhado. Criar outro Nginx publicando `80:80` no mesmo IP não funciona.
@@ -166,5 +167,6 @@ para o próprio contêiner, não para a VPS. Atualize `STAGING_APP_ORIGIN` para 
 origem pública final. Se ela usar HTTPS, a API marca o cookie de staging como
 `Secure` automaticamente.
 
-Para a estrutura atual informada, o acesso direto por **8087** é suficiente e
-não exige alteração no Nginx do FiltroAPP.
+No cenário de portas distintas descrito neste guia, o acesso direto por **8087**
+não exige alteração no proxy do outro aplicativo. Os hostnames, IPs e caminhos
+reais do ambiente devem ficar fora da documentação versionada.

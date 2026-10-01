@@ -1,21 +1,21 @@
 # Extração do Comercial
 
+Este documento registra a extração inicial e suas verificações históricas.
+As capacidades atuais e o fluxo de uso estão no [README](../README.md) e no
+[tutorial](TUTORIAL.md). As pendências de implantação dependem do ambiente e
+não representam um inventário atualizado de serviços em produção.
+
 ## Proveniência
 
-- Origem do módulo: /home/relat/apps/NewRDO, branch feat/modulo-comercial,
-  commit 94b74278043a7416febf3c52f4ae4ca093924920.
-- Pacote de regras inicial: shared/comercial/src copiado da origem nesse commit.
-  Apenas os caminhos de exportação do índice e um import de tipo foram ajustados
-  para o novo pacote ESM; a lógica dos cálculos não foi alterada.
-- Arquivos de interface: frontend/src/pages/comercial, estilos, imagens, esquema
-  comercial e auxiliares copiados da mesma origem. Pequenos adaptadores locais
-  substituem imports do FiltroAPP para API, identidade e registro de rotas.
-- Referência histórica: branch legacy-next-cloudflare deste repositório.
-- Capturas não rastreadas do legado foram adicionadas à branch histórica no
-  commit 109c259. Caches, dependências e estado local do antigo Cloudflare D1
-  foram movidos para ../comercialAPP-legacy-local-20260928.
-- A origem NewRDO contém alterações locais do usuário; não foram modificadas
-  nem descartadas durante a preparação deste repositório.
+- Origem funcional: módulo Comercial do FiltroAPP.
+- Pacote inicial de regras: `shared/comercial/src`, com adaptações de exportação
+  e imports para um pacote ESM independente.
+- Interface: telas comerciais, estilos, imagens, esquema e auxiliares portados,
+  com adaptadores para API, identidade e rotas próprias.
+- Modelos Word, ativos e cenários de referência preservados no novo projeto.
+- Referência histórica local: branch `legacy-next-cloudflare`.
+- Caminhos de máquinas, identificadores de repositórios privados e dados locais
+  da origem não fazem parte da documentação versionada.
 
 ## Estado
 
@@ -55,10 +55,9 @@
   e card sintéticos em 29/09/2026.
 - [x] Implementar contrato versionado Comercial → CRM → FiltroAPP, aprovação
   autenticada, fallback do gestor, staging de revisões e orçamento selecionado.
-- [x] Integrar a branch receptora `feat/comercialapp-bridge-20260929` na
-  `main` local do FiltroAPP (commit `4bc5def0`).
-- [ ] Implantar a revisão receptora no FiltroAPP e configurar token e URL de
-  serviço nos dois ambientes.
+- [x] Preparar a integração com o contrato receptor do FiltroAPP.
+- [ ] Conferir a implantação do receptor no FiltroAPP e configurar token e URL
+  de serviço nos dois ambientes.
 - [ ] Configurar webhook do Nectar e o campo personalizado do projeto no CRM.
 - [x] Portar SharePoint, configuração da sede e Google Maps com modos off/fake/real.
 - [ ] Validar SharePoint e Google Maps em modo real após configurar credenciais.
@@ -75,7 +74,8 @@ As fotos, os anexos e os documentos ficam no volume de arquivos do Comercial.
 A finalização local bloqueia edições e exige documentos atualizados. Em seguida,
 o envio ao Nectar pode usar os modos `fake` ou `real`, quando configurados.
 O SharePoint pode receber os arquivos quando configurado. A entrega ao FiltroAPP
-depende da implantação da branch receptora e das credenciais de serviço.
+depende da implantação de uma versão receptora compatível e das credenciais de
+serviço.
 O CSS portado ainda precisa ser conferido visualmente fora do FiltroAPP.
 
 A primeira migração contém somente `User` e `Session`. A API cria sessões no
@@ -100,13 +100,11 @@ empacota as cinco entradas extraídas e detecta esse tipo de erro.
 
 ## Regras da separação
 
-Em 28/09/2026, a auditoria de `main` e `origin/main` do FiltroAPP no commit
-`31865b08` confirmou que o novo módulo Comercial existe apenas na branch
-`feat/modulo-comercial`. Não há código desse módulo a retirar da `main` por
-enquanto. O legado Access/CommercialProposal permanece na `main` e atende
-fluxos de Acompanhamento que exigem transição própria. A branch de origem
-também contém mudanças fora do Comercial; não encerrá-la inteira sem revisar
-essas diferenças.
+Na auditoria inicial, o módulo Comercial novo estava em desenvolvimento
+separado da linha principal do FiltroAPP. O legado Access/CommercialProposal
+atendia fluxos de Acompanhamento que exigiam transição própria. Mudanças fora
+do Comercial na origem precisam de revisão independente; sua presença não
+autoriza descartá-las durante a extração.
 
 O aplicativo novo não deve importar arquivos do repositório FiltroAPP em tempo
 de execução nem consultar seu banco diretamente. Dados comerciais existentes
