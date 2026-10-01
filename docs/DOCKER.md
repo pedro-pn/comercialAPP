@@ -121,11 +121,11 @@ O limite de upload de 22 MB já está no Nginx interno.
    após conferir o último código usado no CRM e no legado; essa operação só
    pode ser feita uma vez. Valide login, permissões, fotos, anexos de mais de
    1 MB, geração e download de DOCX/PDF pelo domínio HTTPS.
-7. Configure [backup e restauração](BACKUP.md) recorrentes do banco e de
+7. Configure [backup](BACKUP.md) recorrente do banco e de
    `comercialapp_comercial_files` **no daemon rootless do Comercial**. O usuário
    precisa de escrita em `BACKUP_ROOT`; mantenha retenção fora da VPS e faça um
-   teste de restauração. Monitore contêineres, espaço dos volumes rootless e
-   expiração do certificado.
+   teste conforme o [guia de restauração](RESTORE.md). Monitore contêineres,
+   espaço dos volumes rootless e expiração do certificado.
 
 O usuário do Comercial não precisa de acesso ao daemon Docker root do Caddy.
 O operador do proxy faz a etapa 5 separadamente. Esta configuração ainda não

@@ -30,20 +30,9 @@ if [[ -n "$COMPOSE_OVERRIDE_FILE" ]]; then
   fi
 fi
 
-services_stopped=false
-resume_services() {
-  if [[ "$services_stopped" == true ]]; then
-    echo "[backup] reiniciando API e web"
-    "${COMPOSE[@]}" up -d --no-recreate api web
-    services_stopped=false
-  fi
-}
 on_exit() {
   local status=$?
   trap - EXIT
-  if [[ "$services_stopped" == true ]]; then
-    resume_services || status=1
-  fi
   if (( status != 0 )); then
     if [[ -n "${final_dir:-}" && -d "$final_dir" ]]; then
       echo "[backup] envio remoto falhou; backup local concluído em $final_dir" >&2
@@ -94,11 +83,7 @@ if [[ -e "$run_dir" || -e "$final_dir" ]]; then
 fi
 mkdir "$run_dir"
 
-# O banco e o volume precisam representar o mesmo instante lógico. Durante o
-# snapshot, web e API ficam parados para impedir novas propostas ou anexos.
-services_stopped=true
-"${COMPOSE[@]}" stop -t 90 web api
-
+# O pg_dump não bloqueia o uso normal do banco; o volume é lido sem parar o app.
 echo "[backup] exportando PostgreSQL"
 "${COMPOSE[@]}" exec -T db pg_dump -U comercial -d comercialapp |
   gzip -1 > "$run_dir/postgres.sql.gz"
@@ -106,8 +91,6 @@ echo "[backup] exportando PostgreSQL"
 echo "[backup] arquivando propostas, anexos e fotos de $FILES_VOLUME"
 docker run --rm -v "$FILES_VOLUME:/from:ro" -v "$run_dir:/backup" alpine:3.20 \
   tar -C /from -czf /backup/comercial-files.tar.gz .
-
-resume_services
 
 (cd "$run_dir" && sha256sum postgres.sql.gz comercial-files.tar.gz > SHA256SUMS)
 mv "$run_dir" "$final_dir"

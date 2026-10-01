@@ -99,7 +99,11 @@ export function App() {
       user.role === 'SELLER' ? ['comercial:seller'] : []
   };
 
-  if (!loading && user && (location.pathname === '/' ||
+  if (loading) {
+    return <main className="auth-loading" role="status" aria-live="polite">Verificando acesso…</main>;
+  }
+
+  if (user && (location.pathname === '/' ||
     location.pathname === '/custos' || location.pathname === '/propostas' ||
     location.pathname === '/configuracoes')) {
     if (user.role === 'VIEWER' && location.pathname !== '/') return <Navigate to="/" replace />;
@@ -121,11 +125,11 @@ export function App() {
     );
   }
 
-  if (!loading && user && location.pathname === '/historico') {
+  if (user && location.pathname === '/historico') {
     return <HistoricoRascunhosPage user={user} onLogout={handleLogout} />;
   }
 
-  if (!loading && user && location.pathname === '/api-central') {
+  if (user && location.pathname === '/api-central') {
     if (user.role !== 'ADMIN') return <Navigate to="/" replace />;
     return <AuthContext.Provider value={{ user: contextUser!, logout: handleLogout }}>
       <Suspense fallback={<main className="shell" role="status">Carregando Central de API...</main>}>
@@ -134,12 +138,12 @@ export function App() {
     </AuthContext.Provider>;
   }
 
-  if (!loading && user && (location.pathname !== '/acessos' ||
+  if (user && (location.pathname !== '/acessos' ||
     !['ADMIN', 'MANAGER'].includes(user.role))) {
     return <Navigate to="/" replace />;
   }
 
-  if (!loading && user) {
+  if (user) {
     return <AuthContext.Provider value={{ user: contextUser!, logout: handleLogout }}>
       <AcessosPage user={user} onSelfPasswordChanged={() => setUser(null)} />
     </AuthContext.Provider>;
@@ -162,40 +166,38 @@ export function App() {
               <h1 id="login-title">Bem-vindo de volta</h1>
               <p>Entre com sua conta para acessar o Comercial.</p>
             </div>
-            {loading ? <p className="login-status" role="status">Verificando acesso…</p> : (
-              <form onSubmit={handleLogin} className="login-form">
-                <label htmlFor="login-username">Usuário</label>
-                <input id="login-username" required autoComplete="username" autoCapitalize="none"
-                  value={username} onChange={event => setUsername(event.target.value)} />
-                <label htmlFor="login-password">Senha</label>
-                <div className="login-password-field">
-                  <input id="login-password" required type={showPassword ? 'text' : 'password'}
-                    autoComplete="current-password" value={password}
-                    onChange={event => setPassword(event.target.value)} />
-                  <button className="login-password-toggle" type="button" disabled={busy}
-                    aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-                    title={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-                    aria-pressed={showPassword} onMouseDown={event => event.preventDefault()}
-                    onClick={() => setShowPassword(value => !value)}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-                      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6Z" />
-                      <circle cx="12" cy="12" r="2.7" />
-                      {showPassword && <path d="M3 3 21 21" />}
-                    </svg>
-                  </button>
-                </div>
-                <label className="login-remember-user">
-                  <input type="checkbox" checked={rememberUser}
-                    onChange={event => setRememberUser(event.target.checked)} />
-                  <span>Lembrar usuário</span>
-                </label>
-                <button className="login-submit" type="submit" disabled={busy}>
-                  {busy ? 'Entrando…' : 'Entrar'}
+            <form onSubmit={handleLogin} className="login-form">
+              <label htmlFor="login-username">Usuário</label>
+              <input id="login-username" required autoComplete="username" autoCapitalize="none"
+                value={username} onChange={event => setUsername(event.target.value)} />
+              <label htmlFor="login-password">Senha</label>
+              <div className="login-password-field">
+                <input id="login-password" required type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password" value={password}
+                  onChange={event => setPassword(event.target.value)} />
+                <button className="login-password-toggle" type="button" disabled={busy}
+                  aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                  title={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                  aria-pressed={showPassword} onMouseDown={event => event.preventDefault()}
+                  onClick={() => setShowPassword(value => !value)}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+                    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6Z" />
+                    <circle cx="12" cy="12" r="2.7" />
+                    {showPassword && <path d="M3 3 21 21" />}
+                  </svg>
                 </button>
-              </form>
-            )}
-            {microsoftEnabled && !loading && (
+              </div>
+              <label className="login-remember-user">
+                <input type="checkbox" checked={rememberUser}
+                  onChange={event => setRememberUser(event.target.checked)} />
+                <span>Lembrar usuário</span>
+              </label>
+              <button className="login-submit" type="submit" disabled={busy}>
+                {busy ? 'Entrando…' : 'Entrar'}
+              </button>
+            </form>
+            {microsoftEnabled && (
               <a className="login-microsoft" href="/api/auth/microsoft"
                 aria-label="Entrar com a Microsoft">
                 <svg className="login-microsoft-icon" viewBox="0 0 24 24" aria-hidden="true">
