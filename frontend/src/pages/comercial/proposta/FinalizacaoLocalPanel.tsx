@@ -3,6 +3,7 @@ import {
   baixarAnexoDaProposta, baixarDocumento, emitirDocumentos,
   enviarAnexoDaProposta, finalizarPropostaLocal, listarAnexosDaProposta,
   listarDocumentosDaProposta, mensagemDeErro, removerAnexoDaProposta,
+  regerarDocumentosDaProposta,
   type AnexoDaProposta, type DocumentoEmitido
 } from '../../../api/comercial';
 import { CrmDeliveryPanel } from './CrmDeliveryPanel';
@@ -56,7 +57,9 @@ export function FinalizacaoLocalPanel({ proposalId, status, save, validate,
         setMessage('Salve o rascunho antes de emitir os documentos.');
         return;
       }
-      const result = await emitirDocumentos(id);
+      const result = docs.length === 4
+        ? await regerarDocumentosDaProposta(id)
+        : await emitirDocumentos(id);
       setDocs(result.documentos);
       setMessage('Propostas comercial e técnica disponíveis em PDF e DOCX.');
     } catch (error) {

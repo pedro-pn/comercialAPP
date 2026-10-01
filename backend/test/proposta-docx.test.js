@@ -94,6 +94,81 @@ for (const modelo of ['padrao', 'hidrojateamento']) {
         assert.deepEqual(imagemDoCabecalho(zip, capa), referencia);
       }
     });
+
+    test(`modelo e conteúdo gerado ${tipo} ${modelo} usam 10 pt e negrito só nos números dos subitens`, async () => {
+      const original = new AdmZip(await readFile(new URL(
+        `../models/comercial/${arquivoDoModelo(tipo, modelo)}`, import.meta.url
+      )));
+      const gerado = new AdmZip(await preencherProposta({
+        modelo,
+        scopeItems: [{ id: 'escopo', topics: [{ id: 'pai', text: 'Limpeza dos circuitos',
+          children: [{ id: 'filho', text: 'Preparação', children: [{ id: 'neto', text: 'Isolamento' }] }]
+        }] }],
+        rows: [{ owner: 'Filtrovali', categoria: 'Equipe', item: 'Equipe de execução' }],
+        prices: [{ local: 'ONSHORE', description: 'Serviço contratado', value: 'R$ 1.000,00' }],
+        scopeBlocks: [
+          { type: 'table', title: 'Medições', columns: ['Circuito', 'Volume'], rows: [['A', '100 L']] },
+          { type: 'photo', id: 'foto', fileName: 'foto.png', caption: 'Legenda da foto', aspectRatio: 20 }
+        ],
+        lerFoto: async () => ({ bytes: await readFile(new URL('../../frontend/public/favicon.png', import.meta.url)),
+          extensao: 'png', mime: 'image/png' }),
+        technicalServices: [{ serviceId: 'limpeza_quimica', title: 'Limpeza química contratada',
+          text: 'Texto técnico editado.', usesTemplate: false }],
+        workday: 'Jornada editada.', payment: 'Pagamento editado.',
+        observations: 'Observações editadas.', taxes: 'Impostos editados.',
+        technicalReports: 'Relatório complementar.', technicalObservations: 'Observação técnica.'
+      }, tipo));
+
+      for (const zip of [original, gerado]) {
+        const doc = lerParte(zip, 'word/document.xml');
+        const body = doc.getElementsByTagName('w:body').item(0);
+        const nodes = Array.from(body.childNodes).filter(no => no.nodeType === 1);
+        const inicio = nodes.findIndex(no => no.nodeName === 'w:p'
+          && texto(no) === 'Filtrovali é a escolha certa para a sua obra');
+        assert.ok(inicio > 0, 'O conteúdo deve começar depois da capa e do índice');
+        let subitens = 0;
+        for (const node of nodes.slice(inicio)) {
+          for (const run of Array.from(node.getElementsByTagName('w:r'))) {
+            if (!run.getElementsByTagName('w:t').length) continue;
+            for (const tag of ['w:sz', 'w:szCs']) {
+              assert.equal(run.getElementsByTagName(tag).item(0)?.getAttribute('w:val'), '20',
+                `${tag}: ${texto(run).slice(0, 80)}`);
+            }
+          }
+          const paragraphs = (node.nodeName === 'w:p' ? [node] : [])
+            .concat(Array.from(node.getElementsByTagName('w:p')));
+          for (const paragraph of paragraphs) {
+            const estilo = paragraph.getElementsByTagName('w:pStyle').item(0)?.getAttribute('w:val');
+            if (!/^Ttulo[23]$/.test(estilo || '')) continue;
+            subitens++;
+            for (const run of Array.from(paragraph.getElementsByTagName('w:r'))) {
+              if (!run.getElementsByTagName('w:t').length) continue;
+              assert.equal(run.getElementsByTagName('w:b').item(0)?.getAttribute('w:val'), 'false', texto(run));
+              assert.equal(run.getElementsByTagName('w:bCs').item(0)?.getAttribute('w:val'), 'false', texto(run));
+            }
+          }
+        }
+        assert.ok(subitens >= 5);
+        const numbering = lerParte(zip, 'word/numbering.xml');
+        const numero = Array.from(numbering.getElementsByTagName('w:num'))
+          .find(no => no.getAttribute('w:numId') === '2');
+        const abstractId = numero.getElementsByTagName('w:abstractNumId').item(0).getAttribute('w:val');
+        const lista = Array.from(numbering.getElementsByTagName('w:abstractNum'))
+          .find(no => no.getAttribute('w:abstractNumId') === abstractId);
+        for (const level of Array.from(lista.getElementsByTagName('w:lvl'))) {
+          assert.equal(level.getElementsByTagName('w:b').item(0).getAttribute('w:val'), 'true');
+          assert.equal(level.getElementsByTagName('w:sz').item(0).getAttribute('w:val'), '20');
+        }
+        for (const part of zip.getEntries().filter(entry => /^word\/footer\d*\.xml$/.test(entry.entryName))) {
+          const footer = lerParte(zip, part.entryName);
+          for (const run of Array.from(footer.getElementsByTagName('w:r'))) {
+            assert.equal(run.getElementsByTagName('w:sz').item(0)?.getAttribute('w:val'), '20',
+              'A numeração das páginas também deve usar 10 pt');
+          }
+        }
+      }
+      assert.match(texto(lerParte(gerado, 'word/document.xml')), /Legenda da foto/);
+    });
   }
 
   test(`documento comercial ${modelo} imprime a diária total sem espaços vazios`, async () => {

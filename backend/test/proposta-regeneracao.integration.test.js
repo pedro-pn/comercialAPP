@@ -102,9 +102,12 @@ test('regeneração preserva a proposta e publica arquivos completos com seguran
       assert.notEqual(current[0].generationId, original[0].generationId);
       assert.deepEqual(await db.proposal.findUnique({ where: { id: proposal.id } }), proposal);
       assert.equal(await db.proposalDocument.count({ where: { proposalId: proposal.id } }), 8);
-      assert.match((await downloadDocument(db, seller,
-        current.find(doc => doc.kind === 'COMERCIAL' && doc.format === 'PDF').id)).bytes.toString(),
-      /modelo atualizado/);
+      for (const doc of current) {
+        const type = doc.kind === 'COMERCIAL' ? 'commercial' : 'technical';
+        const file = await downloadDocument(db, seller, doc.id);
+        assert.equal(file.bytes.toString(),
+          `${doc.format === 'PDF' ? '%PDF' : 'PK'} modelo atualizado ${type}`);
+      }
       await assertOriginals(proposal, original);
       const reused = await issueDocuments(db, seller, proposal.id, () => {
         throw new Error('A emissão comum deve continuar reutilizando os documentos.');

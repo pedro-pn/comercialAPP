@@ -170,7 +170,7 @@ function Pagina({
 }) {
   return (
     <section
-      className="com-pagina"
+      className={`com-pagina${numero >= 3 ? ' com-pagina-conteudo' : ''}`}
       style={{ backgroundImage: `url(${PAGINA})` }}
       aria-label={`Página ${numero}`}
     >
@@ -182,6 +182,13 @@ function Pagina({
       <span className="com-pagina-numero">{numero}</span>
     </section>
   );
+}
+
+function TituloDoSubitem({ children }: { children: string }) {
+  const partes = children.match(/^(\d+(?:\.\d+)+)(\s[\s\S]*)$/u);
+  return <h3 className={partes ? 'com-doc-subitem' : undefined}>
+    {partes ? <><b>{partes[1]}</b>{partes[2]}</> : children}
+  </h3>;
 }
 
 export function DocumentoPrevia({
@@ -302,7 +309,7 @@ export function DocumentoPrevia({
 
         <Visual visual={VISUAIS.metrics} largura="100%" />
 
-        <h3>1.1 Tradição, excelência e referência em serviços industriais</h3>
+        <TituloDoSubitem>1.1 Tradição, excelência e referência em serviços industriais</TituloDoSubitem>
         {/* Duas colunas, como no documento: quatro serviços à esquerda e três à
             direita. Uma coluna só viraria uma lista corrida. */}
         <div className="com-doc-servicos-duas-colunas">
@@ -320,7 +327,7 @@ export function DocumentoPrevia({
 
         <FaixaDeVisuais visuais={VISUAIS.serviceGallery} />
 
-        <h3>1.2 Equipamentos modernos, revisados e de alto desempenho</h3>
+        <TituloDoSubitem>1.2 Equipamentos modernos, revisados e de alto desempenho</TituloDoSubitem>
         <FaixaDeVisuais visuais={VISUAIS.equipmentGallery} />
       </Pagina>
 
@@ -328,9 +335,9 @@ export function DocumentoPrevia({
         <Pagina numero={4 + pagina} data={data} key={`descricoes-${pagina}`}>
           {pagina === 0 && (
             <>
-              <h3>
+              <TituloDoSubitem>
                 1.3 Clientes que confiam e atestam a excelência da Filtrovali
-              </h3>
+              </TituloDoSubitem>
               <Visual visual={VISUAIS.clients} largura="86%" />
             </>
           )}
@@ -365,7 +372,7 @@ export function DocumentoPrevia({
           data={data}
           key={folha.chave}
         >
-          <h3>{tituloDoItemDeEscopo(itensEscopo, folha.scopeItemId)}</h3>
+          <TituloDoSubitem>{tituloDoItemDeEscopo(itensEscopo, folha.scopeItemId)}</TituloDoSubitem>
 
           {folha.tipo === 'table' ? (
             <>
@@ -532,12 +539,8 @@ export function DocumentoPrevia({
 
       {folhasTecnicas.map((folha, i) => (
         <Pagina numero={numeroDosPrazos + i + 1} data={data} key={folha.chave}>
-          <h3>
-            {folha.titulo}
-            {folha.totalDePartes > 1
-              ? ` — ${folha.parte}/${folha.totalDePartes}`
-              : ''}
-          </h3>
+          <TituloDoSubitem>{`${folha.titulo}${folha.totalDePartes > 1
+            ? ` — ${folha.parte}/${folha.totalDePartes}` : ''}`}</TituloDoSubitem>
           {/* `pre-wrap`: o texto técnico vem com quebras próprias, e colapsá-las
               transformaria a lista de etapas num parágrafo só. */}
           <p className="com-doc-tecnico">{folha.texto}</p>

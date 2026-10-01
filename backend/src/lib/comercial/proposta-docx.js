@@ -316,10 +316,10 @@ function xmlDeTabela(bloco) {
         cabecalho ? '<w:shd w:val="clear" w:fill="E8F0EB"/>' : ''
       }</w:tcPr>
       <w:p><w:pPr><w:spacing w:before="120" w:after="120" w:line="360" w:lineRule="auto"/><w:rPr>
-        <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="24"/>${cabecalho ? '<w:b/>' : ''}
+        <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="20"/><w:szCs w:val="20"/>${cabecalho ? '<w:b/>' : ''}
       </w:rPr></w:pPr>
       <w:r><w:rPr>
-        <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="24"/>${cabecalho ? '<w:b/>' : ''}
+        <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="20"/><w:szCs w:val="20"/>${cabecalho ? '<w:b/>' : ''}
       </w:rPr><w:t xml:space="preserve">${escapar(texto)}</w:t></w:r></w:p>
     </w:tc>`;
 
@@ -388,12 +388,10 @@ function ajustarRelatorios(doc, servicos) {
   }
 }
 
-function paragrafoDeTexto(doc, texto, { negrito = false, tamanho = 24, titulo = false } = {}) {
+function paragrafoDeTexto(doc, texto, { negrito = false, titulo = false } = {}) {
   const xml = `<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
     <w:pPr>${titulo ? '<w:pStyle w:val="Ttulo2"/>' : ''}<w:spacing w:before="${titulo ? 200 : 0}" w:after="120" w:line="360" w:lineRule="auto"/></w:pPr>
-    <w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="${tamanho}"/>${
-      negrito ? '<w:b/>' : ''
-    }</w:rPr><w:t xml:space="preserve">${escapar(texto)}</w:t></w:r>
+    <w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:b w:val="${negrito}"/><w:bCs w:val="${negrito}"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t xml:space="preserve">${escapar(texto)}</w:t></w:r>
   </w:p>`;
   return new DOMParser().parseFromString(xml, 'text/xml').documentElement;
 }
@@ -559,7 +557,7 @@ function ajustarEscopoTecnico(doc, servicos) {
     const titulo = paragrafoDeTexto(
       doc,
       servico.title || `Serviço ${indice + 1}`,
-      { negrito: true, titulo: true }
+      { titulo: true }
     );
     ancora.parentNode.insertBefore(titulo, ancora);
     for (const texto of paragrafosDeTexto(doc, servico.text || '')) {
@@ -695,7 +693,7 @@ async function preencherBlocosDoEscopo(zip, doc, blocos, lerFoto) {
     );
     inserir(paragrafo);
 
-    if (bloco.caption) inserir(paragrafoDeTexto(doc, bloco.caption, { tamanho: 16 }));
+    if (bloco.caption) inserir(paragrafoDeTexto(doc, bloco.caption));
   }
 
   if (mexeuNasRelacoes) {
