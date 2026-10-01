@@ -418,4 +418,31 @@ test('rascunhos, autoria, valores e concorrência no banco próprio', { skip: !d
     method: 'POST', cookie: sellerCookie
   })).data.numero, 8703);
   assert.equal(manager.role, 'ADMIN');
+
+  const numberedReservations = await db.proposalNumberReservation.findMany({ orderBy: { number: 'asc' } });
+  const changedNumbering = await request('/api/comercial/numeracao/inicial', {
+    method: 'PUT', cookie: managerCookie, body: { initialNumber: 9000 }
+  });
+  assert.equal(changedNumbering.status, 200);
+  assert.equal(changedNumbering.data.seedValue, 9000);
+  assert.equal(changedNumbering.data.nextNumber, 9000);
+  assert.equal((await request('/api/comercial/propostas/proximo-numero', {
+    method: 'POST', cookie: sellerCookie
+  })).data.numero, 9000);
+  assert.equal((await request('/api/comercial/numeracao/inicial', {
+    method: 'PUT', cookie: managerCookie, body: { initialNumber: 8700 }
+  })).status, 200);
+  const concurrentReservations = await Promise.all(Array.from({ length: 5 }, () =>
+    request('/api/comercial/propostas/proximo-numero', { method: 'POST', cookie: sellerCookie })));
+  assert.ok(concurrentReservations.every(result => result.status === 200));
+  const numbers = concurrentReservations.map(result => result.data.numero).sort((a, b) => a - b);
+  assert.equal(new Set(numbers).size, numbers.length);
+  assert.ok(numbers.every(number => number > 8703));
+  for (const reservation of numberedReservations) {
+    assert.deepEqual(await db.proposalNumberReservation.findUnique({
+      where: { number: reservation.number }
+    }), reservation);
+  }
+  assert.equal((await db.proposal.findUnique({ where: { id: proposal.data.id } })).proposalCode, '8700');
+  assert.equal((await db.proposal.findUnique({ where: { id: legacy.data.id } })).proposalCode, '8702');
 });

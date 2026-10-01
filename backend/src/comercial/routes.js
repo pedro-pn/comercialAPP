@@ -1,12 +1,13 @@
 import { Router, raw } from 'express';
 import { z } from 'zod';
 import { makeComercialSchemas } from '../../../shared/schemas/comercial.js';
-import { requireEstimator, requireManager } from './access.js';
+import { requireAdmin, requireEstimator, requireManager } from './access.js';
 import {
   archiveCostEstimate, createCostEstimate, getCostEstimate,
   listCostEstimates, updateCostEstimate
 } from './cost-estimates.js';
-import { initializeNumbering, numberingStatus, registerLegacyRevision, reserveNumber } from './numbering.js';
+import { initializeNumbering, numberingStatus, registerLegacyRevision, reserveNumber,
+  updateInitialNumber } from './numbering.js';
 import {
   archiveProposal, createProposal, getProposal, listProposals,
   prepareRevision, updateProposal
@@ -64,6 +65,11 @@ export function createCommercialRouter(db, { crm = createNectarClient() } = {}) 
   router.post('/numeracao/inicializar', requireManager, async (request, response) => {
     const { initialNumber } = initialNumberSchema.parse(request.body);
     response.status(201).json(await initializeNumbering(db, request.authUser, initialNumber));
+  });
+
+  router.put('/numeracao/inicial', requireAdmin, async (request, response) => {
+    const { initialNumber } = initialNumberSchema.parse(request.body);
+    response.json(await updateInitialNumber(db, request.authUser, initialNumber));
   });
 
   router.post('/propostas/proximo-numero', requireEstimator, async (request, response) => {

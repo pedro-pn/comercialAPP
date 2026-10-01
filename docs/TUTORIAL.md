@@ -18,8 +18,11 @@ Use dados fictícios ao treinar ou produzir exemplos de documentação.
 A administração cria a conta inicial pelo procedimento de instalação. Antes de
 reservar números, o administrador ou gestor deve configurar a sequência em
 **Acessos e numeração**, após conferir os códigos usados no CRM e no legado.
-O valor inicial é configurado uma única vez e números reservados não são
-reutilizados.
+Depois de configurado, somente o administrador pode alterar o valor inicial.
+Informe o novo número, confira os códigos do CRM e do legado e clique em
+**Alterar numeração**. O diálogo mostra o próximo número da sequência atual e o
+novo ponto de partida; a alteração só é salva ao clicar em **Confirmar alteração**.
+Propostas existentes mantêm seus números e números já reservados são pulados.
 
 ## Levantar os custos
 
