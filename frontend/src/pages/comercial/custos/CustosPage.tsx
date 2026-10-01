@@ -660,11 +660,11 @@ export function CustosPage({ somenteLevantamento = false }: { somenteLevantament
       return;
     }
 
-    if (criarPropostaDepois) {
+    if (criarPropostaDepois && !somenteLevantamento) {
       setMostrarConfirmacao(true);
       return;
     }
-    void salvar(false);
+    void salvar(criarPropostaDepois);
   }
 
   function renderAcoesDoLevantamento(posicao: 'topo' | 'rodape') {
@@ -703,8 +703,8 @@ export function CustosPage({ somenteLevantamento = false }: { somenteLevantament
               </button>
               <button type="button" className="com-btn com-btn-primario"
                 disabled={salvando || salvandoRascunho}
-                onClick={() => concluirLevantamento(false)}>
-                {salvando ? 'Salvando...' : 'Concluir levantamento'}
+                onClick={() => concluirLevantamento(true)}>
+                {salvando ? 'Salvando...' : 'Salvar e criar proposta'}
               </button>
             </>
           ) : secao === 'summary' ? (

@@ -14,6 +14,8 @@ import {
   atualizarProposta,
   baixarPreviaEmPdf,
   criarProposta,
+  emitirDocumentos,
+  finalizarPropostaLocal,
   listarConsultores,
   mensagemDeErro,
   obterLevantamento,
@@ -236,6 +238,8 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     useState<LevantamentoSalvo | null>(null);
   const [gerandoPdf, setGerandoPdf] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const [ocupadoLocal, setOcupadoLocal] = useState(false);
+  const [finalizandoLocal, setFinalizandoLocal] = useState(false);
   const [versaoCarregada, setVersaoCarregada] = useState('');
   const [statusProposta, setStatusProposta] = useState('RASCUNHO');
   const [pendenciaFinalizacao, setPendenciaFinalizacao] =
@@ -424,7 +428,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     // A API cria a proposta somente depois que os campos de identificação
     // obrigatórios existem. Até lá, o rascunho local continua protegendo o
     // preenchimento e o autosave fica pendente, pronto para a última resposta.
-    ocupado: salvando || !identificacaoCompleta,
+    ocupado: salvando || ocupadoLocal || !identificacaoCompleta,
     salvar: async () => Boolean(await salvar(false, true))
   });
 
@@ -607,13 +611,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     // usuário tenta avançar, não antes.
     setTentouAvancar(true);
     if (ultima && somenteRascunho) {
-      if (!identificacaoCompleta) {
-        irPara('cliente');
-        setTentouAvancar(true);
-        setEtapaParaFocar('cliente');
-        return;
-      }
-      if (await salvar()) setRecado('Rascunho de proposta salvo no histórico.');
+      await concluirFinalizacaoLocal();
       return;
     }
     if (pendencias.length > 0) {
@@ -647,6 +645,30 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     setEtapaParaFocar(pendencia.etapa);
     setRecado(`Complete a etapa ${ETAPAS.find(item => item.value === pendencia.etapa)?.label || pendencia.etapa} antes de emitir.`);
     return false;
+  }
+
+  async function concluirFinalizacaoLocal() {
+    if (salvando || ocupadoLocal || statusProposta !== 'RASCUNHO') return;
+    if (!validarParaEmissaoLocal()) return;
+    setOcupadoLocal(true);
+    setFinalizandoLocal(true);
+    try {
+      const id = await salvar();
+      if (!id) return;
+      setRecado('Emitindo os documentos atualizados...');
+      // A emissão reaproveita os arquivos quando correspondem aos dados salvos.
+      await emitirDocumentos(id);
+      setRecado('Finalizando a proposta...');
+      await finalizarPropostaLocal(id);
+      setStatusProposta('FINALIZADA');
+      finalizacao.marcarFinalizada(true);
+      setRecado('Proposta finalizada. Os arquivos permanecem disponíveis no histórico.');
+    } catch (error) {
+      setRecado(mensagemDeErro(error, 'Não foi possível finalizar a proposta.'));
+    } finally {
+      setFinalizandoLocal(false);
+      setOcupadoLocal(false);
+    }
   }
 
   function editar(patch: AnyRecord) {
@@ -917,10 +939,12 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
         primeiraEtapa={indice === 0}
         aviso={avisoDePendencias(pendencias)}
         rotulo={
-          salvando
+          finalizandoLocal
+            ? 'Finalizando proposta...'
+            : salvando
             ? 'Salvando...'
             : somenteRascunho && ultima
-              ? statusProposta === 'FINALIZADA' ? 'Proposta finalizada' : 'Salvar rascunho'
+              ? statusProposta === 'FINALIZADA' ? 'Proposta finalizada' : 'Finalizar proposta'
             : finalizacao.finalizando
               ? ETAPAS_VISIVEIS_DA_FINALIZACAO[
                   Math.max(0, finalizacao.etapaFinalizacao)
@@ -939,7 +963,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
                           proximaEtapa?.label
                         )
         }
-        ocupado={salvando || gerandoPdf || finalizacao.bloqueada ||
+        ocupado={salvando || ocupadoLocal || gerandoPdf || finalizacao.bloqueada ||
           (somenteRascunho && statusProposta === 'FINALIZADA')}
         onVoltar={() =>
           statusProposta !== 'RASCUNHO'
@@ -1297,10 +1321,8 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
               </section>
               <FinalizacaoLocalPanel proposalId={propostaId} status={statusProposta}
                 save={() => salvar()} validate={validarParaEmissaoLocal}
-                onFinalized={() => {
-                  setStatusProposta('FINALIZADA');
-                  finalizacao.marcarFinalizada(true);
-                }} />
+                busy={salvando || ocupadoLocal || gerandoPdf}
+                onBusyChange={setOcupadoLocal} />
             </>
           ) : (
             <RevisaoStep

@@ -926,6 +926,54 @@ export function textoJornada(modelo: ModeloProposta): string {
   return `${TEXTO_JORNADA_FLEXIBILIDADE}\n\n${turnos}\n\n${NOTA_JORNADA_HORA_EXTRA}`;
 }
 
+export type ParagrafoDaJornada = {
+  texto: string;
+  nivel: 0 | 1 | 2;
+  numero?: string;
+};
+
+/** Mantém a hierarquia dos turnos mesmo quando a jornada é editada como texto. */
+export function paragrafosDaJornada(texto: string): ParagrafoDaJornada[] {
+  const paragrafos: ParagrafoDaJornada[] = [];
+  let turno = 0;
+  let subitem = 0;
+  let dentroDoTurno = false;
+  let linhasDeTexto: string[] = [];
+  const guardarTexto = () => {
+    if (!linhasDeTexto.length) return;
+    paragrafos.push({ texto: linhasDeTexto.join("\n"), nivel: 0 });
+    linhasDeTexto = [];
+  };
+
+  for (const linha of texto.trim().split(/\r?\n/u)) {
+    const conteudo = linha.trim();
+    if (!conteudo) {
+      guardarTexto();
+      continue;
+    }
+    const titulo = conteudo.replace(/^6\.\d+\.?\s+/u, "");
+    if (/^Turno\b.*:\s*$/iu.test(titulo)) {
+      guardarTexto();
+      turno++;
+      subitem = 0;
+      dentroDoTurno = true;
+      paragrafos.push({ texto: titulo, nivel: 1, numero: `6.${turno}` });
+    } else if (dentroDoTurno && !/^(?:Notas?|Observações)\s*:/iu.test(conteudo)) {
+      subitem++;
+      paragrafos.push({
+        texto: conteudo.replace(/^6\.\d+\.\d+\.?\s+/u, ""),
+        nivel: 2,
+        numero: `6.${turno}.${subitem}`,
+      });
+    } else {
+      dentroDoTurno = false;
+      linhasDeTexto.push(linha);
+    }
+  }
+  guardarTexto();
+  return paragrafos;
+}
+
 // ---------------------------------------------------------------------------
 // Descrição de valores (item 7)
 // ---------------------------------------------------------------------------

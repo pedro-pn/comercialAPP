@@ -22,6 +22,7 @@ import {
   TITULO_BLOCO_STANDBY,
   fraseHoraExtra,
   observacoesTecnicasDoModelo,
+  paragrafosDaJornada,
   tabelasDePrecoDoModelo,
   tabelaStandby,
   totalStandbyEquipe,
@@ -478,9 +479,11 @@ export function DocumentoPrevia({
         <p className="com-doc-nota">{NOTA_PRAZO_DESLOCAMENTO}</p>
 
         <h3>6. Jornada de trabalho</h3>
-        <p className="com-doc-tecnico">
-          {texto('workday', textoJornada(modelo))}
-        </p>
+        {paragrafosDaJornada(texto('workday', textoJornada(modelo))).map((item, i) => (
+          <p key={i} className={`com-doc-tecnico com-doc-jornada-nivel-${item.nivel}`}>
+            {item.numero && <><b>{item.numero}</b>{' '}</>}{item.texto}
+          </p>
+        ))}
       </Pagina>
 
       {!tecnico && (
@@ -526,8 +529,8 @@ export function DocumentoPrevia({
             );
           })}
 
-          {incluirServicosExtraEscopo(servicosTecnicos) && SERVICOS_EXTRA_ESCOPO.map((observacao) => (
-            <p className="com-doc-nota" key={observacao}>
+          {incluirServicosExtraEscopo(servicosTecnicos) && SERVICOS_EXTRA_ESCOPO.map((observacao, i) => (
+            <p className={`com-doc-nota${i === 0 ? ' com-doc-extra-escopo-inicio' : ''}`} key={observacao}>
               {observacao}
             </p>
           ))}
