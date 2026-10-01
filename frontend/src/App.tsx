@@ -18,6 +18,26 @@ const ApiCentralPage = lazy(() => import('./pages/comercial/ApiCentralPage')
   .then(module => ({ default: module.ApiCentralPage })));
 const REMEMBERED_USER_KEY = 'comercialapp-remembered-user';
 
+type SessionState =
+  | { status: 'checking' }
+  | { status: 'authenticated'; user: CommercialUser }
+  | { status: 'unauthenticated' }
+  | { status: 'unavailable' };
+
+function LoadingScreen({ unavailable = false, onRetry }: {
+  unavailable?: boolean;
+  onRetry?: () => void;
+}) {
+  return <main className="auth-loading" role={unavailable ? 'alert' : 'status'} aria-live="polite">
+    <div className="auth-loading-content">
+      <span className="auth-loading-brand">Filtrovali</span>
+      <strong>Comercial</strong>
+      <p>{unavailable ? 'Não foi possível verificar seu acesso.' : 'Carregando…'}</p>
+      {unavailable && <button type="button" onClick={onRetry}>Tentar novamente</button>}
+    </div>
+  </main>;
+}
+
 function readRememberedUser() {
   try { return localStorage.getItem(REMEMBERED_USER_KEY) || ''; }
   catch { return ''; }
@@ -39,8 +59,8 @@ function errorMessage(error: unknown) {
 export function App() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [user, setUser] = useState<CommercialUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [session, setSession] = useState<SessionState>({ status: 'checking' });
+  const [authAttempt, setAuthAttempt] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [username, setUsername] = useState(readRememberedUser);
@@ -50,16 +70,40 @@ export function App() {
   const [microsoftEnabled, setMicrosoftEnabled] = useState(false);
 
   useEffect(() => {
-    getAuthProviders().then(providers => setMicrosoftEnabled(providers.microsoft)).catch(() => {});
-    getCurrentUser()
-      .then(setUser)
-      .catch((requestError: unknown) => {
-        if (!(requestError instanceof ApiClientError && requestError.status === 401)) {
-          setError('A API do Comercial não está disponível.');
+    let active = true;
+    getAuthProviders().then(providers => {
+      if (active) setMicrosoftEnabled(providers.microsoft);
+    }).catch(() => {});
+
+    async function verifySession() {
+      for (let attempt = 0; attempt < 2 && active; attempt++) {
+        try {
+          const user = await getCurrentUser();
+          if (active) setSession({ status: 'authenticated', user });
+          return;
+        } catch (requestError) {
+          if (!active) return;
+          if (requestError instanceof ApiClientError && requestError.status === 401) {
+            setSession({ status: 'unauthenticated' });
+            return;
+          }
+          if (attempt === 0) {
+            await new Promise(resolve => setTimeout(resolve, 400));
+          } else {
+            setSession({ status: 'unavailable' });
+          }
         }
-      })
-      .finally(() => setLoading(false));
-  }, []);
+      }
+    }
+
+    void verifySession();
+    return () => { active = false; };
+  }, [authAttempt]);
+
+  function retrySession() {
+    setSession({ status: 'checking' });
+    setAuthAttempt(attempt => attempt + 1);
+  }
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -68,7 +112,7 @@ export function App() {
     try {
       const loggedInUser = await login(username, password);
       saveRememberedUser(username, rememberUser);
-      setUser(loggedInUser);
+      setSession({ status: 'authenticated', user: loggedInUser });
       setPassword('');
     } catch (requestError) {
       setError(errorMessage(requestError));
@@ -83,13 +127,14 @@ export function App() {
     setError('');
     try {
       await logout();
-      setUser(null);
+      setSession({ status: 'unauthenticated' });
       navigate('/');
     } catch (requestError) {
       setError(errorMessage(requestError));
     } finally { setBusy(false); }
   }
 
+  const user = session.status === 'authenticated' ? session.user : null;
   const contextUser: AuthUser | null = user && {
     id: user.id,
     name: user.name,
@@ -99,8 +144,9 @@ export function App() {
       user.role === 'SELLER' ? ['comercial:seller'] : []
   };
 
-  if (loading) {
-    return <main className="auth-loading" role="status" aria-live="polite">Verificando acesso…</main>;
+  if (session.status === 'checking') return <LoadingScreen />;
+  if (session.status === 'unavailable') {
+    return <LoadingScreen unavailable onRetry={retrySession} />;
   }
 
   if (user && (location.pathname === '/' ||
@@ -116,7 +162,7 @@ export function App() {
         logout: handleLogout
       }}>
         {location.pathname === '/' ? <ComercialPage /> :
-          <Suspense fallback={<main className="shell" role="status">Carregando Comercial...</main>}>
+          <Suspense fallback={<LoadingScreen />}>
             {location.pathname === '/custos' ? <CustosPage somenteLevantamento /> :
               location.pathname === '/configuracoes' ? <ConfiguracoesPage /> :
                 <PropostaPage somenteRascunho />}
@@ -132,7 +178,7 @@ export function App() {
   if (user && location.pathname === '/api-central') {
     if (user.role !== 'ADMIN') return <Navigate to="/" replace />;
     return <AuthContext.Provider value={{ user: contextUser!, logout: handleLogout }}>
-      <Suspense fallback={<main className="shell" role="status">Carregando Central de API...</main>}>
+      <Suspense fallback={<LoadingScreen />}>
         <ApiCentralPage />
       </Suspense>
     </AuthContext.Provider>;
@@ -145,7 +191,7 @@ export function App() {
 
   if (user) {
     return <AuthContext.Provider value={{ user: contextUser!, logout: handleLogout }}>
-      <AcessosPage user={user} onSelfPasswordChanged={() => setUser(null)} />
+      <AcessosPage user={user} onSelfPasswordChanged={() => setSession({ status: 'unauthenticated' })} />
     </AuthContext.Provider>;
   }
 
