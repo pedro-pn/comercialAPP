@@ -63,6 +63,7 @@ function historyItem(item, viewer) {
     estimatorName: item.estimatorName,
     title: typeof item.payload?.title === 'string' ? item.payload.title : '',
     finalizedAt: item.finalizedAt,
+    archivedAt: item.archivedAt,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
     documents: describeDocuments(item,

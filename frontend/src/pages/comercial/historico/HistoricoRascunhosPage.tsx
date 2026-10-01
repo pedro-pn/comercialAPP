@@ -204,7 +204,10 @@ export function HistoricoRascunhosPage({ user, onLogout }: Props) {
                 podeVerValores={podeVerValores} rascunhosOnly
                 onBaixarDocumento={(documento) => { void baixar(documento); }}
                 baixandoDocumentoId={baixandoDocumentoId}
-                onAbrirProposta={podeVerValores ? abrirProposta : undefined} />
+                onAbrirProposta={podeVerValores ? abrirProposta : undefined}
+                onDocumentosRegenerados={podeVerValores ? (id, documents) =>
+                  setPropostas(current => current.map(proposta => proposta.id === id
+                    ? { ...proposta, documents } : proposta)) : undefined} />
                 : <div className="com-history-empty com-history-empty-compact">Nenhuma proposta encontrada.</div>}
               {totalPropostas > REGISTROS_POR_PAGINA && (
                 <div className="com-oferta-acoes" aria-label="Paginação das propostas">

@@ -1,4 +1,5 @@
 import type { DocumentoEmitido, PropostaSalva } from '../../../api/comercial';
+import { RegerarDocumentosButton } from '../proposta/RegerarDocumentosButton';
 
 type HistoricoTabelaProps = {
   propostas: PropostaSalva[];
@@ -7,6 +8,7 @@ type HistoricoTabelaProps = {
   baixandoDocumentoId?: string;
   onAbrirProposta?: (proposta: PropostaSalva) => void;
   onCriarRevisao?: (proposta: PropostaSalva) => void;
+  onDocumentosRegenerados?: (proposalId: string, documents: DocumentoEmitido[]) => void;
   rascunhosOnly?: boolean;
 };
 
@@ -100,6 +102,7 @@ export function HistoricoTabela({
   baixandoDocumentoId,
   onAbrirProposta,
   onCriarRevisao,
+  onDocumentosRegenerados,
   rascunhosOnly = false
 }: HistoricoTabelaProps) {
   const mostraAcoes = Boolean(onAbrirProposta || onCriarRevisao);
@@ -155,6 +158,11 @@ export function HistoricoTabela({
                     onBaixarDocumento={onBaixarDocumento}
                     baixandoDocumentoId={baixandoDocumentoId}
                   />}
+                  {podeVerValores && onDocumentosRegenerados && documentos.length === 4
+                    && !proposta.archivedAt && proposta.status !== 'FINALIZANDO' && (
+                    <RegerarDocumentosButton proposalId={proposta.id}
+                      onRegenerated={documents => onDocumentosRegenerados(proposta.id, documents)} />
+                  )}
                 </td>
                 <td>
                   <span>Vendedor</span>

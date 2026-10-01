@@ -8,6 +8,7 @@ import {
 import { CrmDeliveryPanel } from './CrmDeliveryPanel';
 import { SharePointDeliveryPanel } from './SharePointDeliveryPanel';
 import { FiltroAppDeliveryPanel } from './FiltroAppDeliveryPanel';
+import { RegerarDocumentosButton } from './RegerarDocumentosButton';
 
 function download(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
@@ -157,6 +158,8 @@ export function FinalizacaoLocalPanel({ proposalId, status, save, validate,
           </button>
         </li>)}
       </ul>
+      {finalized && docs.length === 4 && <RegerarDocumentosButton
+        proposalId={proposalId} onRegenerated={setDocs} />}
     </div>}
 
     {!finalized && <div className="com-local-actions">

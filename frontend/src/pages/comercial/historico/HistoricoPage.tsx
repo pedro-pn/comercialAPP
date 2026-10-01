@@ -329,6 +329,9 @@ export function HistoricoPage() {
                   onBaixarDocumento={(documento) => void baixar(documento)}
                   onAbrirProposta={podeVerValores ? abrirProposta : undefined}
                   onCriarRevisao={podeVerValores ? criarRevisao : undefined}
+                  onDocumentosRegenerados={podeVerValores ? (id, documents) =>
+                    setPropostas(current => current.map(proposta => proposta.id === id
+                      ? { ...proposta, documents } : proposta)) : undefined}
                 />
               ) : (
                 <div className="com-history-empty com-history-empty-compact">
