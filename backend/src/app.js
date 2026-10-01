@@ -9,7 +9,6 @@ import { requireCrmEventToken, recordCrmEvent, deliverToFiltro,
 import { crmEventSchema } from './comercial/crm-event-schema.js';
 import { z } from 'zod';
 
-const cookieName = 'comercial_session';
 const microsoftFlowCookieName = 'comercial_microsoft_flow';
 const sessionMaxAge = sessionDays * 24 * 60 * 60 * 1000;
 
@@ -18,10 +17,8 @@ function readCookie(request, name) {
     .find(part => part.startsWith(`${name}=`));
   return cookie?.slice(name.length + 1) ?? null;
 }
-const readSessionCookie = request => readCookie(request, cookieName);
-
-function sessionCookieOptions(production) {
-  return { httpOnly: true, secure: production, sameSite: 'strict', path: '/api' };
+function sessionCookieOptions(secureCookies) {
+  return { httpOnly: true, secure: secureCookies, sameSite: 'strict', path: '/api' };
 }
 
 function loginLimiter() {
@@ -50,8 +47,10 @@ function loginLimiter() {
 }
 
 export function createApp({ authService, commercialDb, crm, appOrigin, additionalOrigins = [],
-  production = false, microsoftAuth = null } = {}) {
+  production = false, secureCookies = production, sessionCookieName = 'comercial_session',
+  microsoftAuth = null } = {}) {
   const app = express();
+  const readSessionCookie = request => readCookie(request, sessionCookieName);
   const limiter = loginLimiter();
   const allowedOrigins = new Set([appOrigin, ...additionalOrigins].filter(Boolean));
   app.disable('x-powered-by');
@@ -131,8 +130,8 @@ export function createApp({ authService, commercialDb, crm, appOrigin, additiona
     try {
       const result = await authService.login(username, password);
       limiter.clear(key);
-      response.cookie(cookieName, result.token, {
-        ...sessionCookieOptions(production), maxAge: sessionMaxAge
+      response.cookie(sessionCookieName, result.token, {
+        ...sessionCookieOptions(secureCookies), maxAge: sessionMaxAge
       });
       response.set('Cache-Control', 'no-store').json({ user: result.user });
     } catch (error) {
@@ -149,7 +148,7 @@ export function createApp({ authService, commercialDb, crm, appOrigin, additiona
     if (!microsoftAuth) throw new HttpError(404, 'Login Microsoft indisponível.');
     const flow = await microsoftAuth.start();
     response.cookie(microsoftFlowCookieName, flow.cookieValue, {
-      httpOnly: true, secure: production, sameSite: 'lax',
+      httpOnly: true, secure: secureCookies, sameSite: 'lax',
       path: '/api/auth/microsoft/callback', maxAge: 10 * 60 * 1000
     });
     response.set('Cache-Control', 'no-store').redirect(302, flow.url);
@@ -159,7 +158,7 @@ export function createApp({ authService, commercialDb, crm, appOrigin, additiona
     if (!microsoftAuth) throw new HttpError(404, 'Login Microsoft indisponível.');
     const cookieValue = readCookie(request, microsoftFlowCookieName);
     response.clearCookie(microsoftFlowCookieName, {
-      httpOnly: true, secure: production, sameSite: 'lax',
+      httpOnly: true, secure: secureCookies, sameSite: 'lax',
       path: '/api/auth/microsoft/callback'
     });
     try {
@@ -168,8 +167,8 @@ export function createApp({ authService, commercialDb, crm, appOrigin, additiona
         code: request.query.code, state: request.query.state, cookieValue
       });
       const result = await authService.loginMicrosoft(identity);
-      response.cookie(cookieName, result.token, {
-        ...sessionCookieOptions(production),
+      response.cookie(sessionCookieName, result.token, {
+        ...sessionCookieOptions(secureCookies),
         maxAge: microsoftSessionHours * 60 * 60 * 1000
       });
       response.set('Cache-Control', 'no-store').redirect(303, `${appOrigin}/`);
@@ -186,7 +185,7 @@ export function createApp({ authService, commercialDb, crm, appOrigin, additiona
 
   app.post('/api/auth/logout', async (request, response) => {
     await authService.logout(readSessionCookie(request));
-    response.clearCookie(cookieName, sessionCookieOptions(production));
+    response.clearCookie(sessionCookieName, sessionCookieOptions(secureCookies));
     response.status(204).end();
   });
 

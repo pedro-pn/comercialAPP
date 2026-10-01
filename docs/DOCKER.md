@@ -41,6 +41,9 @@ O Compose espera o banco ficar saudável antes de iniciar a API e espera a API
 antes de iniciar o Nginx do Comercial.
 Os arquivos `docker-compose.local.yml` e `docker-compose.prod.yml` são completos;
 cada um pode ser usado sozinho com um único `-f`.
+O `docker-compose.staging.yml` também é completo: use `--env-file .env.staging`
+e siga o [guia de staging na VPS](STAGING.md) para publicar HTTP em 8087 com
+login local e recursos separados da produção.
 Para preparar o Nectar, preencha as variáveis `NECTAR_*` no `.env` da raiz,
 conforme [o guia do CRM](NECTAR.md), e recrie a API com o Compose. O valor
 inicial `NECTAR_MODE=off` não faz chamadas externas.

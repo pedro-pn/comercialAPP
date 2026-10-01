@@ -59,6 +59,7 @@ jobs:
         run: |
           docker compose -f docker-compose.local.yml config --quiet
           docker compose -f docker-compose.prod.yml config --quiet
+          docker compose --env-file .env.staging.example -f docker-compose.staging.yml config --quiet
 
       - name: Validate backup scripts
         run: bash -n deploy/backup-prod.sh deploy/restore-prod.sh

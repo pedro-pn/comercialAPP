@@ -1,0 +1,79 @@
+name: comercialapp-staging
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: comercialapp_staging
+      POSTGRES_USER: comercial
+      POSTGRES_PASSWORD: ${STAGING_DB_PASSWORD:?Configure STAGING_DB_PASSWORD em .env.staging e use --env-file .env.staging}
+    volumes:
+      - comercial_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U comercial -d comercialapp_staging"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - private
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://comercial:${STAGING_DB_PASSWORD:?Configure STAGING_DB_PASSWORD em .env.staging e use --env-file .env.staging}@db:5432/comercialapp_staging?schema=public
+      APP_ORIGIN: ${STAGING_APP_ORIGIN:?Configure STAGING_APP_ORIGIN com a URL HTTP de staging incluindo a porta}
+      APP_ENV: staging
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 4300
+      COMERCIAL_DIR: /data/comercial
+      # Staging usa somente usuário/senha local e não monta certificados Entra.
+      ENTRA_LOGIN_ENABLED: "off"
+      # Sem conexões externas, inclusive se o shell/.env tiver credenciais reais.
+      NECTAR_MODE: "off"
+      SHAREPOINT_MODE: "off"
+      GOOGLE_MAPS_MODE: "off"
+      FILTROAPP_API_URL: ""
+      FILTROAPP_API_TOKEN: ""
+    volumes:
+      - comercial_files:/data/comercial
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4300/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - private
+
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      # 80 dentro do contêiner; 8087 no host, sem disputar a porta do FiltroAPP.
+      - "${STAGING_BIND_IP:-0.0.0.0}:${STAGING_HTTP_PORT:-8087}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - private
+
+volumes:
+  comercial_pgdata:
+  comercial_files:
+
+networks:
+  private:
