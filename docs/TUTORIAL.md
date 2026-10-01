@@ -90,8 +90,10 @@ preenchido pode ter formato inválido: confira a mensagem junto ao CNPJ ou e-mai
    em cada formato.
 4. Baixe e confira os arquivos. Cada download confere os dados, os modelos Word
    e o gerador; se houver alterações, o aplicativo atualiza os quatro arquivos
-   antes de baixar o formato escolhido. **Atualizar documentos** também permite
-   forçar uma nova geração.
+   antes de baixar o formato escolhido. Edições pendentes no rascunho são salvas
+   antes da geração; sem edições, o download usa a proposta já salva. Se o
+   salvamento falhar, a tela informa o motivo e interrompe o download.
+   **Atualizar documentos** também permite forçar uma nova geração.
 5. Clique em **Finalizar proposta** nas ações do topo ou do rodapé. O aplicativo
    valida todas as etapas, salva as alterações e emite os documentos atualizados
    antes de finalizar. Você também pode finalizar diretamente por esse botão,

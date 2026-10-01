@@ -145,7 +145,7 @@ export function useAutosaveServidor({
 
   useEffect(() => cancelarTimer, [cancelarTimer]);
 
-  /** Informa ao hook que um salvamento manual já gravou este snapshot. */
+  /** Informa ao hook que um salvamento já gravou este snapshot. */
   const marcarSalvo = useCallback(
     (dadosSalvos: unknown) => {
       assinaturaSalva.current = assinatura(dadosSalvos);
@@ -160,5 +160,11 @@ export function useAutosaveServidor({
     [agendar, cancelarTimer]
   );
 
-  return { estado, rotulo: rotuloDoAutosave(estado), marcarSalvo };
+  const temAlteracoesPendentes = useCallback(() => Boolean(
+    ativoRef.current &&
+    identidadePreparada.current === identidadeAtual.current &&
+    assinaturaAtual.current !== assinaturaSalva.current
+  ), []);
+
+  return { estado, rotulo: rotuloDoAutosave(estado), marcarSalvo, temAlteracoesPendentes };
 }
