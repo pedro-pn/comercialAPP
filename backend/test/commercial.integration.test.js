@@ -323,6 +323,9 @@ test('rascunhos, autoria, valores e concorrência no banco próprio', { skip: !d
       assert.equal(snapshot.projectId, 'project-test-1');
       assert.equal(snapshot.proposalCode, '8700');
       assert.equal(snapshot.salePrice, 1500);
+      assert.deepEqual(snapshot.scope, completed.data.payload.scopeItems);
+      assert.deepEqual(snapshot.estimateSummary.hours, { normal: 0, overtime: 0, total: 0 });
+      assert.equal(snapshot.estimateSummary.costs.total, 0);
       return { ok: true, json: async () => ({ budgetStatus: 'SELECTED' }) };
     });
     assert.equal(delivered.status, 'SUCESSO');

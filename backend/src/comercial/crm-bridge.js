@@ -1,7 +1,9 @@
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { HttpError } from '../auth/service.js';
+import { calculateEstimate } from '../../../shared/comercial/dist/cost-model.js';
 import { assertCanRead } from './access.js';
 import { createNectarClient } from './nectar.js';
+import { estimateForFinalizedProposal } from './finalized-estimate.js';
 
 const LEASE_MS = 2 * 60_000;
 
@@ -206,7 +208,47 @@ export async function syncNectarOpportunity(db, opportunityId, crm = createNecta
   return { ...recorded, projectId, delivery };
 }
 
-function payloadForFiltro(proposal, estimate, eventId) {
+export function estimateSummaryForFiltro(estimate) {
+  if (!estimate) return null;
+  const result = calculateEstimate(estimate.payload);
+  const round = value => Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+  const phases = result.contextResults.map(context => ({
+    name: context.name,
+    durationDays: context.durationDays,
+    workingDays: context.workingDays,
+    headcount: context.headcount,
+    normalHours: context.normalHours,
+    overtimeHours: round(context.laborHours - context.normalHours),
+    totalHours: context.laborHours
+  }));
+  const normalHours = round(phases.reduce((sum, phase) => sum + phase.normalHours, 0));
+  const totalHours = result.totalLaborHours;
+  return {
+    schemaVersion: 1,
+    hours: { normal: normalHours, overtime: round(totalHours - normalHours), total: totalHours },
+    workload: { personDays: result.totalPersonDays, peakHeadcount: result.peakHeadcount, phases },
+    costs: {
+      labor: result.laborCost,
+      indirect: result.indirectCost,
+      materials: result.materialCost,
+      inputs: result.inputCost,
+      filters: result.filterCost,
+      effluent: result.effluentCost,
+      mobilization: result.mobilizationCost,
+      demobilization: result.demobilizationCost,
+      referralBonus: result.employeeReferralBonusCost,
+      direct: result.directCost,
+      overhead: result.overheadValue,
+      total: Number(estimate.totalCost),
+      taxesAtEstimatePrice: result.taxValue,
+      commissionAtEstimatePrice: result.commissionValue,
+      representativeCommissionAtEstimatePrice: result.representativeCommissionValue,
+      commercialExpenseAtEstimatePrice: result.commercialValue
+    }
+  };
+}
+
+export function payloadForFiltro(proposal, estimate, eventId) {
   const money = value => value == null ? null : Number(value);
   return {
     contractVersion: 1, eventId, source: 'COMERCIAL_APP',
@@ -217,10 +259,11 @@ function payloadForFiltro(proposal, estimate, eventId) {
     client: { name: proposal.clientName, cnpj: proposal.cnpj,
       contact: proposal.contact, email: proposal.email },
     title: String(proposal.payload?.title || ''), site: proposal.site,
-    scope: proposal.payload?.scope ?? proposal.payload?.technicalServices ?? [],
+    scope: proposal.payload?.scopeItems ?? proposal.payload?.scope ?? proposal.payload?.technicalServices ?? [],
     salePrice: money(proposal.totalValue), plannedTotalCost: money(estimate?.totalCost),
     expectedMargin: money(estimate?.marginPercent),
     costBreakdown: estimate?.payload ?? null,
+    estimateSummary: estimateSummaryForFiltro(estimate),
     proposalSnapshot: proposal.payload
   };
 }
@@ -256,8 +299,7 @@ export async function deliverToFiltro(db, proposalId, transport = fetch) {
     orderBy: { occurredAt: 'desc' }
   });
   if (!event) throw new HttpError(409, 'Não há evento de aprovação para esta proposta.');
-  const estimate = proposal.costEstimateId
-    ? await db.costEstimate.findUnique({ where: { id: proposal.costEstimateId } }) : null;
+  const estimate = await estimateForFinalizedProposal(db, proposal);
   const payload = payloadForFiltro(proposal, estimate, event.eventId);
   const attemptId = randomUUID();
   const claimed = await db.proposal.updateMany({

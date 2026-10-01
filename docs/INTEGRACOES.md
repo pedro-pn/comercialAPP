@@ -68,9 +68,27 @@ atual vem do Access, a troca exige `replaceLegacy: true` e confirmação na tela
 O dashboard usa o
 orçamento selecionado sem apagar as linhas `CommercialProposal` importadas do
 Access.
+O Prisma informa ao FiltroAPP a identidade do projeto e o vínculo com a proposta.
+Após a aprovação, o ComercialAPP entrega diretamente os dados da proposta ao
+FiltroAPP, incluindo os itens estruturados do escopo da proposta. Quando há
+levantamento vinculado, a entrega inclui `estimateSummary`
+com horas normais, extras e totais, carga de trabalho por fase e categorias de
+custo calculadas pelo mesmo motor que gera o levantamento. A revisão fica no
+histórico do FiltroAPP; somente a revisão selecionada alimenta o orçamento e as
+horas previstas do cronograma. Sem levantamento, `estimateSummary` é `null`.
+O custo previsto é o custo direto. Insumos já incluem filtros e efluente;
+tributos, comissões, despesas comerciais e overhead são valores de precificação
+informados separadamente, sem somá-los novamente ao custo previsto.
+O CSV anexado ao CRM e esse resumo usam a última versão do levantamento salva
+até a finalização da proposta; edições posteriores do levantamento não alteram
+os dados entregues da proposta finalizada.
 Falhas de entrega têm até dez tentativas automáticas com espera progressiva;
 após isso, o gestor pode corrigir o vínculo e reenviar. Revisões em staging são
 consultadas novamente a cada quinze minutos para atualizar o estado local.
+Na implantação, publique primeiro o receptor do FiltroAPP e depois o emissor
+do ComercialAPP. Propostas já marcadas como `SUCESSO` não são reenviadas pela
+rotina automática; para preencher o novo resumo nelas será necessária uma
+rotina específica de atualização.
 
 O receptor está na `main` local do FiltroAPP, commit `4bc5def0`, preparado em
 um worktree isolado e depois integrado por avanço direto. É preciso implantar
