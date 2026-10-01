@@ -25,6 +25,7 @@ import {
 } from '../../../../shared/comercial/dist/technical-services.js';
 import { convertDocxToPdf } from '../report-pdf-from-docx.js';
 import { EMU_POR_MM, registrarImagem, xmlDeImagem } from '../docx/imagem.js';
+import { marcarSumarioParaAtualizar, separarSumarios } from '../docx/sumario.js';
 import { lerDinheiro, moeda } from './dinheiro.js';
 import {
   cloneBefore,
@@ -314,11 +315,11 @@ function xmlDeTabela(bloco) {
       <w:tcPr><w:tcW w:w="${largura}" w:type="dxa"/>${
         cabecalho ? '<w:shd w:val="clear" w:fill="E8F0EB"/>' : ''
       }</w:tcPr>
-      <w:p><w:pPr><w:spacing w:before="40" w:after="40"/><w:rPr>
-        <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="20"/>${cabecalho ? '<w:b/>' : ''}
+      <w:p><w:pPr><w:spacing w:before="120" w:after="120" w:line="360" w:lineRule="auto"/><w:rPr>
+        <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="24"/>${cabecalho ? '<w:b/>' : ''}
       </w:rPr></w:pPr>
       <w:r><w:rPr>
-        <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="20"/>${cabecalho ? '<w:b/>' : ''}
+        <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="24"/>${cabecalho ? '<w:b/>' : ''}
       </w:rPr><w:t xml:space="preserve">${escapar(texto)}</w:t></w:r></w:p>
     </w:tc>`;
 
@@ -387,9 +388,9 @@ function ajustarRelatorios(doc, servicos) {
   }
 }
 
-function paragrafoDeTexto(doc, texto, { negrito = false, tamanho = 20 } = {}) {
+function paragrafoDeTexto(doc, texto, { negrito = false, tamanho = 24, titulo = false } = {}) {
   const xml = `<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-    <w:pPr><w:spacing w:before="0" w:after="120" w:line="240" w:lineRule="auto"/></w:pPr>
+    <w:pPr>${titulo ? '<w:pStyle w:val="Ttulo2"/>' : ''}<w:spacing w:before="${titulo ? 200 : 0}" w:after="120" w:line="360" w:lineRule="auto"/></w:pPr>
     <w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="${tamanho}"/>${
       negrito ? '<w:b/>' : ''
     }</w:rPr><w:t xml:space="preserve">${escapar(texto)}</w:t></w:r>
@@ -557,8 +558,8 @@ function ajustarEscopoTecnico(doc, servicos) {
   normalizeTechnicalServiceSelections(servicos).forEach((servico, indice) => {
     const titulo = paragrafoDeTexto(
       doc,
-      `7.${indice + 1} ${servico.title || `Serviço ${indice + 1}`}`,
-      { negrito: true }
+      servico.title || `Serviço ${indice + 1}`,
+      { negrito: true, titulo: true }
     );
     ancora.parentNode.insertBefore(titulo, ancora);
     for (const texto of paragrafosDeTexto(doc, servico.text || '')) {
@@ -712,9 +713,39 @@ function preencherDescricoesDoEscopo(doc, itens) {
   if (!modelo) return;
   const clones = scopeDescriptionParagraphs(itens).map(item => {
     const clone = modelo.cloneNode(true);
+    // Bookmarks do modelo não podem se repetir em cada serviço gerado.
+    for (const tag of ['w:bookmarkStart', 'w:bookmarkEnd']) {
+      Array.from(clone.getElementsByTagName(tag)).forEach(removeNode);
+    }
     // Mantém a lista multinível do modelo: 2.1, 2.2 e 2.2.1, 2.2.2...
     // Cada texto é um w:p, nunca uma quebra de linha dentro do mesmo item.
-    const nivel = clone.getElementsByTagName('w:ilvl').item(0);
+    let nivel = clone.getElementsByTagName('w:ilvl').item(0);
+    const estilo = clone.getElementsByTagName('w:pStyle').item(0);
+    if (estilo?.getAttribute('w:val') === 'Ttulo2') {
+      estilo.setAttribute('w:val', item.level === 1 ? 'Ttulo2' : 'Ttulo3');
+      const propriedades = clone.getElementsByTagName('w:pPr').item(0);
+      // O Word pode salvar a numeração somente no estilo do título.
+      // Os clones precisam do nível explícito para suportar itens mais profundos.
+      let numeracao = propriedades.getElementsByTagName('w:numPr').item(0);
+      if (!numeracao) {
+        numeracao = doc.createElement('w:numPr');
+        propriedades.insertBefore(numeracao, propriedades.getElementsByTagName('w:spacing').item(0)
+          || propriedades.getElementsByTagName('w:rPr').item(0));
+        const id = doc.createElement('w:numId');
+        id.setAttribute('w:val', '2');
+        numeracao.appendChild(id);
+      }
+      if (!nivel) {
+        nivel = doc.createElement('w:ilvl');
+        numeracao.insertBefore(nivel, numeracao.firstChild);
+      }
+      let outline = propriedades.getElementsByTagName('w:outlineLvl').item(0);
+      if (!outline) {
+        outline = doc.createElement('w:outlineLvl');
+        propriedades.insertBefore(outline, propriedades.getElementsByTagName('w:rPr').item(0));
+      }
+      outline.setAttribute('w:val', String(Math.min(item.level, 8)));
+    }
     if (nivel) nivel.setAttribute('w:val', String(item.level));
     replacePlaceholders(clone, { servico: nivel ? item.text : `${item.number} ${item.text}` });
     return clone;
@@ -738,6 +769,7 @@ export async function preencherProposta(dados, tipo) {
     if (!item) continue;
 
     const doc = new DOMParser().parseFromString(item.getData().toString('utf8'), 'text/xml');
+    const restaurarSumarios = parte === 'word/document.xml' ? separarSumarios(doc) : () => {};
 
     if (parte === 'word/document.xml') {
       if (tipo === 'commercial') ajustarRotuloStandby(doc, dados.standbyTeamQuantity);
@@ -791,10 +823,12 @@ export async function preencherProposta(dados, tipo) {
     const campos = { ...camposSimples(dados), ...totais };
     if (cabecalhosDaCapa.has(parte)) campos.data_texto = '';
     replacePlaceholders(doc.documentElement, campos);
+    restaurarSumarios();
 
     zip.updateFile(parte, Buffer.from(new XMLSerializer().serializeToString(doc), 'utf8'));
   }
 
+  marcarSumarioParaAtualizar(zip);
   return zip.toBuffer();
 }
 
