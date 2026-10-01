@@ -17,10 +17,12 @@ import {
   emitirDocumentos,
   finalizarPropostaLocal,
   listarConsultores,
+  listarDocumentosDaProposta,
   mensagemDeErro,
   obterLevantamento,
   obterProposta,
   reservarProximoNumero,
+  regerarDocumentosDaProposta,
   registrarRevisaoLegada,
   ComercialConcurrentWriteError,
   type Consultor,
@@ -93,6 +95,7 @@ import { ComercialStep } from './steps/ComercialStep';
 import { ResponsabilidadesStep } from './steps/ResponsabilidadesStep';
 import { RevisaoStep } from './steps/RevisaoStep';
 import { FinalizacaoLocalPanel } from './FinalizacaoLocalPanel';
+import { useDocumentosDaProposta } from './useDocumentosDaProposta';
 import { TecnicaStep } from './steps/TecnicaStep';
 import { TutorialDoModulo } from '../TutorialDoModulo';
 import { ROTEIRO_DA_PROPOSTA } from '../roteiroDoTutorial';
@@ -240,6 +243,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
   const [salvando, setSalvando] = useState(false);
   const [ocupadoLocal, setOcupadoLocal] = useState(false);
   const [finalizandoLocal, setFinalizandoLocal] = useState(false);
+  const documentosLocais = useDocumentosDaProposta(somenteRascunho ? propostaId : '');
   const [versaoCarregada, setVersaoCarregada] = useState('');
   const [statusProposta, setStatusProposta] = useState('RASCUNHO');
   const [pendenciaFinalizacao, setPendenciaFinalizacao] =
@@ -656,10 +660,15 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
       const id = await salvar();
       if (!id) return;
       setRecado('Emitindo os documentos atualizados...');
-      // A emissão reaproveita os arquivos quando correspondem aos dados salvos.
-      await emitirDocumentos(id);
+      const anteriores = await listarDocumentosDaProposta(id);
+      // Os dados podem ser iguais, mas a formatação do modelo ter sido corrigida.
+      const emitidos = anteriores.length === 4
+        ? await regerarDocumentosDaProposta(id)
+        : await emitirDocumentos(id);
+      documentosLocais.atualizarDocumentos(id, emitidos.documentos);
       setRecado('Finalizando a proposta...');
-      await finalizarPropostaLocal(id);
+      const finalizada = await finalizarPropostaLocal(id);
+      documentosLocais.atualizarDocumentos(id, finalizada.documentos);
       setStatusProposta('FINALIZADA');
       finalizacao.marcarFinalizada(true);
       setRecado('Proposta finalizada. Os arquivos permanecem disponíveis no histórico.');
@@ -1321,6 +1330,9 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
               </section>
               <FinalizacaoLocalPanel proposalId={propostaId} status={statusProposta}
                 save={() => salvar()} validate={validarParaEmissaoLocal}
+                docs={documentosLocais.documentos}
+                documentsError={documentosLocais.erro}
+                onDocumentsChange={documentosLocais.atualizarDocumentos}
                 busy={salvando || ocupadoLocal || gerandoPdf}
                 onBusyChange={setOcupadoLocal} />
             </>

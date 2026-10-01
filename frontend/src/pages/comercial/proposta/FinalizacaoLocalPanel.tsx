@@ -21,15 +21,17 @@ function download(blob: Blob, name: string) {
 }
 
 export function FinalizacaoLocalPanel({ proposalId, status, save, validate,
-  busy, onBusyChange: setBusy }: {
+  docs, documentsError, onDocumentsChange, busy, onBusyChange: setBusy }: {
   proposalId: string;
   status: string;
   save: () => Promise<string | null>;
   validate: () => boolean;
+  docs: DocumentoEmitido[];
+  documentsError: string;
+  onDocumentsChange: (id: string, documents: DocumentoEmitido[]) => void;
   busy: boolean;
   onBusyChange: (busy: boolean) => void;
 }) {
-  const [docs, setDocs] = useState<DocumentoEmitido[]>([]);
   const [attachments, setAttachments] = useState<AnexoDaProposta[]>([]);
   const [message, setMessage] = useState('');
   const finalized = status === 'FINALIZADA';
@@ -37,13 +39,12 @@ export function FinalizacaoLocalPanel({ proposalId, status, save, validate,
   useEffect(() => {
     if (!proposalId) return;
     let live = true;
-    Promise.all([listarDocumentosDaProposta(proposalId), listarAnexosDaProposta(proposalId)])
-      .then(([documents, annexes]) => {
+    listarAnexosDaProposta(proposalId)
+      .then(annexes => {
         if (!live) return;
-        setDocs(documents);
         setAttachments(annexes.items);
       })
-      .catch(error => { if (live) setMessage(mensagemDeErro(error, 'Falha ao carregar arquivos.')); });
+      .catch(error => { if (live) setMessage(mensagemDeErro(error, 'Falha ao carregar anexos.')); });
     return () => { live = false; };
   }, [proposalId, status]);
 
@@ -57,10 +58,11 @@ export function FinalizacaoLocalPanel({ proposalId, status, save, validate,
         setMessage('Salve o rascunho antes de emitir os documentos.');
         return;
       }
-      const result = docs.length === 4
+      const anteriores = await listarDocumentosDaProposta(id);
+      const result = anteriores.length === 4
         ? await regerarDocumentosDaProposta(id)
         : await emitirDocumentos(id);
-      setDocs(result.documentos);
+      onDocumentsChange(id, result.documentos);
       setMessage('Propostas comercial e técnica disponíveis em PDF e DOCX.');
     } catch (error) {
       setMessage(mensagemDeErro(error, 'Não foi possível emitir os documentos.'));
@@ -143,7 +145,8 @@ export function FinalizacaoLocalPanel({ proposalId, status, save, validate,
         </li>)}
       </ul>
       {finalized && docs.length === 4 && <RegerarDocumentosButton
-        proposalId={proposalId} onRegenerated={setDocs} />}
+        proposalId={proposalId}
+        onRegenerated={documents => onDocumentsChange(proposalId, documents)} />}
     </div>}
 
     {!finalized && <div className="com-local-actions">
@@ -153,6 +156,7 @@ export function FinalizacaoLocalPanel({ proposalId, status, save, validate,
       </button>
     </div>}
     {message && <p className="com-recado" role="status">{message}</p>}
+    {documentsError && <p className="com-recado" role="alert">{documentsError}</p>}
   </section><CrmDeliveryPanel proposalId={proposalId} finalized={finalized} />
     <SharePointDeliveryPanel proposalId={proposalId} finalized={finalized} />
     <FiltroAppDeliveryPanel proposalId={proposalId} finalized={finalized} /></>;
