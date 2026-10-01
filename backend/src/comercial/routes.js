@@ -14,7 +14,7 @@ import {
 } from './proposals.js';
 import { addAttachment, downloadAttachment, listAttachments, removeAttachment } from './attachments.js';
 import { downloadDocument, finalizeLocal, issueDocuments, listDocuments, previewPdf,
-  regenerateDocuments } from './documents.js';
+  refreshDocuments, regenerateDocuments } from './documents.js';
 import { readPhoto, uploadPhoto } from './photos.js';
 import { ATTACHMENT_LIMITS, SCOPE_PHOTO_LIMITS } from '../../../shared/schemas/comercial.js';
 import { HttpError } from '../auth/service.js';
@@ -187,6 +187,11 @@ export function createCommercialRouter(db, { crm = createNectarClient() } = {}) 
   router.post('/propostas/:id/documentos/regerar', requireEstimator, async (request, response) => {
     z.object({}).strict().parse(request.body ?? {});
     response.status(201).json(await regenerateDocuments(db, request.authUser, request.params.id));
+  });
+
+  router.post('/propostas/:id/documentos/atualizar', requireEstimator, async (request, response) => {
+    z.object({}).strict().parse(request.body ?? {});
+    response.json(await refreshDocuments(db, request.authUser, request.params.id));
   });
 
   router.get('/documentos/:id', async (request, response) => {

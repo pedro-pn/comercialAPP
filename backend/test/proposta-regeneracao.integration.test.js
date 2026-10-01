@@ -8,7 +8,7 @@ import path from 'node:path';
 import { createApp } from '../src/app.js';
 import { createDatabase } from '../src/db.js';
 import { currentDocuments, documentData, downloadDocument, finalizeLocal,
-  issueDocuments, regenerateDocuments } from '../src/comercial/documents.js';
+  issueDocuments, listDocuments, refreshDocuments, regenerateDocuments } from '../src/comercial/documents.js';
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 
@@ -133,17 +133,106 @@ test('regeneração preserva a proposta e publica arquivos completos com seguran
       await assertOriginals(proposal, original);
     });
 
+    await t.test('mudanças no modelo ou motor invalidam o cache mesmo com os mesmos dados', async () => {
+      const proposal = await fixture();
+      const original = await currentDocuments(db, proposal.id);
+      let renderer = 'modelo e motor v1';
+      const rendererHash = async () => renderer;
+      const first = await issueDocuments(db, seller, proposal.id, pair(renderer), rendererHash);
+      assert.ok(first.documentos.every(item => !original.some(old => old.id === item.id)));
+      const forbidden = () => { throw new Error('Documentos atuais devem ser reutilizados.'); };
+      const reused = await refreshDocuments(db, seller, proposal.id, forbidden, rendererHash);
+      assert.deepEqual(reused.documentos.map(item => item.id).sort(),
+        first.documentos.map(item => item.id).sort());
+      assert.ok((await listDocuments(db, seller, proposal.id, rendererHash)).items
+        .every(item => item.outdated === false));
+
+      for (const update of ['modelo atualizado', 'motor atualizado']) {
+        renderer = update;
+        assert.ok((await listDocuments(db, seller, proposal.id, rendererHash)).items
+          .every(item => item.outdated));
+        await assert.rejects(finalizeLocal(db, seller, proposal.id, rendererHash), { status: 409 });
+        const result = await issueDocuments(db, seller, proposal.id, pair(update), rendererHash);
+        assert.equal(result.documentos.length, 4);
+        for (const item of result.documentos) {
+          assert.match((await downloadDocument(db, seller, item.id)).bytes.toString(), new RegExp(update));
+        }
+        assert.ok((await listDocuments(db, seller, proposal.id, rendererHash)).items
+          .every(item => !item.outdated));
+      }
+      assert.deepEqual(await db.proposal.findUnique({ where: { id: proposal.id } }), proposal);
+      await assertOriginals(proposal, original);
+    });
+
+    await t.test('arquivos anteriores à assinatura do gerador são atualizados uma única vez', async () => {
+      const proposal = await fixture();
+      const original = await currentDocuments(db, proposal.id);
+      await db.proposalDocument.updateMany({ where: { proposalId: proposal.id },
+        data: { rendererHash: null } });
+      const result = await refreshDocuments(db, seller, proposal.id, pair('migrado'));
+      assert.ok(result.documentos.every(item => !original.some(old => old.id === item.id)));
+      const reused = await refreshDocuments(db, seller, proposal.id, () => {
+        throw new Error('A segunda consulta não deve converter novamente.');
+      });
+      assert.deepEqual(reused.documentos.map(item => item.id).sort(),
+        result.documentos.map(item => item.id).sort());
+    });
+
+    await t.test('download atualiza os quatro arquivos após edição da proposta salva', async () => {
+      const proposal = await fixture();
+      const original = await currentDocuments(db, proposal.id);
+      await db.proposal.update({ where: { id: proposal.id }, data: { clientName: 'Novo cliente' } });
+      const result = await refreshDocuments(db, seller, proposal.id, async (data, type) => {
+        assert.equal(data.client, 'Novo cliente');
+        return pair('novo cliente')(data, type);
+      });
+      assert.equal(result.documentos.length, 4);
+      assert.ok(result.documentos.every(item => !original.some(old => old.id === item.id)));
+      assert.ok((await listDocuments(db, seller, proposal.id)).items.every(item => !item.outdated));
+      await assertOriginals(proposal, original);
+    });
+
+    await t.test('atualização automática da finalizada preserva os dados e as integrações', async () => {
+      const proposal = await fixture();
+      await finalizeLocal(db, seller, proposal.id);
+      const finalized = await db.proposal.findUnique({ where: { id: proposal.id } });
+      const original = await currentDocuments(db, proposal.id);
+      const result = await refreshDocuments(db, seller, proposal.id, pair('novo motor'), async () => 'motor v2');
+      assert.equal(result.documentos.length, 4);
+      assert.deepEqual(await db.proposal.findUnique({ where: { id: proposal.id } }), finalized);
+      await assertOriginals(proposal, original);
+    });
+
+    await t.test('modelo alterado durante a conversão impede publicação parcial', async () => {
+      const proposal = await fixture();
+      const original = await currentDocuments(db, proposal.id);
+      const before = await files();
+      let renderer = 'v1';
+      await assert.rejects(refreshDocuments(db, seller, proposal.id, async (data, type) => {
+        if (type === 'technical') renderer = 'v2';
+        return pair('modelo mudou')(data, type);
+      }, async () => renderer), { status: 409 });
+      assert.deepEqual(await files(), before);
+      assert.deepEqual(await currentDocuments(db, proposal.id), original);
+      await assertOriginals(proposal, original);
+    });
+
     await t.test('respeita autoria, perfil, arquivamento e finalização em andamento', async () => {
       const proposal = await fixture();
       const forbidden = () => { throw new Error('Não deve gerar arquivos.'); };
       await assert.rejects(regenerateDocuments(db, colleague, proposal.id, forbidden), { status: 403 });
       await assert.rejects(regenerateDocuments(db, viewer, proposal.id, forbidden), { status: 403 });
+      await assert.rejects(refreshDocuments(db, colleague, proposal.id, forbidden), { status: 403 });
+      await assert.rejects(refreshDocuments(db, viewer, proposal.id, forbidden), { status: 403 });
       await assert.rejects(regenerateDocuments(db, seller, 'inexistente', forbidden), { status: 404 });
       const archived = await fixture({ archivedAt: new Date() });
       const finalizing = await fixture({ status: 'FINALIZANDO' });
       const withoutFiles = await fixture({ emitted: false });
       for (const invalid of [archived, finalizing, withoutFiles]) {
         await assert.rejects(regenerateDocuments(db, seller, invalid.id, forbidden), { status: 409 });
+      }
+      for (const invalid of [archived, finalizing]) {
+        await assert.rejects(refreshDocuments(db, seller, invalid.id, forbidden), { status: 409 });
       }
       const failedIntegration = await fixture({ status: 'FALHA_INTEGRACAO' });
       await regenerateDocuments(db, seller, failedIntegration.id, pair('novo'));
@@ -240,8 +329,8 @@ test('regeneração preserva a proposta e publica arquivos completos com seguran
         authService: { authenticate: token => users.find(user => user.id === token) } }).listen(0, '127.0.0.1');
       await once(server, 'listening');
       try {
-        const endpoint = `http://127.0.0.1:${server.address().port}/api/comercial/propostas/${proposal.id}/documentos/regerar`;
-        const request = (user, body, csrf = true) => fetch(endpoint, {
+        const endpoint = `http://127.0.0.1:${server.address().port}/api/comercial/propostas/${proposal.id}/documentos`;
+        const request = (user, body, csrf = true, action = 'regerar') => fetch(`${endpoint}/${action}`, {
           method: 'POST', headers: { 'Content-Type': 'application/json',
             ...(csrf ? { 'X-Comercial-Request': '1' } : {}),
             ...(user ? { Cookie: `comercial_session=${user.id}` } : {}) },
@@ -252,6 +341,16 @@ test('regeneração preserva a proposta e publica arquivos completos com seguran
         assert.equal((await request(colleague, {})).status, 403);
         assert.equal((await request(seller, {}, false)).status, 403);
         assert.equal((await request(seller, { revisionNumber: 3, payload: {} })).status, 400);
+        assert.equal((await request(null, {}, true, 'atualizar')).status, 401);
+        assert.equal((await request(viewer, {}, true, 'atualizar')).status, 403);
+        assert.equal((await request(colleague, {}, true, 'atualizar')).status, 403);
+        assert.equal((await request(seller, {}, false, 'atualizar')).status, 403);
+        assert.equal((await request(seller, { payload: {} }, true, 'atualizar')).status, 400);
+        const current = await currentDocuments(db, proposal.id);
+        const response = await request(seller, {}, true, 'atualizar');
+        assert.equal(response.status, 200);
+        assert.deepEqual((await response.json()).documentos.map(item => item.id).sort(),
+          current.map(item => item.id).sort());
         assert.deepEqual(await db.proposal.findUnique({ where: { id: proposal.id } }), proposal);
       } finally {
         await new Promise(resolve => server.close(resolve));

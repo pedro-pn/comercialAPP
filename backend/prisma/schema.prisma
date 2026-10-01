@@ -256,6 +256,7 @@ model ProposalDocument {
   proposal     Proposal               @relation(fields: [proposalId], references: [id], onDelete: Cascade)
   generationId String
   payloadHash  String
+  rendererHash String?
   kind         ProposalDocumentKind
   format       ProposalDocumentFormat
   storagePath  String

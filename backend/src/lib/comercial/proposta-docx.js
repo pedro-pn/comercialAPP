@@ -152,6 +152,10 @@ export function arquivoDoModelo(tipo, modelo) {
   return ARQUIVOS[`${tipo}:${modelo}`] || ARQUIVOS[`${tipo}:padrao`];
 }
 
+export function caminhoDoModelo(tipo, modelo) {
+  return path.join(MODELOS, arquivoDoModelo(tipo, modelo));
+}
+
 function formatarData(iso) {
   const bruto = String(iso || '').trim();
   if (!bruto) return '';
@@ -784,8 +788,7 @@ function preencherDescricoesDoEscopo(doc, itens) {
 
 export async function preencherProposta(dados, tipo) {
   const modelo = dados.modelo === 'hidrojateamento' ? 'hidrojateamento' : 'padrao';
-  const arquivo = arquivoDoModelo(tipo, modelo);
-  const zip = new AdmZip(await readFile(path.join(MODELOS, arquivo)));
+  const zip = new AdmZip(await readFile(caminhoDoModelo(tipo, modelo)));
   const cabecalhosDaCapa = configurarCapaSemData(zip);
 
   const linhas = Array.isArray(dados.rows) ? dados.rows : [];

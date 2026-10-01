@@ -474,6 +474,7 @@ export interface DocumentoEmitido {
   format?: 'PDF' | 'DOCX';
   fileName: string;
   byteSize: number;
+  outdated?: boolean;
 }
 
 export interface FunilNectar {
@@ -748,6 +749,16 @@ export async function regerarDocumentosDaProposta(proposalId: string) {
     proposalCode: string;
     documentos: DocumentoEmitido[];
   }>(`/comercial/propostas/${proposalId}/documentos/regerar`, {});
+  return data;
+}
+
+/** Confere dados, modelos e gerador antes de entregar os arquivos atuais. */
+export async function atualizarDocumentosDaProposta(proposalId: string) {
+  const { data } = await apiClient.post<{
+    proposalId: string;
+    proposalCode: string;
+    documentos: DocumentoEmitido[];
+  }>(`/comercial/propostas/${proposalId}/documentos/atualizar`, {});
   return data;
 }
 
