@@ -77,7 +77,7 @@ async function generatePair(data, type) {
     const pdfPath = path.join(directory, 'proposta.pdf');
     await writeFile(docxPath, docx);
     await convertDocxToPdf(docxPath, pdfPath);
-    return { docx, pdf: await readFile(pdfPath) };
+    return { docx: await readFile(docxPath), pdf: await readFile(pdfPath) };
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

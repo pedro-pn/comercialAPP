@@ -37,6 +37,9 @@ host. Nenhum contêiner consulta o banco do FiltroAPP.
    dados e os arquivos da stack Comercial.
 
 A API executa `prisma migrate deploy` ao iniciar, como ocorre no FiltroAPP.
+O contêiner inclui LibreOffice e `python3-uno` para atualizar o sumário e suas
+páginas antes de emitir Word e PDF. Fora do Docker, instale esses dois pacotes;
+`PYTHON_BIN` pode indicar o Python que possui o módulo `uno`.
 O Compose espera o banco ficar saudável antes de iniciar a API e espera a API
 antes de iniciar o Nginx do Comercial.
 Os arquivos `docker-compose.local.yml` e `docker-compose.prod.yml` são completos;
