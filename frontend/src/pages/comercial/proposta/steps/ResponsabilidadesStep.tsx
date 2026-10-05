@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { EQUIPAMENTOS_E_FERRAMENTAS_PADRAO } from '../../../../../../shared/comercial/dist/modelo-documento.js';
 import { AvisoPendencia } from '../../custos/ConfirmacaoEscopo';
@@ -93,8 +93,8 @@ export function ResponsabilidadesStep({
     const novaLinha = linhaParaFocar.current;
     if (!novaLinha) return;
     const linhaId = idDaLinha(novaLinha);
-    const campo = tabelaRef.current?.querySelector<HTMLInputElement>(
-      `[data-responsabilidade-id="${linhaId}"] input`
+    const campo = tabelaRef.current?.querySelector<HTMLTextAreaElement>(
+      `[data-responsabilidade-id="${linhaId}"] textarea`
     );
     campo?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     campo?.focus();
@@ -141,9 +141,16 @@ export function ResponsabilidadesStep({
 
   type CampoDeTexto = 'item' | 'owner' | 'note' | 'categoria';
 
+  function atualizarLinha(linha: LinhaResponsabilidade, patch: Partial<LinhaResponsabilidade>) {
+    const proxima = { ...linha, ...patch };
+    // A edição cria outro objeto; a chave do elemento continua sendo a da linha.
+    idsDasLinhas.current.set(proxima, idDaLinha(linha));
+    return proxima;
+  }
+
   function editar(indice: number, campo: CampoDeTexto, valor: string) {
     onLinhas(atual =>
-      atual.map((linha, i) => (i === indice ? { ...linha, [campo]: valor } : linha))
+      atual.map((linha, i) => (i === indice ? atualizarLinha(linha, { [campo]: valor }) : linha))
     );
   }
 
@@ -165,7 +172,7 @@ export function ResponsabilidadesStep({
     if (indiceDosEquipamentos < 0) return;
     onLinhas(atual =>
       atual.map((linha, indice) =>
-        indice === indiceDosEquipamentos ? { ...linha, subitens: proximos } : linha
+        indice === indiceDosEquipamentos ? atualizarLinha(linha, { subitens: proximos }) : linha
       )
     );
   }
@@ -525,12 +532,11 @@ export function ResponsabilidadesStep({
                       </select>
                     </td>
                     <td>
-                      <input
-                        aria-label={`Item da responsabilidade ${indice + 1}`}
-                        className={semItem ? 'com-campo-invalido' : undefined}
-                        aria-invalid={semItem || undefined}
+                      <TextoDaMatriz
+                        label={`Item da responsabilidade ${indice + 1}`}
+                        invalido={semItem}
                         value={linha.item}
-                        onChange={evento => editar(indice, 'item', evento.target.value)}
+                        onChange={valor => editar(indice, 'item', valor)}
                       />
                     </td>
                     <td>
@@ -547,10 +553,10 @@ export function ResponsabilidadesStep({
                       </select>
                     </td>
                     <td>
-                      <input
-                        aria-label={`Nota do item ${indice + 1}`}
+                      <TextoDaMatriz
+                        label={`Nota do item ${indice + 1}`}
                         value={linha.note}
-                        onChange={evento => editar(indice, 'note', evento.target.value)}
+                        onChange={valor => editar(indice, 'note', valor)}
                       />
                     </td>
                     <td>
@@ -614,4 +620,40 @@ export function ResponsabilidadesStep({
       </div>
     </section>
   );
+}
+
+function TextoDaMatriz({ label, value, onChange, invalido = false }: {
+  label: string;
+  value: string;
+  onChange: (valor: string) => void;
+  invalido?: boolean;
+}) {
+  const campo = useRef<HTMLTextAreaElement>(null);
+
+  function ajustarAltura() {
+    const element = campo.current;
+    if (!element) return;
+    element.style.height = 'auto';
+    element.style.height = `${element.scrollHeight + element.offsetHeight - element.clientHeight}px`;
+  }
+
+  useLayoutEffect(ajustarAltura, [value]);
+  useEffect(() => {
+    const element = campo.current;
+    if (!element) return;
+    let largura = element.getBoundingClientRect().width;
+    const observer = new ResizeObserver(entries => {
+      const novaLargura = entries[0].contentRect.width;
+      if (novaLargura !== largura) {
+        largura = novaLargura;
+        ajustarAltura();
+      }
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  return <textarea ref={campo} className={`com-matriz-texto${invalido ? ' com-campo-invalido' : ''}`}
+    rows={2} aria-label={label} aria-invalid={invalido || undefined} value={value}
+    onChange={evento => onChange(evento.target.value)} />;
 }

@@ -28,8 +28,8 @@ import { useReordenacao } from '../useReordenacao';
  * ninguém esqueceu de listar o controle — não prova que alguém entendeu o que ele faz.
  *
  * **Os limites são por PROPOSTA, não por item** (`allBlocks`, não `blocks`). Oito
- * tabelas espalhadas em quatro serviços já esgotam a cota. Contar por item deixaria
- * uma proposta com 32 tabelas passar, e o gerador de PDF não aguenta.
+ * tabelas espalhadas nos serviços compartilham a mesma cota, incluindo as tabelas
+ * preenchidas automaticamente a partir do dimensionamento.
  *
  * **As fotos são otimizadas aqui e revalidadas lá.** O cliente redimensiona, achata
  * sobre branco e recomprime para caber em 1,5 MB; o servidor confere tipo, tamanho e
@@ -201,7 +201,7 @@ export function ScopeContentEditor({ itemId, blocks, allBlocks, onChange,
           <span>
             {permitirFotos
               ? 'Inclua apenas quando necessário. Sem upload, nenhuma foto será inserida neste item.'
-              : 'Inclua tabelas quando forem necessárias para descrever o serviço.'}
+              : 'Edite as tabelas do levantamento ou inclua novas tabelas para descrever o serviço.'}
           </span>
         </div>
         <div className="com-blocos-acoes">
@@ -358,6 +358,16 @@ function TabelaDoEscopo({
   tabela: ScopeTableBlock;
   onChange: (atualizar: (t: ScopeTableBlock) => ScopeTableBlock) => void;
 }) {
+  function moverLinha(index: number, direction: -1 | 1) {
+    onChange(current => {
+      const destination = index + direction;
+      if (destination < 0 || destination >= current.rows.length) return current;
+      const rows = [...current.rows];
+      [rows[index], rows[destination]] = [rows[destination], rows[index]];
+      return { ...current, rows };
+    });
+  }
+
   return (
     <>
       <div className="field-group">
@@ -426,6 +436,12 @@ function TabelaDoEscopo({
                   </td>
                 ))}
                 <td>
+                  <button type="button" className="com-btn com-btn-fantasma"
+                    aria-label={`Mover linha ${l + 1} para cima`} disabled={l === 0}
+                    onClick={() => moverLinha(l, -1)}>↑</button>
+                  <button type="button" className="com-btn com-btn-fantasma"
+                    aria-label={`Mover linha ${l + 1} para baixo`} disabled={l === tabela.rows.length - 1}
+                    onClick={() => moverLinha(l, 1)}>↓</button>
                   <button
                     type="button"
                     className="com-remover"

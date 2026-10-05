@@ -1,7 +1,8 @@
 import type { LevantamentoSalvo } from '../../../api/comercial';
 import { calculateEstimate, normalizeCostEstimatePayload } from '../../../../../shared/comercial/dist/cost-model.js';
 import { dimensioningItems, dimensioningServiceAllowed } from '../../../../../shared/comercial/dist/dimensioning.js';
-import type { ScopeServiceItem } from '../../../../../shared/comercial/dist/scope-content.js';
+import { scopeTablesFromDimensioning } from '../../../../../shared/comercial/dist/dimensioning-scope.js';
+import type { ScopeBlock, ScopeServiceItem } from '../../../../../shared/comercial/dist/scope-content.js';
 import {
   createTechnicalServiceSelection,
   getTechnicalServiceDefinition,
@@ -38,6 +39,7 @@ type GrupoDeServico = {
 
 export type ServicosImportadosDoLevantamento = {
   escopo: ScopeServiceItem[];
+  blocos: ScopeBlock[];
   tecnicos: TechnicalServiceSelection[];
 };
 
@@ -143,6 +145,7 @@ export function servicosImportadosDoLevantamento(
 
   return {
     tecnicos,
+    blocos: scopeTablesFromDimensioning(levantamento.payload || {}),
     escopo: grupos.map((grupo, indice) => {
       const selecao = tecnicos[indice];
       const nomes = grupo.circuitos.map(circuito => circuito.name);
@@ -156,21 +159,6 @@ export function servicosImportadosDoLevantamento(
       };
     })
   };
-}
-
-/** Só substitui o cartão vazio criado automaticamente para uma proposta nova. */
-export function preencherEscopoAusenteDoLevantamento(
-  atual: ScopeServiceItem[],
-  importado: ScopeServiceItem[]
-): ScopeServiceItem[] {
-  if (!importado.length) return atual;
-  const itemInicial = atual.length === 1 ? atual[0] : undefined;
-  const tituloGenerico = /^serviço\s+\d+$/iu.test(itemInicial?.title.trim() || '');
-  const podePreencher = !atual.length
-    || Boolean(itemInicial && !itemInicial.description.trim() && tituloGenerico);
-  return podePreencher
-    ? importado
-    : atual;
 }
 
 /** Preserva ajustes já feitos na aba Técnica de uma proposta existente. */

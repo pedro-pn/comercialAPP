@@ -6,11 +6,47 @@ import path from 'node:path';
 import AdmZip from 'adm-zip';
 import { DOMParser } from '@xmldom/xmldom';
 import { arquivoDoModelo, preencherProposta } from '../src/lib/comercial/proposta-docx.js';
+import { scopeTablesFromDimensioning } from '../../shared/comercial/dist/dimensioning-scope.js';
 import { textoCondicoesPagamento, TEXTO_IMPOSTOS, TEXTO_OBSERVACOES_GERAIS }
   from '../../shared/comercial/dist/modelo-documento.js';
 
 const WORD_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 const REL_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+
+test('tabelas importadas do dimensionamento mantêm as edições e a ordem nos dois documentos', async () => {
+  const blocks = scopeTablesFromDimensioning({ volumeSystems: [{
+    id: 'circuito', name: 'Circuito dimensionado', servicesByItem: true,
+    pipeSegments: [
+      { id: 'a', description: 'Tubulação de entrada', quantity: 2, lengthM: 30, internalDiameterMm: 50,
+        serviceIds: ['limpeza_quimica', 'teste_hidrostatico'] },
+      { id: 'b', description: 'Tubulação de retorno', quantity: 1, lengthM: 10, internalDiameterMm: 25,
+        serviceIds: ['limpeza_quimica'] }
+    ],
+    reservoirVolumes: [{ id: 'reservatorio', description: 'Reservatório dimensionado', quantity: 1, volumeLiters: 200,
+      serviceIds: ['limpeza_quimica'] }]
+  }] });
+  const chemical = blocks.filter(block => block.scopeItemId === 'escopo-levantamento-limpeza_quimica').reverse();
+  const pipes = chemical.find(block => block.columns.includes('Comprimento'));
+  pipes.rows.reverse();
+  pipes.rows[0][0] = 'Retorno editado na proposta';
+  for (const type of ['commercial', 'technical']) {
+    const doc = lerParte(new AdmZip(await preencherProposta({
+      scopeItems: [
+        { id: 'escopo-levantamento-limpeza_quimica', title: 'Limpeza química', description: 'Escopo químico' },
+        { id: 'escopo-levantamento-teste_hidrostatico', title: 'Teste hidrostático', description: 'Escopo do teste' }
+      ],
+      scopeBlocks: [...chemical, ...blocks.filter(block => block.scopeItemId === 'escopo-levantamento-teste_hidrostatico')]
+    }, type)), 'word/document.xml');
+    const content = texto(doc);
+    assert.ok(content.indexOf('Reservatório dimensionado') < content.indexOf('Retorno editado na proposta'));
+    assert.ok(content.indexOf('Retorno editado na proposta') < content.indexOf('Tubulação de entrada'));
+    assert.match(content, /Escopo do teste/);
+    assert.ok(content.lastIndexOf('Tubulação de entrada') > content.indexOf('Escopo do teste'));
+    assert.equal(content.match(/Tubulação de entrada/g).length, 2);
+    assert.match(content, /30 m/);
+    assert.doesNotMatch(content, /\{\{/);
+  }
+});
 
 function lerParte(zip, caminho) {
   const entrada = zip.getEntry(caminho);

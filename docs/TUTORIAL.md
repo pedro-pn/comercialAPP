@@ -80,6 +80,14 @@ Em **Cliente**, o campo **Consultor de Vendas** permite selecionar outro usuári
 ativo do Comercial. O nome escolhido aparece na prévia e nos documentos, inclusive
 na chave `{{consultor}}` dos modelos Word. O orçamentista é preenchido pelo login.
 
+Ao criar uma proposta a partir de um levantamento, **Escopo** já recebe as tabelas
+do dimensionamento de cada serviço, separadas por circuito e tipo de equipamento.
+Você pode editar títulos, cabeçalhos e células, incluir ou remover linhas e
+reordenar linhas, tabelas e serviços. Os ajustes ficam salvos na proposta.
+
+Em **Responsabilidades**, os campos **Item / escopo** e **Nota** quebram as linhas
+e aumentam de altura conforme o texto, para mostrar o conteúdo completo.
+
 O documento comercial padrão apresenta o título **Proposta Comercial** e o nome
 do orçamentista antes dos dados do cliente. No modelo de hidrojateamento, o
 **Título da proposta**, informado em Escopo, aparece antes dos dados do cliente.
@@ -93,6 +101,8 @@ preenchido pode ter formato inválido: confira a mensagem junto ao CNPJ ou e-mai
 ## Emitir documentos e finalizar
 
 1. Confira as prévias técnica e comercial, inclusive textos, tabelas e fotos.
+   **Visualizar PDF** abre o documento gerado pelo modelo Word dentro do aplicativo,
+   com a paginação e a formatação da emissão. Você pode baixar ou imprimir pelo visualizador.
 2. Inclua os anexos enquanto a proposta estiver em rascunho. Fotos de escopo
    aceitam até 8 imagens por proposta e 1,5 MB por imagem processada.
 3. Na revisão, em **Documentos e finalização**, clique em **Emitir PDF e DOCX**.
