@@ -12,6 +12,13 @@ function fakeNumberingDatabase() {
   const reservations = new Map();
   const proposals = new Map();
   const db = {
+    user: {
+      async findFirst({ where }) {
+        return where.id === 'seller'
+          ? { id: 'seller', name: 'Vendedor', role: 'SELLER', isActive: true }
+          : null;
+      }
+    },
     proposalNumberingState: {
       async findUnique() { return state; },
       async create({ data }) {

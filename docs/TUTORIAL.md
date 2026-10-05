@@ -76,6 +76,10 @@ anteriores, o aplicativo reaproveita essas informações.
 | **Comercial** | Confira preços, quantidades, pagamento, impostos, validade, stand-by e mobilização adicional. No modelo de hidrojateamento, confira os cenários onshore/offshore. |
 | **Revisão** | Confira a prévia, inclua anexos, emita os documentos e finalize a proposta. |
 
+Em **Cliente**, o campo **Consultor de Vendas** permite selecionar outro usuário
+ativo do Comercial. O nome escolhido aparece na prévia e nos documentos, inclusive
+na chave `{{consultor}}` dos modelos Word. O orçamentista é preenchido pelo login.
+
 O documento comercial padrão apresenta o título **Proposta Comercial** e o nome
 do orçamentista antes dos dados do cliente. No modelo de hidrojateamento, o
 **Título da proposta**, informado em Escopo, aparece antes dos dados do cliente.

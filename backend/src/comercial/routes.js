@@ -2,6 +2,7 @@ import { Router, raw } from 'express';
 import { z } from 'zod';
 import { makeComercialSchemas } from '../../../shared/schemas/comercial.js';
 import { requireAdmin, requireEstimator, requireManager } from './access.js';
+import { listConsultants } from './consultants.js';
 import {
   archiveCostEstimate, createCostEstimate, getCostEstimate,
   listCostEstimates, updateCostEstimate
@@ -83,17 +84,11 @@ export function createCommercialRouter(db, { crm = createNectarClient() } = {}) 
     response.status(registered.alreadyRegistered ? 200 : 201).json(registered);
   });
 
-  router.get('/consultores', requireEstimator, async (request, response) => {
-    const user = request.authUser;
-    const users = ['ADMIN', 'MANAGER'].includes(user.role)
-      ? await db.user.findMany({
-        where: { isActive: true, role: { in: ['ADMIN', 'MANAGER', 'SELLER'] } },
-        orderBy: [{ name: 'asc' }, { username: 'asc' }]
-      })
-      : [user];
-    response.json({
+  router.get('/consultores', requireEstimator, async (_request, response) => {
+    const users = await listConsultants(db);
+    response.set('Cache-Control', 'no-store').json({
       items: users.map(item => ({ id: item.id, nome: item.name, username: item.username })),
-      podeEscolher: ['ADMIN', 'MANAGER'].includes(user.role)
+      podeEscolher: true
     });
   });
 

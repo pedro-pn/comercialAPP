@@ -172,6 +172,7 @@ function formatarData(iso) {
 function camposSimples(dados) {
   return {
     nome_vendedor: dados.seller || '',
+    consultor: dados.seller || '',
     elaborador_proposta: dados.estimator || '',
     orçamentista: dados.estimator || '',
     cod_prop: dados.proposalCode || '',

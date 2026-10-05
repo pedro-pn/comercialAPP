@@ -71,9 +71,8 @@ export function ClienteStep({
             value: item.id,
             label: item.nome
           }))}
-          /* Vendedor vê só o próprio nome, já escolhido: ele não emite em nome de
-             outro, e a restrição vem da API, não daqui. */
           disabled={!podeEscolherConsultor}
+          hint="O nome selecionado aparecerá na proposta."
           error={erroDe('seller')}
           onChange={(novo) => editar({ seller: novo })}
         />

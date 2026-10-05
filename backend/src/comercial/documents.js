@@ -9,6 +9,7 @@ import { proposalRendererHash } from '../lib/comercial/document-renderer.js';
 import { planilhaDeCustos } from '../lib/comercial/cost-csv.js';
 import { convertDocxToPdf } from '../lib/report-pdf-from-docx.js';
 import { assertCanRead, assertCanWrite } from './access.js';
+import { resolveSeller } from './consultants.js';
 import { readPhoto } from './photos.js';
 import { loadFile, removeFile, safeCode, storeFile } from './storage.js';
 
@@ -92,15 +93,13 @@ async function generatePair(data, type) {
   }
 }
 
-export async function previewPdf(db, user, input) {
+export async function previewPdf(db, user, input, generate = generatePair) {
   const { tipo, ...payload } = input;
   if (tipo !== 'commercial' && tipo !== 'technical') throw new HttpError(400, 'Tipo de documento inválido.');
-  const selectedSeller = payload.seller && ['ADMIN', 'MANAGER'].includes(user.role)
-    ? await db.user.findFirst({ where: { id: payload.seller, isActive: true } })
-    : null;
-  const data = { ...payload, seller: selectedSeller?.name || user.name,
+  const selectedSeller = await resolveSeller(db, payload.seller || user.id);
+  const data = { ...payload, seller: selectedSeller.sellerName,
     lerFoto: block => readPhoto(db, user, block.id) };
-  return (await generatePair(data, tipo)).pdf;
+  return (await generate(data, tipo)).pdf;
 }
 
 function validateIssue(proposal) {
