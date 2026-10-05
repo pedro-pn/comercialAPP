@@ -76,9 +76,11 @@ anteriores, o aplicativo reaproveita essas informações.
 | **Comercial** | Confira preços, quantidades, pagamento, impostos, validade, stand-by e mobilização adicional. No modelo de hidrojateamento, confira os cenários onshore/offshore. |
 | **Revisão** | Confira a prévia, inclua anexos, emita os documentos e finalize a proposta. |
 
-O **Título da proposta**, informado em Escopo, aparece antes dos dados do cliente
-no documento comercial. As condições de pagamento, observações e impostos mantêm
-os subitens dos modelos, inclusive ao editar seus textos.
+O documento comercial padrão apresenta o título **Proposta Comercial** e o nome
+do orçamentista antes dos dados do cliente. No modelo de hidrojateamento, o
+**Título da proposta**, informado em Escopo, aparece antes dos dados do cliente.
+As condições de pagamento, observações e impostos mantêm os subitens dos modelos,
+inclusive ao editar seus textos.
 
 As abas do rascunho permitem consultar as etapas. O botão de salvar e avançar
 valida os campos da etapa; a emissão verifica as pendências do conjunto. Um campo

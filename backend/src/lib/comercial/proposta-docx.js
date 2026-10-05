@@ -173,6 +173,7 @@ function camposSimples(dados) {
   return {
     nome_vendedor: dados.seller || '',
     elaborador_proposta: dados.estimator || '',
+    orçamentista: dados.estimator || '',
     cod_prop: dados.proposalCode || '',
     n_rev: dados.revision || '',
     nome_proposta: dados.title || '',

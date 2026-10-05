@@ -68,10 +68,38 @@ function texto(no) {
   return Array.from(no.getElementsByTagName('w:t')).map(item => item.textContent).join('');
 }
 
+function propriedadeDoTexto(run, styles, tag) {
+  const propriedade = no => no?.getElementsByTagName('w:rPr').item(0)
+    ?.getElementsByTagName(tag).item(0);
+  const doEstilo = id => {
+    const style = Array.from(styles.getElementsByTagName('w:style'))
+      .find(no => no.getAttribute('w:styleId') === id);
+    if (!style) return undefined;
+    return propriedade(style) ?? doEstilo(style.getElementsByTagName('w:basedOn')
+      .item(0)?.getAttribute('w:val'));
+  };
+  let paragraph = run.parentNode;
+  while (paragraph && paragraph.nodeName !== 'w:p') paragraph = paragraph.parentNode;
+  const id = paragraph?.getElementsByTagName('w:pStyle').item(0)?.getAttribute('w:val')
+    ?? Array.from(styles.getElementsByTagName('w:style'))
+      .find(no => no.getAttribute('w:type') === 'paragraph'
+        && no.getAttribute('w:default') === '1')?.getAttribute('w:styleId');
+  const prop = propriedade(run)
+    ?? doEstilo(run.getElementsByTagName('w:rStyle').item(0)?.getAttribute('w:val'))
+    ?? doEstilo(id)
+    ?? propriedade(styles.getElementsByTagName('w:docDefaults').item(0));
+  if (['w:b', 'w:bCs'].includes(tag)) {
+    return prop ? !['0', 'false'].includes(prop.getAttribute('w:val')) : false;
+  }
+  return prop?.getAttribute('w:val');
+}
+
 for (const modelo of ['padrao', 'hidrojateamento']) {
-  test(`documento comercial ${modelo} imprime o nome antes dos dados do cliente`, async () => {
+  test(`documento comercial ${modelo} preenche a identificação conforme o modelo`, async () => {
     const zip = new AdmZip(await preencherProposta({
       modelo, title: 'Limpeza & inspeção <circuito A>', client: 'Cliente de teste',
+      estimator: 'Orçamentista & responsável <A>', seller: 'Consultor de teste',
+      proposalCode: '5007', revision: '2',
       scopeItems: [{id:'escopo', topics:[{id:'servico', text:'Serviço do escopo'}]}]
     }, 'commercial'));
     const doc = lerParte(zip, 'word/document.xml');
@@ -79,8 +107,21 @@ for (const modelo of ['padrao', 'hidrojateamento']) {
       .filter(no => no.nodeName === 'w:p');
     const nome = paragrafos.findIndex(no => texto(no) === 'Limpeza & inspeção <circuito A>');
     const cliente = paragrafos.findIndex(no => texto(no) === 'CLIENTE: Cliente de teste');
-    assert.ok(nome >= 0);
-    assert.equal(nome + 1, cliente);
+    if (modelo === 'padrao') {
+      const titulo = paragrafos.findIndex(no => texto(no) === 'Proposta Comercial');
+      const orcamentista = paragrafos.findIndex((no, i) => i > titulo
+        && texto(no) === 'Orçamentista: Orçamentista & responsável <A>');
+      const codigo = paragrafos.findIndex(no => texto(no) === 'PROPOSTA N°: 5007 REV - 2');
+      assert.ok(titulo >= 0);
+      assert.equal(paragrafos[titulo].getElementsByTagName('w:jc').item(0)?.getAttribute('w:val'), 'center');
+      assert.ok(orcamentista > titulo && orcamentista < codigo);
+      assert.equal(codigo + 1, cliente);
+      assert.equal(nome, -1);
+    } else {
+      assert.ok(nome >= 0);
+      assert.equal(nome + 1, cliente);
+    }
+    assert.match(texto(doc), /Consultor de Vendas: Consultor de teste/);
     assert.match(texto(doc), /Serviço do escopo/);
     assert.doesNotMatch(texto(doc), /\{\{/);
   });
@@ -198,6 +239,7 @@ for (const modelo of ['padrao', 'hidrojateamento']) {
 
       for (const zip of [original, gerado]) {
         const doc = lerParte(zip, 'word/document.xml');
+        const styles = lerParte(zip, 'word/styles.xml');
         const body = doc.getElementsByTagName('w:body').item(0);
         const nodes = Array.from(body.childNodes).filter(no => no.nodeType === 1);
         const inicio = nodes.findIndex(no => no.nodeName === 'w:p'
@@ -208,7 +250,7 @@ for (const modelo of ['padrao', 'hidrojateamento']) {
           for (const run of Array.from(node.getElementsByTagName('w:r'))) {
             if (!run.getElementsByTagName('w:t').length) continue;
             for (const tag of ['w:sz', 'w:szCs']) {
-              assert.equal(run.getElementsByTagName(tag).item(0)?.getAttribute('w:val'), '20',
+              assert.equal(propriedadeDoTexto(run, styles, tag), '20',
                 `${tag}: ${texto(run).slice(0, 80)}`);
             }
           }
@@ -220,8 +262,8 @@ for (const modelo of ['padrao', 'hidrojateamento']) {
             subitens++;
             for (const run of Array.from(paragraph.getElementsByTagName('w:r'))) {
               if (!run.getElementsByTagName('w:t').length) continue;
-              assert.equal(run.getElementsByTagName('w:b').item(0)?.getAttribute('w:val'), 'false', texto(run));
-              assert.equal(run.getElementsByTagName('w:bCs').item(0)?.getAttribute('w:val'), 'false', texto(run));
+              assert.equal(propriedadeDoTexto(run, styles, 'w:b'), false, texto(run));
+              assert.equal(propriedadeDoTexto(run, styles, 'w:bCs'), false, texto(run));
             }
           }
         }
@@ -233,13 +275,14 @@ for (const modelo of ['padrao', 'hidrojateamento']) {
         const lista = Array.from(numbering.getElementsByTagName('w:abstractNum'))
           .find(no => no.getAttribute('w:abstractNumId') === abstractId);
         for (const level of Array.from(lista.getElementsByTagName('w:lvl'))) {
-          assert.equal(level.getElementsByTagName('w:b').item(0).getAttribute('w:val'), 'true');
+          const bold = level.getElementsByTagName('w:b').item(0);
+          assert.ok(bold && !['0', 'false'].includes(bold.getAttribute('w:val')));
           assert.equal(level.getElementsByTagName('w:sz').item(0).getAttribute('w:val'), '20');
         }
         for (const part of zip.getEntries().filter(entry => /^word\/footer\d*\.xml$/.test(entry.entryName))) {
           const footer = lerParte(zip, part.entryName);
           for (const run of Array.from(footer.getElementsByTagName('w:r'))) {
-            assert.equal(run.getElementsByTagName('w:sz').item(0)?.getAttribute('w:val'), '20',
+            assert.equal(propriedadeDoTexto(run, styles, 'w:sz'), '20',
               'A numeração das páginas também deve usar 10 pt');
           }
         }
