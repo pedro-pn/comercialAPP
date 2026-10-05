@@ -98,7 +98,7 @@ for (const modelo of ['padrao', 'hidrojateamento']) {
   test(`documento comercial ${modelo} preenche a identificação conforme o modelo`, async () => {
     const zip = new AdmZip(await preencherProposta({
       modelo, title: 'Limpeza & inspeção <circuito A>', client: 'Cliente de teste',
-      estimator: 'Orçamentista & responsável <A>', seller: 'Consultor de teste',
+      estimator: 'Orçamentista & responsável <A>', seller: 'Consultor & responsável <B>',
       proposalCode: '5007', revision: '2',
       scopeItems: [{id:'escopo', topics:[{id:'servico', text:'Serviço do escopo'}]}]
     }, 'commercial'));
@@ -121,7 +121,10 @@ for (const modelo of ['padrao', 'hidrojateamento']) {
       assert.ok(nome >= 0);
       assert.equal(nome + 1, cliente);
     }
-    assert.match(texto(doc), /Consultor de Vendas: Consultor de teste/);
+    const consultores = Array.from(doc.getElementsByTagName('w:p'))
+      .map(texto).filter(paragrafo => paragrafo.startsWith('Consultor de Vendas:'));
+    assert.deepEqual(consultores, Array(modelo === 'padrao' ? 2 : 1)
+      .fill('Consultor de Vendas: Consultor & responsável <B>'));
     assert.match(texto(doc), /Serviço do escopo/);
     assert.doesNotMatch(texto(doc), /\{\{/);
   });

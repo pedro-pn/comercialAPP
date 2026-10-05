@@ -3,6 +3,7 @@ import { lerDinheiro } from '../../../shared/comercial/dist/dinheiro.js';
 import { assertCanRead, assertCanWrite, assertVersion, ConcurrentWriteError, ownerFilter } from './access.js';
 import { assertReservedCode, markNumberUsed } from './numbering.js';
 import { describeDocuments } from './documents.js';
+import { resolveSeller } from './consultants.js';
 
 export function calculateProposalTotal(payload) {
   const prices = Array.isArray(payload?.prices) ? payload.prices : [];
@@ -16,20 +17,6 @@ export function calculateProposalTotal(payload) {
   const selected = String(payload?.priceScenario || '').trim().toUpperCase();
   if (selected && byScenario.has(selected)) return byScenario.get(selected);
   return Math.max(...byScenario.values());
-}
-
-async function resolveSeller(db, user, sellerUserId) {
-  if (!['ADMIN', 'MANAGER'].includes(user.role)) {
-    if (sellerUserId !== user.id) {
-      throw new HttpError(403, 'Vendedor só pode emitir proposta em nome próprio.');
-    }
-    return { sellerUserId: user.id, sellerName: user.name };
-  }
-  const seller = await db.user.findFirst({
-    where: { id: sellerUserId, isActive: true, role: { in: ['ADMIN', 'MANAGER', 'SELLER'] } }
-  });
-  if (!seller) throw new HttpError(422, 'Selecione um consultor ativo do Comercial.');
-  return { sellerUserId: seller.id, sellerName: seller.name };
 }
 
 async function validateEstimateLink(db, user, id, proposalCode) {
@@ -163,7 +150,7 @@ export async function createProposal(db, user, data) {
     throw new HttpError(409, `A próxima revisão é ${previous.nextRevision}.`);
   }
   const costEstimateId = await validateEstimateLink(db, user, data.costEstimateId, data.proposalCode);
-  const seller = await resolveSeller(db, user, data.sellerUserId);
+  const seller = await resolveSeller(db, data.sellerUserId);
   const totalValue = calculateProposalTotal(data.payload);
   if (!Number.isFinite(totalValue)) throw new HttpError(422, 'Valor da proposta inválido.');
   try {
@@ -215,7 +202,7 @@ export async function updateProposal(db, user, id, data) {
     : await validateEstimateLink(db, user, data.costEstimateId, existing.proposalCode);
   const seller = data.sellerUserId === undefined
     ? { sellerUserId: existing.sellerUserId, sellerName: existing.sellerName }
-    : await resolveSeller(db, user, data.sellerUserId);
+    : await resolveSeller(db, data.sellerUserId);
   const payload = data.payload ?? existing.payload;
   const totalValue = calculateProposalTotal(payload);
   if (!Number.isFinite(totalValue)) throw new HttpError(422, 'Valor da proposta inválido.');

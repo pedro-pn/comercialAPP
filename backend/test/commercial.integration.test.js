@@ -59,12 +59,18 @@ test('rascunhos, autoria, valores e concorrência no banco próprio', { skip: !d
   const seller = await auth.createUser({
     username: 'vendedor', name: 'Vendedor', role: 'SELLER', password: 'senha-segura-456'
   }, manager);
-  await auth.createUser({
+  const colleague = await auth.createUser({
     username: 'colega', name: 'Outro Vendedor', role: 'SELLER', password: 'senha-segura-789'
   }, manager);
-  await auth.createUser({
+  const viewer = await auth.createUser({
     username: 'consulta', name: 'Consulta', role: 'VIEWER', password: 'senha-segura-abc'
   }, manager);
+  const salesManager = await db.user.create({ data: {
+    username: 'gestor-comercial', name: 'Gestor Comercial', role: 'MANAGER'
+  } });
+  const inactive = await db.user.create({ data: {
+    username: 'inativo', name: 'Inativo', role: 'SELLER', isActive: false
+  } });
 
   const base = `http://127.0.0.1:${server.address().port}`;
   const request = async (path, { method = 'GET', body, cookie } = {}) => {
@@ -88,6 +94,17 @@ test('rascunhos, autoria, valores e concorrência no banco próprio', { skip: !d
   const sellerCookie = await login('vendedor', 'senha-segura-456');
   const colleagueCookie = await login('colega', 'senha-segura-789');
   const viewerCookie = await login('consulta', 'senha-segura-abc');
+
+  for (const cookie of [managerCookie, sellerCookie, colleagueCookie]) {
+    const consultants = await request('/api/comercial/consultores', { cookie });
+    assert.equal(consultants.status, 200);
+    assert.equal(consultants.data.podeEscolher, true);
+    assert.deepEqual(consultants.data.items.map(item => item.id),
+      [manager.id, salesManager.id, colleague.id, seller.id]);
+    assert.ok(consultants.data.items.every(item =>
+      Object.keys(item).sort().join(',') === 'id,nome,username'));
+  }
+  assert.equal((await request('/api/comercial/consultores', { cookie: viewerCookie })).status, 403);
 
   assert.equal((await request('/api/comercial/nectar/funis', {
     cookie: sellerCookie
@@ -130,13 +147,16 @@ test('rascunhos, autoria, valores e concorrência no banco próprio', { skip: !d
       proposalCode: '8700', costEstimateId: estimate.data.id,
       clientName: 'Cliente Teste', cnpj: '12345678000100',
       contact: 'Contato', email: 'cliente@example.com', site: 'Obra',
-      sellerUserId: seller.id,
+      sellerUserId: colleague.id,
       payload: { title: 'Teste', prices: [{ local: 'ONSHORE', value: 'R$ 1.200,00' }] }
     }
   });
   assert.equal(proposal.status, 201);
   assert.equal(Number(proposal.data.totalValue), 1200);
   assert.equal(proposal.data.createdByUserId, seller.id);
+  assert.equal(proposal.data.estimatorName, seller.name);
+  assert.equal(proposal.data.sellerUserId, colleague.id);
+  assert.equal(proposal.data.sellerName, colleague.name);
 
   const listForViewer = await request('/api/comercial/propostas', { cookie: viewerCookie });
   assert.equal(listForViewer.status, 200);
@@ -160,13 +180,24 @@ test('rascunhos, autoria, valores e concorrência no banco próprio', { skip: !d
     }
   })).status, 403);
 
+  for (const sellerUserId of [viewer.id, inactive.id, 'inexistente']) {
+    assert.equal((await request(`/api/comercial/propostas/${proposal.data.id}`, {
+      method: 'PUT', cookie: sellerCookie,
+      body: { expectedUpdatedAt: proposal.data.updatedAt, sellerUserId }
+    })).status, 422);
+  }
+
   const updated = await request(`/api/comercial/propostas/${proposal.data.id}`, {
     method: 'PUT', cookie: sellerCookie,
-    body: { expectedUpdatedAt: proposal.data.updatedAt,
+    body: { expectedUpdatedAt: proposal.data.updatedAt, sellerUserId: salesManager.id,
       payload: { prices: [{ local: 'ONSHORE', value: 'R$ 1.500,00' }] } }
   });
   assert.equal(updated.status, 200);
   assert.equal(Number(updated.data.totalValue), 1500);
+  assert.equal(updated.data.sellerUserId, salesManager.id);
+  assert.equal(updated.data.sellerName, salesManager.name);
+  assert.equal(updated.data.createdByUserId, seller.id);
+  assert.equal(updated.data.estimatorName, seller.name);
   const stale = await request(`/api/comercial/propostas/${proposal.data.id}`, {
     method: 'PUT', cookie: sellerCookie,
     body: { expectedUpdatedAt: proposal.data.updatedAt,
@@ -204,7 +235,7 @@ test('rascunhos, autoria, valores e concorrência no banco próprio', { skip: !d
   assert.equal(completed.status, 200);
   const fakePair = async (data, type) => {
     assert.equal(data.proposalCode, '8700');
-    assert.equal(data.seller, 'Vendedor');
+    assert.equal(data.seller, salesManager.name);
     assert.deepEqual((await data.lerFoto(data.scopeBlocks[0])).bytes, photoBytes);
     return { docx: Buffer.from(`PK-${type}`), pdf: Buffer.from(`%PDF-${type}\n%%EOF`) };
   };

@@ -256,9 +256,8 @@ export interface Consultor {
 /**
  * Consultores de vendas.
  *
- * `podeEscolher` vem do servidor, não é deduzido aqui: gestor recebe a lista
- * completa, vendedor recebe só a si mesmo. A restrição acontece na origem — o cliente
- * apenas reflete o que chegou.
+ * A API lista os usuários ativos do Comercial para selecionar o nome que
+ * aparecerá na proposta, inclusive quando for diferente de quem a elabora.
  */
 export async function listarConsultores() {
   const { data } = await apiClient.get<{

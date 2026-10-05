@@ -459,11 +459,13 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     onStatus: setStatusProposta
   });
 
+  const ehVendedor = Boolean(user?.moduleRoles.includes('comercial:seller'));
+
   /**
    * Consultores.
    *
-   * O vendedor recebe **um** item e ele já vem escolhido — a lista completa é do
-   * gestor. A restrição acontece na API; aqui só se reflete o que veio.
+   * Todos podem escolher um usuário ativo do Comercial. O próprio vendedor
+   * continua como seleção inicial, sem substituir um consultor já informado.
    */
   useEffect(() => {
     let vivo = true;
@@ -472,9 +474,15 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
         if (!vivo) return;
         setConsultores(resposta.items);
         setPodeEscolher(resposta.podeEscolher);
-        // Um único consultor não é uma escolha: pré-seleciona.
-        if (!resposta.podeEscolher && resposta.items.length === 1) {
-          setForm((atual) => ({ ...atual, seller: resposta.items[0].id }));
+        const consultorInicial = resposta.items.length === 1
+          ? resposta.items[0]
+          : ehVendedor
+            ? resposta.items.find(item => item.id === user?.id)
+            : undefined;
+        if (consultorInicial) {
+          setForm((atual) => atual.seller
+            ? atual
+            : { ...atual, seller: consultorInicial.id });
         }
       })
       .catch(() => {
@@ -487,7 +495,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     return () => {
       vivo = false;
     };
-  }, []);
+  }, [user?.id, ehVendedor]);
 
   /**
    * Proposta já salva: recarrega o conteúdo do servidor.
