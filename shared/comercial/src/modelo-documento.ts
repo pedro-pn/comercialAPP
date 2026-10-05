@@ -1184,6 +1184,65 @@ Caso, após a data de apresentação da proposta ou assinatura do contrato, ocor
 
 O eventual acréscimo de custos decorrente de tais alterações será repassado à CONTRATANTE, mediante comprovação do impacto financeiro e apresentação da respectiva atualização de valores.`;
 
+export type ParagrafoComercial = {
+  texto: string;
+  nivel: 0 | 1 | 2;
+  numero?: string;
+  titulo?: boolean;
+  marcador?: string;
+};
+
+/** Mantém a hierarquia dos modelos Word ao aplicar os textos editáveis. */
+export function paragrafosComerciais(
+  texto: string,
+  capitulo: 8 | 9 | 10
+): ParagrafoComercial[] {
+  const trechos = String(texto || '').trim().split(/(?:\r?\n\s*){2,}/u)
+    .map(trecho => trecho.trim()).filter(Boolean);
+  let item = capitulo === 9 ? 2 : 0;
+  let subitem = 0;
+  let multa = false;
+  let reequilibrio = false;
+  let letra = 0;
+
+  return trechos.map(trecho => {
+    // Quem já informou números no campo livre não deve recebê-los duas vezes.
+    const texto = trecho.replace(new RegExp(`^${capitulo}\\.\\d+(?:\\.\\d+)*[.)]?\\s+`, 'u'), '');
+    const numerado = (titulo = false): ParagrafoComercial => {
+      item++;
+      subitem = 0;
+      return { texto, nivel: 1, numero: `${capitulo}.${item}`, ...(titulo ? { titulo } : {}) };
+    };
+
+    if (capitulo === 8) {
+      if (/^Multa e juros por atraso:?$/iu.test(texto)) {
+        multa = true;
+        return numerado(true);
+      }
+      if (multa) {
+        if (/^(?:Multa moratória|Juros de mora)\b/iu.test(texto)) {
+          return { texto, nivel: 0, marcador: `${String.fromCharCode(97 + letra++)})` };
+        }
+        return { texto, nivel: 0 };
+      }
+    }
+
+    if (capitulo === 10) {
+      if (/^Reequilíbrio Tributário:?$/iu.test(texto)) {
+        reequilibrio = true;
+        return numerado(true);
+      }
+      if (!reequilibrio && /^ISS\b/iu.test(texto)) {
+        item = Math.max(item, 1);
+        return { texto, nivel: 2, numero: `${capitulo}.${item}.${++subitem}` };
+      }
+      if (subitem || reequilibrio) return { texto, nivel: 0 };
+    }
+
+    return numerado();
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Propriedade intelectual (item 12) e aceite (item 13)
 // ---------------------------------------------------------------------------

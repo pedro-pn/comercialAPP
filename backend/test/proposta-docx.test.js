@@ -6,6 +6,8 @@ import path from 'node:path';
 import AdmZip from 'adm-zip';
 import { DOMParser } from '@xmldom/xmldom';
 import { arquivoDoModelo, preencherProposta } from '../src/lib/comercial/proposta-docx.js';
+import { textoCondicoesPagamento, TEXTO_IMPOSTOS, TEXTO_OBSERVACOES_GERAIS }
+  from '../../shared/comercial/dist/modelo-documento.js';
 
 const WORD_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 const REL_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
@@ -67,6 +69,81 @@ function texto(no) {
 }
 
 for (const modelo of ['padrao', 'hidrojateamento']) {
+  test(`documento comercial ${modelo} imprime o nome antes dos dados do cliente`, async () => {
+    const zip = new AdmZip(await preencherProposta({
+      modelo, title: 'Limpeza & inspeção <circuito A>', client: 'Cliente de teste',
+      scopeItems: [{id:'escopo', topics:[{id:'servico', text:'Serviço do escopo'}]}]
+    }, 'commercial'));
+    const doc = lerParte(zip, 'word/document.xml');
+    const paragrafos = Array.from(doc.getElementsByTagName('w:body').item(0).childNodes)
+      .filter(no => no.nodeName === 'w:p');
+    const nome = paragrafos.findIndex(no => texto(no) === 'Limpeza & inspeção <circuito A>');
+    const cliente = paragrafos.findIndex(no => texto(no) === 'CLIENTE: Cliente de teste');
+    assert.ok(nome >= 0);
+    assert.equal(nome + 1, cliente);
+    assert.match(texto(doc), /Serviço do escopo/);
+    assert.doesNotMatch(texto(doc), /\{\{/);
+  });
+
+  test(`documento comercial ${modelo} mantém a hierarquia dos capítulos editáveis 8, 9 e 10`, async () => {
+    const zip = new AdmZip(await preencherProposta({
+      modelo,
+      payment: textoCondicoesPagamento({adiantamento:'35%', prazoPagamento:'21', formaPagamento:'Depósito em conta'}),
+      observations: TEXTO_OBSERVACOES_GERAIS, taxes: TEXTO_IMPOSTOS
+    }, 'commercial'));
+    const doc = lerParte(zip, 'word/document.xml');
+    const paragrafos = Array.from(doc.getElementsByTagName('w:body').item(0).childNodes)
+      .filter(no => no.nodeName === 'w:p');
+    const encontrar = inicio => {
+      const p = paragrafos.find(no => texto(no).startsWith(inicio));
+      assert.ok(p, `Parágrafo ausente: ${inicio}`);
+      return p;
+    };
+    for (const [inicio, lista, nivel] of [
+      ['A título de mobilização', '2', '1'],
+      ['Medição quinzenal', '2', '1'],
+      ['Multa e juros por atraso:', '2', '1'],
+      ['Multa moratória', '1', '0'], ['Juros de mora', '1', '0'],
+      ['No caso de prorrogação', '2', '1'], ['Índice de reajuste', '2', '1'],
+      ['A garantia mínima', '2', '1'], ['A Contratante reconhece', '2', '1'],
+      ['A Filtrovali se enquadra', '2', '1'], ['ISS', '2', '2'],
+      ['Reequilíbrio Tributário', '2', '1']
+    ]) {
+      const p = encontrar(inicio);
+      assert.equal(p.getElementsByTagName('w:numId').item(0)?.getAttribute('w:val'), lista, inicio);
+      assert.equal(p.getElementsByTagName('w:ilvl').item(0)?.getAttribute('w:val'), nivel, inicio);
+    }
+    for (const inicio of ['Em caso de atraso', 'Em conformidade', 'Caso a Contratante julgue',
+      'Caso, após a data', 'O eventual acréscimo']) {
+      assert.equal(encontrar(inicio).getElementsByTagName('w:numPr').length, 0, inicio);
+    }
+    for (const inicio of ['Multa e juros por atraso:', 'Reequilíbrio Tributário']) {
+      assert.equal(encontrar(inicio).getElementsByTagName('w:pStyle').item(0)?.getAttribute('w:val'), 'Ttulo2');
+    }
+    const inicioObservacoes = paragrafos.findIndex(no => texto(no).startsWith('- Observações:'));
+    const fimObservacoes = paragrafos.findIndex(no => texto(no).startsWith('- Impostos:'));
+    assert.equal(paragrafos.slice(inicioObservacoes + 1, fimObservacoes)
+      .filter(no => no.getElementsByTagName('w:ilvl').item(0)?.getAttribute('w:val') === '1').length, 8);
+    assert.match(texto(doc), /Stand-by de Equipe:/);
+    assert.match(texto(doc), /Desmobilização e Remobilização:/);
+  });
+
+  test(`documento comercial ${modelo} numera textos personalizados sem manter as cláusulas substituídas`, async () => {
+    const doc = lerParte(new AdmZip(await preencherProposta({
+      modelo, payment:'Pagamento negociado.\nApós aceite.\n\nSegunda condição.',
+      observations:'Observação negociada.', taxes:'Imposto negociado.'
+    }, 'commercial')), 'word/document.xml');
+    for (const inicio of ['Pagamento negociado.', 'Segunda condição.', 'Observação negociada.', 'Imposto negociado.']) {
+      const p = Array.from(doc.getElementsByTagName('w:p')).find(no => texto(no).startsWith(inicio));
+      assert.ok(p);
+      assert.equal(p.getElementsByTagName('w:numId').item(0)?.getAttribute('w:val'), '2');
+      assert.equal(p.getElementsByTagName('w:ilvl').item(0)?.getAttribute('w:val'), '1');
+    }
+    assert.ok(doc.getElementsByTagName('w:br').length, 'Quebras simples devem continuar dentro do subitem');
+    assert.doesNotMatch(texto(doc), /Multa e juros por atraso|No caso de prorrogação|Reequilíbrio Tributário/);
+    assert.match(texto(doc), /Condições de Stand by e Mobilização Adicional:/);
+  });
+
   for (const tipo of ['commercial', 'technical']) {
     test(`modelo e documento ${tipo} ${modelo} mantêm o timbrado da proposta técnica`, async () => {
       const carregarModelo = async tipoDoModelo => new AdmZip(await readFile(new URL(

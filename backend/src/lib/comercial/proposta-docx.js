@@ -10,6 +10,7 @@ import {
   categoriaCanonicaResponsabilidade,
   incluirServicosExtraEscopo,
   ordenarLinhasDeResponsabilidade,
+  paragrafosComerciais,
   paragrafosDaJornada,
   rotuloStandbyEquipe,
   SERVICOS_EXTRA_ESCOPO,
@@ -174,6 +175,7 @@ function camposSimples(dados) {
     elaborador_proposta: dados.estimator || '',
     cod_prop: dados.proposalCode || '',
     n_rev: dados.revision || '',
+    nome_proposta: dados.title || '',
     nome_cliente: dados.client || '',
     contato_cliente: dados.contact || '',
     email_cliente: dados.email || '',
@@ -393,11 +395,13 @@ function ajustarRelatorios(doc, servicos) {
   }
 }
 
-function paragrafoDeTexto(doc, texto, { negrito = false, titulo = false, nivelLista = null } = {}) {
+function paragrafoDeTexto(doc, texto, {
+  negrito = false, titulo = false, nivelLista = null, lista = 2
+} = {}) {
   const estilo = titulo ? '<w:pStyle w:val="Ttulo2"/>'
     : nivelLista !== null ? '<w:pStyle w:val="PargrafodaLista"/>' : '';
   const numeracao = nivelLista !== null
-    ? `<w:numPr><w:ilvl w:val="${nivelLista}"/><w:numId w:val="2"/></w:numPr>` : '';
+    ? `<w:numPr><w:ilvl w:val="${nivelLista}"/><w:numId w:val="${lista}"/></w:numPr>` : '';
   const xml = `<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
     <w:pPr>${estilo}${numeracao}<w:spacing w:before="${titulo ? 200 : 0}" w:after="120" w:line="360" w:lineRule="auto"/><w:jc w:val="${titulo ? 'left' : 'both'}"/></w:pPr>
     <w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:b w:val="${negrito}"/><w:bCs w:val="${negrito}"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t xml:space="preserve">${escapar(texto)}</w:t></w:r>
@@ -600,19 +604,31 @@ function ajustarEscopoTecnico(doc, servicos) {
   });
 }
 
-function substituirEntreTitulos(doc, inicio, fim, texto) {
+function paragrafosDeClausulas(doc, texto, capitulo) {
+  return paragrafosComerciais(texto, capitulo).map(item => {
+    const paragrafo = paragrafoDeTexto(doc, item.texto, {
+      titulo: item.titulo,
+      nivelLista: item.marcador ? 0 : item.nivel || null,
+      lista: item.marcador ? 1 : 2
+    });
+    preserveWordTextLineBreaks(paragrafo);
+    return paragrafo;
+  });
+}
+
+function substituirEntreTitulos(doc, inicio, fim, texto, capitulo) {
   const valor = String(texto || '').trim();
   if (!valor) return;
   const ancora = limparEntreTitulos(doc, inicio, fim);
   if (ancora) {
-    for (const paragrafo of paragrafosDeTexto(doc, valor)) {
+    for (const paragrafo of paragrafosDeClausulas(doc, valor, capitulo)) {
       ancora.parentNode.insertBefore(paragrafo, ancora);
     }
   }
 }
 
 /** Substitui o trecho final de uma seção sem apagar o conteúdo que vem antes. */
-function substituirCaudaAteTitulo(doc, inicioDaCauda, fim, texto) {
+function substituirCaudaAteTitulo(doc, inicioDaCauda, fim, texto, capitulo) {
   const valor = String(texto || '').trim();
   const inicio = tituloDoCorpo(doc, inicioDaCauda);
   const fimDaSecao = tituloDoCorpo(doc, fim);
@@ -624,7 +640,7 @@ function substituirCaudaAteTitulo(doc, inicioDaCauda, fim, texto) {
     if (atual.nodeType === 1) removeNode(atual);
     atual = proximo;
   }
-  for (const paragrafo of paragrafosDeTexto(doc, valor)) {
+  for (const paragrafo of paragrafosDeClausulas(doc, valor, capitulo)) {
     fimDaSecao.parentNode.insertBefore(paragrafo, fimDaSecao);
   }
 }
@@ -636,14 +652,15 @@ function substituirCaudaAteTitulo(doc, inicioDaCauda, fim, texto) {
  */
 function ajustarTextosEditaveis(doc, dados, tipo) {
   if (tipo === 'commercial') {
-    substituirEntreTitulos(doc, '- Condições de pagamento:', '- Observações:', dados.payment);
+    substituirEntreTitulos(doc, '- Condições de pagamento:', '- Observações:', dados.payment, 8);
     substituirCaudaAteTitulo(
       doc,
       'No caso de prorrogação da data de início',
       '- Impostos:',
-      dados.observations
+      dados.observations,
+      9
     );
-    substituirEntreTitulos(doc, '- Impostos:', '- Validade da proposta:', dados.taxes);
+    substituirEntreTitulos(doc, '- Impostos:', '- Validade da proposta:', dados.taxes, 10);
     return;
   }
 
