@@ -22,6 +22,7 @@ import {
   TITULO_BLOCO_STANDBY,
   fraseHoraExtra,
   observacoesTecnicasDoModelo,
+  paragrafosComerciais,
   paragrafosDaJornada,
   tabelasDePrecoDoModelo,
   tabelaStandby,
@@ -192,6 +193,15 @@ function TituloDoSubitem({ children }: { children: string }) {
   </h3>;
 }
 
+function ParagrafosComerciais({ texto, capitulo }: { texto: string; capitulo: 8 | 9 | 10 }) {
+  return <>{paragrafosComerciais(texto, capitulo).map((item, i) =>
+    <p key={i} className={`com-doc-tecnico com-doc-jornada-nivel-${item.nivel}`}>
+      {item.numero && <><b>{item.numero}</b>{' '}</>}
+      {item.marcador && <>{item.marcador}{' '}</>}{item.texto}
+    </p>
+  )}</>;
+}
+
 export function DocumentoPrevia({
   tipo,
   form,
@@ -273,6 +283,7 @@ export function DocumentoPrevia({
             <b>Orçamentista:</b> {texto('estimator', 'Selecione')}
           </p>
           <h3>PROPOSTA Nº: {codigo}</h3>
+          {!tecnico && String(form.title || '').trim() && <p><b>{String(form.title)}</b></p>}
           <p>
             <b>CLIENTE:</b> {texto('client', 'Nome do cliente')}
             <br />
@@ -536,7 +547,7 @@ export function DocumentoPrevia({
           ))}
 
           <h3>8. Condições de pagamento</h3>
-          <p>{texto('payment', 'A definir')}</p>
+          <ParagrafosComerciais texto={texto('payment', 'A definir')} capitulo={8} />
         </Pagina>
       )}
 
@@ -572,10 +583,8 @@ export function DocumentoPrevia({
         <>
           <Pagina numero={numeroDoFechamentoComercial} data={data}>
             <h3>9. Observações</h3>
-            <p>{fraseHoraExtra(dinheiro(form.overtimeRate))}</p>
-            <p>
-              <b>{TITULO_BLOCO_STANDBY}</b>
-            </p>
+            <p><b>9.1</b>{' '}{fraseHoraExtra(dinheiro(form.overtimeRate))}</p>
+            <TituloDoSubitem>{`9.2 ${TITULO_BLOCO_STANDBY}`}</TituloDoSubitem>
             <table className="com-doc-tabela">
               <thead>
                 <tr>
@@ -600,19 +609,23 @@ export function DocumentoPrevia({
                 ))}
               </tbody>
             </table>
-            <p className="com-doc-tecnico">{TEXTO_EXPLICACAO_STANDBY}</p>
+            {TEXTO_EXPLICACAO_STANDBY.split('\n\n').map((trecho, i) =>
+              <p key={i} className="com-doc-tecnico com-doc-jornada-nivel-2">
+                {i < 3 && <><b>{`9.2.${i + 1}`}</b>{' '}</>}{trecho}
+              </p>
+            )}
           </Pagina>
 
           <Pagina numero={numeroDoFechamentoComercial + 1} data={data}>
-            <p className="com-doc-tecnico">
-              {texto('observations', TEXTO_OBSERVACOES_GERAIS)}
-            </p>
-
-            <h3>10. Impostos</h3>
-            <p className="com-doc-tecnico">{texto('taxes', TEXTO_IMPOSTOS)}</p>
+            <ParagrafosComerciais texto={texto('observations', TEXTO_OBSERVACOES_GERAIS)} capitulo={9} />
           </Pagina>
 
           <Pagina numero={numeroDoFechamentoComercial + 2} data={data}>
+            <h3>10. Impostos</h3>
+            <ParagrafosComerciais texto={texto('taxes', TEXTO_IMPOSTOS)} capitulo={10} />
+          </Pagina>
+
+          <Pagina numero={numeroDoFechamentoComercial + 3} data={data}>
             <h3>11. Validade da proposta</h3>
             <p>{texto('validity', '10')} dias após a emissão.</p>
 

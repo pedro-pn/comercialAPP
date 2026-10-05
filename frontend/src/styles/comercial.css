@@ -3415,8 +3415,8 @@
 }
 
 .com-root .com-doc-meta {
-  font-size: 8px;
-  line-height: 1.45;
+  font-size: 7px;
+  line-height: 1.4;
 }
 
 .com-root .com-doc-meta h3 {
@@ -3424,7 +3424,7 @@
 }
 
 .com-root .com-doc-indice-titulo {
-  margin: 20px 0 12px;
+  margin: 16px 0 8px;
   font-size: 10px;
   text-align: center;
 }
@@ -3434,7 +3434,7 @@
   padding-left: 16px;
   font-size: 7px;
   font-weight: 700;
-  line-height: 1.75;
+  line-height: 1.5;
 }
 
 .com-root .com-doc-visual {
