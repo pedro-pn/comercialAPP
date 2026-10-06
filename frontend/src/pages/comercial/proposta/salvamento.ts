@@ -34,6 +34,7 @@ export type ConteudoDaProposta = {
   incluirUnitario: boolean;
   servicosTecnicos: TechnicalServiceSelection[];
   complementoRelatorios: string;
+  sellerConsultantId?: string;
 };
 
 type PropostaPersistidaParaFormulario = {
@@ -45,6 +46,8 @@ type PropostaPersistidaParaFormulario = {
   site?: string | null;
   department?: string | null;
   sellerUserId?: string | null;
+  sellerConsultantId?: string | null;
+  sellerName?: string | null;
 };
 
 /**
@@ -72,7 +75,10 @@ export function snapshotDaPropostaSalva(
     email: proposta.email ?? payload.email ?? '',
     site: proposta.site ?? payload.site ?? '',
     department: proposta.department ?? payload.department ?? '',
-    seller: proposta.sellerUserId ?? payload.seller ?? ''
+    seller: proposta.sellerConsultantId ?? proposta.sellerUserId ?? payload.seller ?? '',
+    sellerName: proposta.sellerName ?? payload.sellerName ?? '',
+    sellerConsultantId: 'sellerConsultantId' in proposta
+      ? proposta.sellerConsultantId : payload.sellerConsultantId ?? null
   };
 }
 
@@ -90,6 +96,7 @@ export function dadosDaProposta(conteudo: ConteudoDaProposta): AnyRecord {
 
   return {
     ...conteudo.form,
+    sellerConsultantId: conteudo.sellerConsultantId || null,
     // O rádio nasce visualmente em ONSHORE. A escolha precisa nascer também no
     // payload: sem isso, não clicar no rádio faria a tela mostrar ONSHORE e o
     // servidor continuar escolhendo a maior tabela — justamente o defeito da
@@ -145,7 +152,8 @@ export function entradaDaProposta(
     email: texto('email'),
     site: texto('site'),
     department: texto('department') || null,
-    sellerUserId: texto('seller'),
+    sellerUserId: conteudo.sellerConsultantId ? null : texto('seller'),
+    sellerConsultantId: conteudo.sellerConsultantId || null,
     payload: dadosDaProposta(conteudo)
   };
 }

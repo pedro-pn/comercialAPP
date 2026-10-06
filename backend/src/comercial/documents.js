@@ -8,7 +8,7 @@ import { preencherProposta } from '../lib/comercial/proposta-docx.js';
 import { proposalRendererHash } from '../lib/comercial/document-renderer.js';
 import { planilhaDeCustos } from '../lib/comercial/cost-csv.js';
 import { convertDocxToPdf } from '../lib/report-pdf-from-docx.js';
-import { assertCanRead, assertCanWrite } from './access.js';
+import { assertCanRead, assertCanWrite, ownerFilter } from './access.js';
 import { resolveSeller } from './consultants.js';
 import { readPhoto } from './photos.js';
 import { loadFile, removeFile, safeCode, storeFile } from './storage.js';
@@ -96,7 +96,14 @@ async function generatePair(data, type) {
 export async function previewPdf(db, user, input, generate = generatePair) {
   const { tipo, ...payload } = input;
   if (tipo !== 'commercial' && tipo !== 'technical') throw new HttpError(400, 'Tipo de documento inválido.');
-  const selectedSeller = await resolveSeller(db, payload.seller || user.id);
+  // Um cadastro removido mantém o nome registrado na proposta também na prévia.
+  const previousSeller = payload.sellerConsultantId && typeof payload.proposalCode === 'string'
+    ? await db.proposal.findFirst({ where: { proposalCode: payload.proposalCode,
+      sellerConsultantId: payload.sellerConsultantId, ...ownerFilter(user) },
+      orderBy: { revisionNumber: 'desc' } }) : undefined;
+  const selectedSeller = await resolveSeller(db,
+    payload.sellerConsultantId ? null : payload.seller || user.id, payload.sellerConsultantId,
+    { previousSeller, allowArchived: true });
   const data = { ...payload, seller: selectedSeller.sellerName,
     lerFoto: block => readPhoto(db, user, block.id) };
   return (await generate(data, tipo)).pdf;

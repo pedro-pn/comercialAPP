@@ -12,11 +12,12 @@ import { ComercialChrome } from '../components/ComercialChrome';
 import { EnderecoField } from '../components/EnderecoField';
 import { moduleRoutePath } from '../../../modules/registry';
 import { configuracaoDaSedeMudou, placeIdDaLocalizacao } from './configuracao';
+import { ConsultoresDeVendaPanel } from './ConsultoresDeVendaPanel';
 
 /**
  * Configurações do módulo Comercial — só gestor (T131).
  *
- * Existe por causa de um item só: o endereço da sede, que era
+ * Reúne o cadastro de consultores e o endereço da sede, que era
  * `COMERCIAL_SEDE_ENDERECO` no `.env`. Decisão do mantenedor em 12/08:
  *
  * > Endereço de sede é dado de negócio. Muda quando a empresa muda de prédio,
@@ -155,6 +156,7 @@ export function ConfiguracoesPage() {
       titulo="Configurações"
       descricao="Ajustes do módulo que valem para todo mundo. Só gestores alcançam esta tela."
     >
+      <ConsultoresDeVendaPanel />
       <section className="com-painel">
         <h2>Endereço da sede</h2>
         <p className="com-recado">

@@ -1982,6 +1982,20 @@
   vertical-align: middle;
 }
 
+.com-root .com-consultores-table-wrap { margin: 20px 0 16px; }
+.com-root .com-consultores-tabela { table-layout: fixed; }
+.com-root .com-consultores-tabela th:last-child { width: 220px; }
+.com-root .com-consultores-tabela td:first-child { overflow-wrap: anywhere; }
+.com-root .com-consultores-tabela td:first-child .field-group input { min-width: 0; }
+.com-root .com-consultores-tabela .field-group { margin: 0; }
+.com-root .com-consultores-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.com-root .com-consultores-acoes .com-btn { width: auto; padding: 6px 10px; font-size: 12px; }
+
+@media (max-width: 600px) {
+  .com-root .com-consultores-tabela th:last-child { width: 160px; }
+  .com-root .com-consultores-acoes { gap: 6px; }
+}
+
 /* --- Tabela de alocações -------------------------------------------------- */
 
 /* Todo controle de tabela: `td` E `th`, entrada de texto E área de texto.

@@ -130,7 +130,11 @@ export function usePropostaRevision({
   const aplicarResposta = useCallback(
     (revisao: ProximaRevisaoDaProposta) => {
       const snapshot = revisao.snapshot ?? {};
-      aplicarSnapshot(snapshot, revisao.sellerUserId);
+      aplicarSnapshot({ ...snapshot,
+        seller: revisao.sellerConsultantId || revisao.sellerUserId || snapshot.seller,
+        sellerConsultantId: revisao.sellerConsultantId ?? null,
+        sellerName: revisao.sellerName || snapshot.sellerName
+      }, revisao.sellerConsultantId || revisao.sellerUserId || '');
       setVinculoCrm(revisao.crm);
       setTentouAvancar(false);
       const chave = `${revisao.base_number}:${revisao.nextRevision}`;
@@ -144,6 +148,7 @@ export function usePropostaRevision({
       proximos.set('etapa', 'cliente');
       proximos.delete('id');
       proximos.delete('legado');
+      proximos.delete('visualizacao');
 
       // Chegando de custos, `levantamento` já é a NOVA revisão e vence.
       if (!proximos.get('levantamento') && revisao.costEstimateId) {

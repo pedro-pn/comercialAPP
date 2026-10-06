@@ -251,13 +251,13 @@ export interface Consultor {
   id: string;
   nome: string;
   username: string;
+  tipo: 'usuario' | 'cadastro';
 }
 
 /**
  * Consultores de vendas.
  *
- * A API lista os usuários ativos do Comercial para selecionar o nome que
- * aparecerá na proposta, inclusive quando for diferente de quem a elabora.
+ * A API lista contas ativas e nomes cadastrados pela gestão para as propostas.
  */
 export async function listarConsultores() {
   const { data } = await apiClient.get<{
@@ -265,6 +265,20 @@ export async function listarConsultores() {
     podeEscolher: boolean;
   }>('/comercial/consultores');
   return data;
+}
+
+export async function cadastrarConsultor(nome: string) {
+  const { data } = await apiClient.post<Consultor>('/comercial/consultores', { nome });
+  return data;
+}
+
+export async function editarConsultor(id: string, nome: string) {
+  const { data } = await apiClient.patch<Consultor>(`/comercial/consultores/${encodeURIComponent(id)}`, { nome });
+  return data;
+}
+
+export async function removerConsultor(id: string) {
+  await apiClient.delete(`/comercial/consultores/${encodeURIComponent(id)}`);
 }
 
 export interface FotoDoEscopo {
@@ -322,7 +336,8 @@ export interface PropostaEntrada {
   email: string;
   site: string;
   department?: string | null;
-  sellerUserId: string;
+  sellerUserId?: string | null;
+  sellerConsultantId?: string | null;
   payload: Record<string, unknown>;
 }
 
@@ -334,7 +349,8 @@ export interface PropostaSalva {
   /** Ausente para o papel de consulta — omitido na origem, não escondido aqui. */
   totalValue?: string | number | null;
   costEstimateId?: string | null;
-  sellerUserId?: string;
+  sellerUserId?: string | null;
+  sellerConsultantId?: string | null;
   nectarOpportunityId?: string | null;
   nectarPipelineId?: string | null;
   nectarPipelineName?: string | null;
@@ -377,7 +393,8 @@ export interface ProximaRevisaoDaProposta {
   snapshotAvailable: boolean;
   message: string;
   costEstimateId?: string | null;
-  sellerUserId?: string;
+  sellerUserId?: string | null;
+  sellerConsultantId?: string | null;
   sellerName?: string;
   crm: VinculoCrmDaProposta | null;
 }

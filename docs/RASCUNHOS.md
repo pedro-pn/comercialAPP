@@ -31,7 +31,12 @@ Não configurar produção com um número de exemplo.
 - `GET/POST /api/comercial/levantamentos` e `GET/PUT` por ID.
 - `GET/POST /api/comercial/propostas` e `GET/PUT` por ID.
 - `POST .../:id/arquivar` e `POST .../:id/desarquivar`; não há exclusão.
-- `GET /api/comercial/consultores` deriva a lista das contas ativas.
+- `GET /api/comercial/consultores` reúne contas ativas e consultores cadastrados.
+- `POST /api/comercial/consultores` cadastra um consultor pelo nome completo;
+  exclusivo de administradores e gestores.
+- `PATCH /api/comercial/consultores/:id` altera o nome e `DELETE` remove o cadastro
+  da seleção de novas propostas; exclusivos da gestão. A remoção preserva vínculos
+  e nomes das propostas anteriores, inclusive para novas revisões.
 - `GET /api/comercial/propostas/:codigo/revisao` prepara a revisão sem gravá-la.
 
 O servidor recalcula custo, preço e margem do levantamento a partir do payload,
