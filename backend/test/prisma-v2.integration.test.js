@@ -102,7 +102,7 @@ test('Prisma v2: permissões, liberação, criação/revisão, multipart, reenvi
       clientName: release.legalName, cnpj: release.taxId, contact: release.contactName,
       email: release.email, site: release.site, sellerConsultantId: consultant.id,
       payload: { prices: [{ value: 'R$ 1.250,00' }] } };
-    assert.equal((await request('/api/comercial/propostas', { ...input, sellerConsultantId: null })).status, 400);
+    assert.equal((await request('/api/comercial/propostas', { ...input, sellerUserId: user.id })).status, 400);
     let first = await request('/api/comercial/propostas', input);
     assert.equal(first.status, 201, JSON.stringify(first.data));
     first = first.data;

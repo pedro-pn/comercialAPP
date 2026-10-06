@@ -86,6 +86,7 @@ export async function listProposals(db, user, filters) {
   const where = {
     ...(user.role === 'VIEWER' ? {} : ownerFilter(user)),
     archivedAt: filters.arquivados ? { not: null } : null,
+    ...(filters.status ? { status: filters.status } : {}),
     ...(term ? { OR: [
       { proposalCode: { contains: term, mode: 'insensitive' } },
       { clientName: { contains: term, mode: 'insensitive' } },
@@ -97,7 +98,7 @@ export async function listProposals(db, user, filters) {
     db.proposal.count({ where }),
     db.proposal.findMany({
       where,
-      orderBy: [{ createdAt: 'desc' }, { revisionNumber: 'desc' }],
+      orderBy: [{ [filters.status === 'RASCUNHO' ? 'updatedAt' : 'createdAt']: 'desc' }, { revisionNumber: 'desc' }],
       skip: (filters.page - 1) * filters.pageSize,
       take: filters.pageSize,
       include: {
@@ -161,8 +162,10 @@ export async function createProposal(db, user, data) {
     throw new HttpError(409, 'A revisão deve preservar a liberação original.');
   }
   const release = releaseId ? await releaseForProposal(db, releaseId) : null;
-  const seller = await resolveSeller(db, data.sellerUserId, data.sellerConsultantId,
-    { previousSeller: previous });
+  const seller = !data.sellerUserId && !data.sellerConsultantId
+    ? { sellerUserId: null, sellerConsultantId: null, sellerName: '' }
+    : await resolveSeller(db, data.sellerUserId, data.sellerConsultantId,
+      { previousSeller: previous });
   const totalValue = calculateProposalTotal(data.payload);
   if (!Number.isFinite(totalValue)) throw new HttpError(422, 'Valor da proposta inválido.');
   try {

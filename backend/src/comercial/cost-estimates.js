@@ -57,7 +57,7 @@ export async function listCostEstimates(db, user, filters) {
     db.costEstimate.count({ where }),
     db.costEstimate.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { [filters.status === 'RASCUNHO' ? 'updatedAt' : 'createdAt']: 'desc' },
       skip: (page - 1) * pageSize,
       take: pageSize,
       include: {

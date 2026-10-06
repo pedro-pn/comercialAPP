@@ -47,7 +47,7 @@ propostas sem campos de valor e não abre o registro completo.
 Edições exigem `expectedUpdatedAt` e
 respondem conflito 409 quando outro usuário salvou uma versão mais recente.
 
-Ao voltar ao menu ou sair do sistema pela tela da proposta, o aplicativo aguarda
+Ao voltar ao menu ou sair do sistema pelas telas de proposta e custos, o aplicativo aguarda
 o salvamento em andamento e grava as alterações mais recentes antes de sair.
 Se a gravação falhar, o formulário permanece aberto com os valores digitados.
 O rascunho local é separado por número e revisão; uma resposta de salvamento
@@ -58,16 +58,22 @@ servidor. Recarregar imediatamente oferece a recuperação da última alteraçã
 Quando o primeiro salvamento atribui um número, a cópia pendente acompanha esse
 número. A oferta de recuperação precisa ser resolvida antes de editar ou salvar.
 
-Uma proposta já criada continua sendo salva automaticamente mesmo com dados de
-identificação em preenchimento, incluindo campos vazios, e-mail incompleto ou
-consultor ainda não selecionado. As listas apagadas também são recuperadas vazias.
-Antes da criação, a identificação completa é necessária para reservar o número;
-o preenchimento parcial permanece protegido pela cópia local do navegador.
+Propostas e custos salvam rascunhos automaticamente após cada edição, com um
+pequeno intervalo para agrupar a digitação. Não há botão de salvar rascunho.
+Desde a primeira gravação, os campos obrigatórios podem estar vazios: propostas
+aceitam e-mail e CNPJ incompletos e consultor ainda não selecionado; custos aceitam
+título vazio. As listas apagadas também são recuperadas vazias. O primeiro
+salvamento da proposta reserva seu número, mesmo com identificação incompleta.
+
+Ao abrir Propostas ou Custos, a entrada lista os rascunhos em andamento, ordenados
+pela última edição, com a ação Continuar. Registros concluídos e arquivados não
+aparecem nessa lista; os concluídos permanecem acessíveis pelo histórico.
 
 O menu de etapas e o botão de próxima etapa aguardam a gravação antes de mudar
 de aba. Uma falha mantém a etapa atual aberta e permite tentar novamente. O menu
-continua permitindo consultar etapas com campos incompletos; antes de criar a
-proposta, esse preenchimento permanece na cópia local até completar a identificação.
+e o botão de próxima etapa permitem continuar com campos incompletos.
+Uma gravação automática que falha não é repetida para os mesmos dados; uma nova
+edição permite tentar novamente, sem um ciclo permanente de salvamento.
 
 A finalização também confere no servidor os campos obrigatórios de todas as
 etapas, usando as mesmas regras da tela. Chamadas diretas à API com dados

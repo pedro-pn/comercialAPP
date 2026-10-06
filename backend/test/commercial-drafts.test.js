@@ -1,0 +1,124 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { once } from 'node:events';
+import { randomBytes, randomUUID } from 'node:crypto';
+import { z } from 'zod';
+import { makeComercialSchemas } from '../../shared/schemas/comercial.js';
+import { createApp } from '../src/app.js';
+import { createAuthService, tokenHash } from '../src/auth/service.js';
+import { createDatabase } from '../src/db.js';
+
+const schemas = makeComercialSchemas(z);
+const expectedUpdatedAt = '2026-10-06T20:00:00.000Z';
+
+test('POST de rascunho de proposta aceita identificação ausente, vazia e incompleta', () => {
+  for (const fields of [{}, { clientName: '', cnpj: '', contact: '', email: '', site: '' },
+    { cnpj: '11.222', email: 'contato@', sellerUserId: null, sellerConsultantId: null }]) {
+    const saved = schemas.proposalCreate.parse({ proposalCode: '9000', payload: { attendance: '5 dias' }, ...fields });
+    assert.equal(saved.clientName, '');
+    assert.equal(saved.cnpj, fields.cnpj ?? '');
+    assert.equal(saved.email, fields.email ?? '');
+    assert.equal(saved.payload.attendance, '5 dias');
+  }
+});
+
+test('PUT parcial não limpa a identificação que não veio na requisição', () => {
+  const update = schemas.proposalUpdate.parse({ expectedUpdatedAt, payload: { title: 'Serviço' } });
+  for (const field of ['clientName', 'cnpj', 'contact', 'email', 'site']) {
+    assert.equal(field in update, false, field);
+  }
+  assert.equal(schemas.proposalUpdate.parse({ expectedUpdatedAt, email: 'contato@' }).email, 'contato@');
+});
+
+test('rascunhos continuam validando tipos, limites e dois consultores simultâneos', () => {
+  const base = { proposalCode: '9000', payload: {} };
+  for (const fields of [{ email: 123 }, { clientName: 'x'.repeat(201) },
+    { sellerUserId: 'usuario', sellerConsultantId: 'cadastro' }]) {
+    assert.equal(schemas.proposalCreate.safeParse({ ...base, ...fields }).success, false);
+  }
+});
+
+test('título do levantamento só é obrigatório na conclusão', () => {
+  const base = { proposalCode: '9000', mode: 'NOVA', payload: {} };
+  for (const title of [undefined, '', '   ']) {
+    assert.equal(schemas.costEstimateCreate.parse({ ...base, status: 'RASCUNHO', title }).title, '');
+    assert.equal(schemas.costEstimateCreate.safeParse({ ...base, status: 'SALVO', title }).success, false);
+  }
+  assert.equal(schemas.costEstimateUpdate.parse({ ...base, expectedUpdatedAt, title: '', status: 'RASCUNHO' }).title, '');
+});
+
+test('API salva, lista e reabre rascunhos incompletos de propostas e custos',
+  { skip: !process.env.TEST_DATABASE_URL }, async t => {
+    assert.equal(new URL(process.env.TEST_DATABASE_URL).pathname, '/comercialapp_test');
+    const db = createDatabase(process.env.TEST_DATABASE_URL);
+    const user = await db.user.create({ data: { username: `rascunhos-${randomUUID()}`, name: 'Teste Rascunhos', role: 'ADMIN' } });
+    const token = randomBytes(32).toString('hex');
+    await db.session.create({ data: { userId: user.id, tokenHash: tokenHash(token), expiresAt: new Date(Date.now() + 60_000) } });
+    const server = createApp({ authService: createAuthService(db), commercialDb: db }).listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    const numbers = [];
+    const proposalIds = [];
+    const estimateIds = [];
+    let seeded = false;
+    t.after(async () => {
+      await new Promise(resolve => server.close(resolve));
+      await db.proposal.deleteMany({ where: { id: { in: proposalIds } } });
+      await db.costEstimate.deleteMany({ where: { id: { in: estimateIds } } });
+      await db.proposalNumberReservation.deleteMany({ where: { number: { in: numbers } } });
+      if (seeded) await db.proposalNumberingState.deleteMany({ where: { seededByUserId: user.id } });
+      await db.session.deleteMany({ where: { userId: user.id } });
+      await db.user.delete({ where: { id: user.id } });
+      await db.$disconnect();
+    });
+    const origin = `http://127.0.0.1:${server.address().port}/api/comercial`;
+    async function request(route, method = 'GET', body) {
+      const response = await fetch(origin + route, { method,
+        headers: { 'Content-Type': 'application/json', 'X-Comercial-Request': '1', Cookie: `comercial_session=${token}` },
+        ...(body ? { body: JSON.stringify(body) } : {}) });
+      return { status: response.status, data: await response.json() };
+    }
+    if (!(await request('/numeracao/status')).data.seeded) {
+      assert.equal((await request('/numeracao/inicializar', 'POST', { initialNumber: 98000 })).status, 201);
+      seeded = true;
+    }
+    async function nextNumber() {
+      const { data } = await request('/propostas/proximo-numero', 'POST');
+      numbers.push(data.numero);
+      return String(data.numero);
+    }
+    const proposal = await request('/propostas', 'POST', {
+      proposalCode: await nextNumber(), email: 'contato@', payload: { attendance: '5 dias', title: 'Em andamento' }
+    });
+    assert.equal(proposal.status, 201);
+    proposalIds.push(proposal.data.id);
+    assert.equal(proposal.data.sellerName, '');
+    assert.equal(proposal.data.clientName, '');
+    const updated = await request(`/propostas/${proposal.data.id}`, 'PUT', {
+      expectedUpdatedAt: proposal.data.updatedAt, contact: 'Contato preenchido', email: '',
+      payload: { ...proposal.data.payload, contact: 'Contato preenchido', email: '' }
+    });
+    assert.equal(updated.status, 200);
+    const reopened = await request(`/propostas/${proposal.data.id}`);
+    assert.equal(reopened.data.contact, 'Contato preenchido');
+    assert.equal(reopened.data.payload.attendance, '5 dias');
+    const drafts = await request('/propostas?status=RASCUNHO');
+    assert.equal(drafts.status, 200);
+    assert.ok(drafts.data.items.some(item => item.id === proposal.data.id));
+    assert.ok(drafts.data.items.every(item => item.status === 'RASCUNHO'));
+    assert.ok(!(await request('/propostas?status=FINALIZADA')).data.items.some(item => item.id === proposal.data.id));
+    assert.equal((await request(`/propostas/${proposal.data.id}/finalizar-local`, 'POST')).status, 422);
+
+    const estimate = await request('/levantamentos', 'POST', {
+      proposalCode: await nextNumber(), title: '', mode: 'NOVA', status: 'RASCUNHO', payload: { title: '' }
+    });
+    assert.equal(estimate.status, 201);
+    estimateIds.push(estimate.data.id);
+    assert.equal(estimate.data.title, '');
+    const estimates = await request('/levantamentos?status=RASCUNHO');
+    assert.ok(estimates.data.items.some(item => item.id === estimate.data.id));
+    assert.ok(estimates.data.items.every(item => item.status === 'RASCUNHO'));
+    assert.equal((await request(`/levantamentos/${estimate.data.id}`, 'PUT', {
+      proposalCode: estimate.data.proposalCode, mode: 'NOVA', status: 'SALVO', title: '',
+      expectedUpdatedAt: estimate.data.updatedAt, payload: estimate.data.payload
+    })).status, 400);
+  });

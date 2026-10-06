@@ -12,6 +12,7 @@ import { LOGO_URL } from '../components/marca';
 import { MarcaDeOpcao } from '../components/MarcaDeOpcao';
 import { formatarValorDoLevantamento } from './levantamentoVinculado';
 import { prepararLevantamentoParaProposta } from './prepararLevantamento';
+import { RascunhosEmAndamento } from '../components/RascunhosEmAndamento';
 
 /** Entrada da proposta: nova ou revisão de um número existente (PROP-CTL-001..005). */
 export function PropostaModeDialog({
@@ -19,6 +20,7 @@ export function PropostaModeDialog({
   onLevantamento,
   onPendenciasDoLevantamento,
   onPropostaExistente,
+  onRascunho,
   onNova,
   onRevisao,
   onLegada,
@@ -31,6 +33,7 @@ export function PropostaModeDialog({
     issues: ComercialIssue[]
   ) => void;
   onPropostaExistente: (levantamento: LevantamentoSalvo) => void;
+  onRascunho: (id: string) => void;
   onNova: () => void;
   onRevisao: (codigo: string) => Promise<boolean>;
   onLegada: (codigo: string, revisao: number) => Promise<boolean>;
@@ -189,6 +192,8 @@ export function PropostaModeDialog({
             <span>Informe o número antigo e a revisão que será criada neste app.</span>
           </button>
         </div>
+
+        <RascunhosEmAndamento tipo="proposta" onAbrir={item => onRascunho(item.id)} />
 
         {mostrarLevantamentos && (
           <section className="com-levantamentos-entrada" aria-live="polite">

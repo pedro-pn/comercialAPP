@@ -51,7 +51,6 @@ import {
   VALORES_PADRAO_STANDBY,
   type ItemDePreco,
   type LinhaResponsabilidade,
-  pendenciasDaEtapa,
   pendenciasDaProposta,
   podeAcessarEtapa,
   rotuloDoAvanco,
@@ -114,8 +113,8 @@ import { parametrosDasPendenciasDoLevantamento } from './prepararLevantamento';
  * stepper, o rodapé com a trava e o rascunho local. Cada etapa vem em componente
  * próprio.
  *
- * As abas são livres durante o rascunho. O rodapé valida a etapa ao salvar e
- * avançar; antes de emitir, confere também todas as etapas que foram puladas.
+ * O rascunho salva automaticamente e permite navegar com campos incompletos.
+ * Antes de emitir, confere os campos obrigatórios de todas as etapas.
  *
  * L3 desde já (T087): a etapa ativa vive no ENDEREÇO, e o conteúdo é guardado
  * localmente com oferta de recuperação.
@@ -454,13 +453,6 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     revisaoPronta &&
     (!liberacaoId || modo !== 'new' || Boolean(propostaId) || liberacaoCarregada === liberacaoId) &&
     (!levantamentoId || Boolean(levantamentoVinculado));
-  const identificacaoCompleta =
-    pendenciasDaEtapa('cliente', form, {
-      itens: itensEscopo,
-      responsabilidades,
-      errosTecnicos,
-      precos
-    }).length === 0;
   const identidadeDoTrabalho = `proposta:${modo || 'inicio'}:${liberacaoId || levantamentoId || 'avulsa'}:${
     modo === 'revision' ? `${codigo}:${revisionNumber}` : 'nova'
   }`;
@@ -484,11 +476,8 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     dados: dadosDaEdicao,
     identidade: identidadeDoTrabalho,
     ativo: propostaProntaParaSalvar,
-    // A identificação completa é necessária só para o primeiro POST. Depois
-    // dele, o rascunho deve salvar também campos em preenchimento ou apagados.
     ocupado: salvando || ocupadoLocal || saindo || mudandoEtapa || Boolean(rascunho.oferta) ||
-      Boolean(conflitoDeEdicao) ||
-      (!propostaId && !identificacaoCompleta),
+      Boolean(conflitoDeEdicao),
     salvar: async () => Boolean(await salvar(false, true))
   });
 
@@ -663,14 +652,6 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     if (destino === etapa || mudandoEtapa || saindo || ocupadoLocal ||
         finalizacao.finalizando || rascunho.oferta || !propostaProntaParaSalvar) return;
 
-    // Antes da identificação completa, a cópia local protege o preenchimento
-    // sem consumir um número só para consultar outra aba.
-    if (!propostaId && !identificacaoCompleta) {
-      irPara(destino);
-      setRecado('Rascunho guardado neste navegador. Complete os dados do cliente para salvar no servidor.');
-      return;
-    }
-
     setMudandoEtapa(true);
     try {
       await salvarParaDocumentos();
@@ -685,9 +666,8 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
   /**
    * "Salvar e continuar" — e ele salva mesmo, desde a primeira etapa.
    *
-   * A ordem importa: valida, **salva**, e só então avança. Avançar antes de
-   * salvar faria o rodapé prometer uma coisa e entregar outra; avançar depois de
-   * uma falha esconderia a falha atrás de uma etapa nova.
+   * Persiste o preenchimento parcial antes de avançar. A validação dos campos
+   * obrigatórios fica para a conclusão da proposta.
    */
   async function avancar() {
     if (somenteRascunho && statusProposta === 'FINALIZADA') return;
@@ -705,12 +685,6 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
       await concluirFinalizacaoLocal();
       return;
     }
-    if (pendencias.length > 0) {
-      setRecado(pendencias[0].mensagem);
-      setEtapaParaFocar(etapa);
-      return;
-    }
-
     if (ultima) {
       const pendencia =
         statusProposta === 'RASCUNHO' ? pendenciasDoFormulario[0] : undefined;
@@ -936,9 +910,8 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
    * com `null`: passar de etapa depois de uma falha faria o usuário acreditar
    * que o trabalho está guardado.
    *
-   * O número da proposta é reservado aqui, no primeiro salvamento, e não na
-   * abertura da tela. Ele **consome** — abrir o assistente e desistir não pode
-   * gastar um número, porque o próximo sairia com um buraco no meio.
+   * O número é reservado na primeira gravação do rascunho, inclusive quando
+   * a identificação ainda está em preenchimento.
    */
   async function salvar(
     forceOverwrite = false,
@@ -1053,7 +1026,6 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
   async function prepararSaida(): Promise<boolean> {
     if (saidaEmAndamento.current || mudandoEtapa || ocupadoLocal || finalizacao.finalizando) return false;
     if (statusProposta !== 'RASCUNHO' || !propostaProntaParaSalvar ||
-        (!identificacaoCompleta && !propostaId) ||
         (!salvamentoEmAndamento.current && !autosave.temAlteracoesPendentes())) return true;
 
     saidaEmAndamento.current = true;
@@ -1119,9 +1091,6 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
       <PropostaFooter
         posicao={posicao}
         onCancelar={() => void voltarAoInicio()}
-        onSalvarRascunho={statusProposta === 'RASCUNHO' &&
-          (!somenteRascunho || Boolean(propostaId) || identificacaoCompleta)
-            ? () => void salvar() : undefined}
         primeiraEtapa={indice === 0}
         aviso={avisoDePendencias(pendencias)}
         rotulo={
@@ -1331,6 +1300,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
           recado={recado}
           onLevantamento={iniciarComLevantamento}
           onPropostaExistente={continuarPropostaDoLevantamento}
+          onRascunho={id => setParams(new URLSearchParams({ id }), { replace: true })}
           onNova={iniciarNovaProposta}
           onRevisao={carregarRevisao}
           onLegada={iniciarRevisaoLegada}

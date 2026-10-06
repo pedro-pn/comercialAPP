@@ -6,7 +6,6 @@ export function PropostaFooter({
   ocupado,
   posicao = 'rodape',
   onCancelar,
-  onSalvarRascunho,
   onVoltar,
   onAvancar
 }: {
@@ -16,7 +15,6 @@ export function PropostaFooter({
   ocupado: boolean;
   posicao?: 'topo' | 'rodape';
   onCancelar: () => void;
-  onSalvarRascunho?: () => void;
   onVoltar: () => void;
   onAvancar: () => void;
 }) {
@@ -36,9 +34,6 @@ export function PropostaFooter({
       <span className="com-faltando">{aviso}</span>
 
       <div className="com-rodape-acoes">
-      {onSalvarRascunho && <button type="button" className="com-btn com-btn-fantasma" disabled={ocupado} onClick={onSalvarRascunho}>
-        Salvar rascunho
-      </button>}
       <button
         type="button"
         className="com-btn com-btn-primario"

@@ -45,6 +45,7 @@ export function useAutosaveServidor({
   const [estado, setEstado] = useState<EstadoDoAutosave>('inativo');
   const assinaturaAtual = useRef('');
   const assinaturaSalva = useRef('');
+  const assinaturaComErro = useRef('');
   const identidadePreparada = useRef('');
   const identidadeAtual = useRef(identidade);
   const salvando = useRef(false);
@@ -69,7 +70,7 @@ export function useAutosaveServidor({
 
   const agendar = useCallback(() => {
     cancelarTimer();
-    if (!ativoRef.current) return;
+    if (!ativoRef.current || assinaturaAtual.current === assinaturaComErro.current) return;
     timer.current = window.setTimeout(
       () => executarRef.current(),
       ATRASO_DO_AUTOSAVE_MS
@@ -82,7 +83,7 @@ export function useAutosaveServidor({
 
     const enviada = assinaturaAtual.current;
     const identidadeEnviada = identidadeAtual.current;
-    if (!enviada || enviada === assinaturaSalva.current) return;
+    if (!enviada || enviada === assinaturaSalva.current || enviada === assinaturaComErro.current) return;
 
     salvando.current = true;
     setEstado('salvando');
@@ -98,10 +99,17 @@ export function useAutosaveServidor({
     if (!ativoRef.current || identidadeAtual.current !== identidadeEnviada)
       return;
     if (!gravou) {
-      setEstado('erro');
+      assinaturaComErro.current = enviada;
+      if (assinaturaAtual.current !== enviada) {
+        setEstado('pendente');
+        agendar();
+      } else {
+        setEstado('erro');
+      }
       return;
     }
 
+    assinaturaComErro.current = '';
     assinaturaSalva.current = enviada;
     if (assinaturaAtual.current !== assinaturaSalva.current) {
       setEstado('pendente');
@@ -121,6 +129,7 @@ export function useAutosaveServidor({
       cancelarTimer();
       identidadePreparada.current = '';
       assinaturaSalva.current = '';
+      assinaturaComErro.current = '';
       setEstado('inativo');
       return;
     }
@@ -129,12 +138,19 @@ export function useAutosaveServidor({
       cancelarTimer();
       identidadePreparada.current = identidade;
       assinaturaSalva.current = atual;
+      assinaturaComErro.current = '';
       setEstado('inativo');
       return;
     }
 
     if (!atual || atual === assinaturaSalva.current) {
       cancelarTimer();
+      return;
+    }
+
+    if (atual === assinaturaComErro.current) {
+      cancelarTimer();
+      setEstado('erro');
       return;
     }
 
@@ -149,6 +165,7 @@ export function useAutosaveServidor({
   const marcarSalvo = useCallback(
     (dadosSalvos: unknown) => {
       assinaturaSalva.current = assinatura(dadosSalvos);
+      assinaturaComErro.current = '';
       if (assinaturaAtual.current === assinaturaSalva.current) {
         cancelarTimer();
         setEstado('salvo');
