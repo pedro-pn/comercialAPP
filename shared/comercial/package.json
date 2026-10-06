@@ -14,7 +14,8 @@
     "./finalization": "./dist/finalization.js",
     "./nectar-pipelines": "./dist/nectar-pipelines.js",
     "./dinheiro": "./dist/dinheiro.js",
-    "./modelo-documento": "./dist/modelo-documento.js"
+    "./modelo-documento": "./dist/modelo-documento.js",
+    "./proposal-validation": "./dist/proposal-validation.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

@@ -47,6 +47,17 @@ propostas sem campos de valor e não abre o registro completo.
 Edições exigem `expectedUpdatedAt` e
 respondem conflito 409 quando outro usuário salvou uma versão mais recente.
 
+Ao voltar ao menu ou sair do sistema pela tela da proposta, o aplicativo aguarda
+o salvamento em andamento e grava as alterações mais recentes antes de sair.
+Se a gravação falhar, o formulário permanece aberto com os valores digitados.
+O rascunho local é separado por número e revisão; uma resposta de salvamento
+anterior não apaga alterações mais novas guardadas no navegador.
+
+A finalização também confere no servidor os campos obrigatórios de todas as
+etapas, usando as mesmas regras da tela. Chamadas diretas à API com dados
+incompletos recebem HTTP 422 e a proposta permanece como rascunho, inclusive
+quando já existem documentos gerados. Salvar um rascunho parcial continua permitido.
+
 O histórico usa o login próprio. Gestor e vendedor podem abrir e editar seus
 levantamentos e rascunhos de proposta; consulta vê somente a lista de propostas
 sem valores. Administradores/gestores

@@ -61,6 +61,9 @@ type ComercialChromeProps = {
    * e o logo da barra, que leva ao menu, não se anuncia como caminho de volta.
    */
   voltarPara?: string;
+  /** Permite terminar o salvamento da tela antes de navegar ou encerrar a sessão. */
+  antesDeSair?: () => Promise<boolean>;
+  navegacaoOcupada?: boolean;
 };
 
 export function ComercialChrome({
@@ -75,11 +78,19 @@ export function ComercialChrome({
   faixa,
   semContainer,
   voltarPara,
+  antesDeSair,
+  navegacaoOcupada = false,
   children
 }: ComercialChromeProps) {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+
+  async function sair(acao: () => void) {
+    if (navegacaoOcupada) return;
+    if (antesDeSair && !await antesDeSair()) return;
+    acao();
+  }
 
   return (
     <div className={`com-root com-app com-app-${variante}`}>
@@ -88,7 +99,8 @@ export function ComercialChrome({
           type="button"
           className="com-marca"
           aria-label="Comercial — voltar ao menu do módulo"
-          onClick={() => navigate(moduleRoutePath('comercial', 'index'))}
+          disabled={navegacaoOcupada}
+          onClick={() => void sair(() => navigate(moduleRoutePath('comercial', 'index')))}
         >
           <img src={LOGO_URL} alt="Filtrovali" />
         </button>
@@ -98,7 +110,8 @@ export function ComercialChrome({
             <button
               type="button"
               className="com-btn com-btn-fantasma"
-              onClick={() => navigate(voltarPara)}
+              disabled={navegacaoOcupada}
+              onClick={() => void sair(() => navigate(voltarPara))}
             >
               ← Voltar
             </button>
@@ -111,7 +124,8 @@ export function ComercialChrome({
           {location.pathname !== moduleRoutePath('comercial', 'index') && <button
             type="button"
             className="com-btn com-btn-fantasma"
-            onClick={() => navigate(moduleRoutePath('comercial', 'index'))}
+            disabled={navegacaoOcupada}
+            onClick={() => void sair(() => navigate(moduleRoutePath('comercial', 'index')))}
           >
             Voltar ao início
           </button>}
@@ -119,12 +133,13 @@ export function ComercialChrome({
           <button
             type="button"
             className="com-btn com-btn-fantasma"
-            onClick={() => {
+            disabled={navegacaoOcupada}
+            onClick={() => void sair(() => {
               // O `catch` existe porque a sessão pode já ter caído no servidor.
               // Falhar ao avisar o servidor não pode prender o usuário na tela:
               // o `logout` limpa o estado local de qualquer jeito.
               void logout().catch(() => {});
-            }}
+            })}
           >
             Sair do sistema
           </button>

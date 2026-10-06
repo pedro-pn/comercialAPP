@@ -8,3 +8,4 @@ export * from './finalization.js';
 export * from './nectar-pipelines.js';
 export * from './dinheiro.js';
 export * from './modelo-documento.js';
+export * from './proposal-validation.js';

@@ -256,6 +256,8 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
   const [versaoCarregada, setVersaoCarregada] = useState('');
   const [statusProposta, setStatusProposta] = useState('RASCUNHO');
   const [preparandoEdicao, setPreparandoEdicao] = useState(false);
+  const [saindo, setSaindo] = useState(false);
+  const saidaEmAndamento = useRef(false);
   // O download pode aguardar o autosave; depois do await precisa do id e da
   // versão recém-gravados, inclusive antes de o React concluir o render.
   const propostaSalvaRef = useRef({ id: propostaId, updatedAt: versaoCarregada, status: statusProposta });
@@ -435,6 +437,8 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     precos,
     incluirUnitario
   };
+  const dadosAtuaisRef = useRef(dadosDaEdicao);
+  dadosAtuaisRef.current = dadosDaEdicao;
   const nomeDoConsultor =
     consultores.find((consultor) => consultor.id === form.seller)?.nome ||
     String(form.sellerName || '');
@@ -459,7 +463,9 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     conta: user?.id || '',
     tela: 'proposta',
     modo: liberacaoId ? 'prisma' : levantamentoId ? 'levantamento' : 'avulsa',
-    codigo: liberacaoId || levantamentoId,
+    codigo: precisaDeNumero(codigo)
+      ? liberacaoId || levantamentoId
+      : `${codigo}:rev${revisionNumber}`,
     dados: dadosDaEdicao,
     // A hidratação do servidor e a aplicação do levantamento vinculado são a
     // base inicial, não edições. O rascunho só começa a observar depois delas.
@@ -476,7 +482,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     // A API cria a proposta somente depois que os campos de identificação
     // obrigatórios existem. Até lá, o rascunho local continua protegendo o
     // preenchimento e o autosave fica pendente, pronto para a última resposta.
-    ocupado: salvando || ocupadoLocal || !identificacaoCompleta,
+    ocupado: salvando || ocupadoLocal || saindo || !identificacaoCompleta,
     salvar: async () => Boolean(await salvar(false, true))
   });
 
@@ -900,11 +906,17 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
    * abertura da tela. Ele **consome** — abrir o assistente e desistir não pode
    * gastar um número, porque o próximo sairia com um buraco no meio.
    */
-  function salvar(
+  async function salvar(
     forceOverwrite = false,
     automatico = false
   ): Promise<string | null> {
-    if (salvamentoEmAndamento.current) return salvamentoEmAndamento.current;
+    if (salvamentoEmAndamento.current) {
+      const id = await salvamentoEmAndamento.current;
+      if (!id || automatico || !autosave.temAlteracoesPendentes()) return id;
+      // Um salvamento explícito precisa incluir o que foi digitado enquanto
+      // o autosave anterior aguardava a API, usando também a versão nova.
+      return salvarAtual.current(forceOverwrite);
+    }
     const operacao = executarSalvamento(forceOverwrite, automatico)
       .finally(() => { salvamentoEmAndamento.current = null; });
     salvamentoEmAndamento.current = operacao;
@@ -956,9 +968,11 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
           })
         : await criarProposta(entrada);
 
-      // Gravada no servidor, o rascunho local não pode sobrar para reaparecer
-      // depois como se fosse trabalho não salvo.
-      rascunho.limparTudo();
+      // A resposta de uma gravação anterior não pode apagar a cópia local de
+      // alterações feitas enquanto a API respondia.
+      if (JSON.stringify(dadosAtuaisRef.current) === JSON.stringify(snapshot)) {
+        rascunho.limparAtual();
+      }
       if (!propostaSalva.id) {
         // O conteúdo já é exatamente o que o POST devolveu. Marcar o id evita
         // que o efeito de reabertura faça um GET e aplique esse snapshot por
@@ -1000,6 +1014,31 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     const id = await salvarAtual.current();
     if (!id) throw erroDeSalvamento.current || new Error('Não foi possível salvar a proposta.');
     return id;
+  }
+
+  async function prepararSaida(): Promise<boolean> {
+    if (saidaEmAndamento.current || ocupadoLocal || finalizacao.finalizando) return false;
+    if (statusProposta !== 'RASCUNHO' || !propostaProntaParaSalvar ||
+        (!identificacaoCompleta && !propostaId) ||
+        (!salvamentoEmAndamento.current && !autosave.temAlteracoesPendentes())) return true;
+
+    saidaEmAndamento.current = true;
+    setSaindo(true);
+    setRecado('Salvando as últimas alterações antes de sair...');
+    try {
+      await salvarParaDocumentos();
+      return true;
+    } catch (error) {
+      setRecado(mensagemDeErro(error, 'Não foi possível salvar as últimas alterações. Tente novamente antes de sair.'));
+      return false;
+    } finally {
+      saidaEmAndamento.current = false;
+      setSaindo(false);
+    }
+  }
+
+  async function voltarAoInicio() {
+    if (await prepararSaida()) navigate(moduleRoutePath('comercial', 'index'));
   }
 
   /**
@@ -1045,7 +1084,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     return (
       <PropostaFooter
         posicao={posicao}
-        onCancelar={() => navigate(moduleRoutePath('comercial', 'index'))}
+        onCancelar={() => void voltarAoInicio()}
         onSalvarRascunho={statusProposta === 'RASCUNHO' &&
           (!somenteRascunho || identificacaoCompleta) ? () => void salvar() : undefined}
         primeiraEtapa={indice === 0}
@@ -1075,13 +1114,13 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
                           proximaEtapa?.label
                         )
         }
-        ocupado={salvando || ocupadoLocal || gerandoPdf || finalizacao.bloqueada ||
+        ocupado={salvando || ocupadoLocal || saindo || gerandoPdf || finalizacao.bloqueada ||
           (somenteRascunho && statusProposta === 'FINALIZADA')}
         onVoltar={() =>
           statusProposta !== 'RASCUNHO'
             ? navigate(moduleRoutePath('comercial', 'historico'))
             : indice === 0
-              ? navigate(moduleRoutePath('comercial', 'index'))
+              ? void voltarAoInicio()
               : irPara(ETAPAS[indice - 1].value)
         }
         onAvancar={avancar}
@@ -1128,6 +1167,8 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
 
   return (
     <ComercialChrome
+      antesDeSair={prepararSaida}
+      navegacaoOcupada={saindo || ocupadoLocal || finalizacao.finalizando}
       variante="proposta"
       semContainer
       eyebrow={somenteRascunho ?
@@ -1391,6 +1432,9 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
             </section>
           )}
 
+          <fieldset className="com-proposta-campos"
+            disabled={saindo || ocupadoLocal || finalizacao.finalizando ||
+              Boolean(propostaId && !versaoCarregada) || !revisaoPronta}>
           {etapa === 'cliente' ? (
             <ClienteStep
               somenteRascunho={somenteRascunho}
@@ -1507,6 +1551,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
               bloqueada={finalizacao.bloqueada}
             />
           )}
+          </fieldset>
 
           {recado && (
             <p className="com-recado com-recado-tela" role="status">
