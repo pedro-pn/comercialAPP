@@ -272,6 +272,15 @@ export async function cadastrarConsultor(nome: string) {
   return data;
 }
 
+export async function editarConsultor(id: string, nome: string) {
+  const { data } = await apiClient.patch<Consultor>(`/comercial/consultores/${encodeURIComponent(id)}`, { nome });
+  return data;
+}
+
+export async function removerConsultor(id: string) {
+  await apiClient.delete(`/comercial/consultores/${encodeURIComponent(id)}`);
+}
+
 export interface FotoDoEscopo {
   id: string;
   assetKey: string;

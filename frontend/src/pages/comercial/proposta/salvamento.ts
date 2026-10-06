@@ -47,6 +47,7 @@ type PropostaPersistidaParaFormulario = {
   department?: string | null;
   sellerUserId?: string | null;
   sellerConsultantId?: string | null;
+  sellerName?: string | null;
 };
 
 /**
@@ -75,6 +76,7 @@ export function snapshotDaPropostaSalva(
     site: proposta.site ?? payload.site ?? '',
     department: proposta.department ?? payload.department ?? '',
     seller: proposta.sellerConsultantId ?? proposta.sellerUserId ?? payload.seller ?? '',
+    sellerName: proposta.sellerName ?? payload.sellerName ?? '',
     sellerConsultantId: 'sellerConsultantId' in proposta
       ? proposta.sellerConsultantId : payload.sellerConsultantId ?? null
   };

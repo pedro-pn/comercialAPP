@@ -108,7 +108,7 @@ test('gestão cadastra nomes e propostas preservam o consultor sem conta de aces
       await new Promise(resolve => server.close(resolve));
       await db.proposal.deleteMany({ where: { id: { in: createdProposals } } });
       await db.salesConsultant.deleteMany({ where: { id: { in: createdConsultants } } });
-      await db.proposalNumberReservation.deleteMany({ where: { number } });
+      await db.proposalNumberReservation.deleteMany({ where: { number: { in: [number, number + 1] } } });
       await db.session.deleteMany({ where: { userId: { in: users.map(user => user.id) } } });
       await db.user.deleteMany({ where: { id: { in: users.map(user => user.id) } } });
       await db.$disconnect();
@@ -124,7 +124,7 @@ test('gestão cadastra nomes e propostas preservam o consultor sem conta de aces
           'Content-Type': 'application/json', 'X-Comercial-Request': '1' },
         ...(body ? { body: JSON.stringify(body) } : {})
       });
-      return { status: response.status, data: await response.json() };
+      return { status: response.status, data: response.status === 204 ? null : await response.json() };
     }
 
     const userCount = await db.user.count();
@@ -198,6 +198,57 @@ test('gestão cadastra nomes e propostas preservam o consultor sem conta de aces
     });
     assert.equal(partial.status, 200);
     assert.equal(partial.data.sellerConsultantId, registered.data.id);
+
+    const route = `/consultores/${registered.data.id}`;
+    for (const roleIndex of [2, 3]) {
+      assert.equal((await request(route, roleIndex, 'PATCH', { nome: 'Outro Nome' })).status, 403);
+      assert.equal((await request(route, roleIndex, 'DELETE')).status, 403);
+    }
+    assert.equal((await request(route, 1, 'PATCH', { nome: 'Ana' })).status, 422);
+    assert.equal((await request(route, 1, 'PATCH', { nome: adminRegistered.data.nome })).status, 409);
+    assert.equal((await request(route, 1, 'PATCH', { nome: name, username: 'novo' })).status, 400);
+    assert.equal((await request('/consultores/missing', 1, 'PATCH', { nome: name })).status, 404);
+    assert.equal((await request(`/consultores/${users[2].id}`, 1, 'DELETE')).status, 404);
+    assert.equal((await request(`/consultores/${users[2].id}`, 1, 'PATCH', { nome: name })).status, 404);
+    const updatedName = `Ana Maria Atualizada ${suffix}`;
+    const renamed = await request(route, 1, 'PATCH', { nome: `  Ana   Maria Atualizada ${suffix} ` });
+    assert.equal(renamed.status, 200);
+    assert.equal(renamed.data.nome, updatedName);
+    assert.equal(renamed.data.id, registered.data.id);
+    assert.equal((await request('/consultores', 2)).data.items.find(item => item.id === registered.data.id)
+      .nome, updatedName);
+    assert.equal((await request(`/propostas/${created.data.id}`, 2)).data.sellerName, name);
+    const adminRenamed = await request(`/consultores/${adminRegistered.data.id}`, 0, 'PATCH',
+      { nome: `Carlos Souza Atualizado ${suffix}` });
+    assert.equal(adminRenamed.status, 200);
+    assert.equal((await request(`/consultores/${adminRegistered.data.id}`, 0, 'DELETE')).status, 204);
+    assert.equal((await request(route, 1, 'DELETE')).status, 204);
+    assert.equal((await request(route, 1, 'DELETE')).status, 404);
+    assert.equal((await request(route, 1, 'PATCH', { nome: name })).status, 404);
+    assert.ok(!(await request('/consultores', 2)).data.items.some(item => item.id === registered.data.id));
+    const removed = await db.salesConsultant.findUnique({ where: { id: registered.data.id } });
+    assert.ok(removed.archivedAt);
+    assert.equal(removed.normalizedName, null);
+    assert.equal(await db.user.count(), userCount);
+    await db.proposalNumberReservation.create({ data: { number: number + 1, reservedByUserId: users[2].id } });
+    assert.equal((await request('/propostas', 2, 'POST', { ...input, proposalCode: String(number + 1) })).status, 422);
+    const retained = await request(`/propostas/${created.data.id}`, 2, 'PUT', {
+      expectedUpdatedAt: partial.data.updatedAt, sellerUserId: null, sellerConsultantId: registered.data.id,
+      clientName: 'Cliente editado após remoção'
+    });
+    assert.equal(retained.status, 200);
+    assert.equal(retained.data.sellerConsultantId, registered.data.id);
+    assert.equal(retained.data.sellerName, name);
+    const replacement = await request('/consultores', 1, 'POST', { nome: updatedName });
+    assert.equal(replacement.status, 201);
+    createdConsultants.push(replacement.data.id);
+    assert.notEqual(replacement.data.id, registered.data.id);
+
+    await previewPdf(db, users[2], { tipo: 'technical', sellerConsultantId: registered.data.id,
+      proposalCode: String(number), sellerName: 'Nome forjado' }, async data => {
+      assert.equal(data.seller, name);
+      return { pdf: Buffer.from('%PDF prévia') };
+    });
 
     await issueDocuments(db, users[2], created.data.id, async data => {
       assert.equal(data.seller, name);

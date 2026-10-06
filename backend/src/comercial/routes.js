@@ -2,7 +2,7 @@ import { Router, raw } from 'express';
 import { z } from 'zod';
 import { makeComercialSchemas } from '../../../shared/schemas/comercial.js';
 import { requireAdmin, requireEstimator, requireManager } from './access.js';
-import { createConsultant, listConsultants } from './consultants.js';
+import { createConsultant, listConsultants, removeConsultant, updateConsultant } from './consultants.js';
 import {
   archiveCostEstimate, createCostEstimate, getCostEstimate,
   listCostEstimates, updateCostEstimate
@@ -96,6 +96,16 @@ export function createCommercialRouter(db, { crm = createNectarClient() } = {}) 
   router.post('/consultores', requireManager, async (request, response) => {
     const { nome } = z.object({ nome: z.string().max(500) }).strict().parse(request.body);
     response.status(201).json(await createConsultant(db, request.authUser, nome));
+  });
+
+  router.patch('/consultores/:id', requireManager, async (request, response) => {
+    const { nome } = z.object({ nome: z.string().max(500) }).strict().parse(request.body);
+    response.json(await updateConsultant(db, request.authUser, request.params.id, nome));
+  });
+
+  router.delete('/consultores/:id', requireManager, async (request, response) => {
+    await removeConsultant(db, request.authUser, request.params.id);
+    response.status(204).end();
   });
 
   router.get('/nectar/funis', requireEstimator, async (_request, response) => {

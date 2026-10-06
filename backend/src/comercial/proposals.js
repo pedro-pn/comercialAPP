@@ -152,7 +152,8 @@ export async function createProposal(db, user, data) {
     throw new HttpError(409, `A próxima revisão é ${previous.nextRevision}.`);
   }
   const costEstimateId = await validateEstimateLink(db, user, data.costEstimateId, data.proposalCode);
-  const seller = await resolveSeller(db, data.sellerUserId, data.sellerConsultantId);
+  const seller = await resolveSeller(db, data.sellerUserId, data.sellerConsultantId,
+    { previousSeller: previous });
   const totalValue = calculateProposalTotal(data.payload);
   if (!Number.isFinite(totalValue)) throw new HttpError(422, 'Valor da proposta inválido.');
   try {
@@ -205,7 +206,7 @@ export async function updateProposal(db, user, id, data) {
   const seller = data.sellerUserId === undefined && data.sellerConsultantId === undefined
     ? { sellerUserId: existing.sellerUserId, sellerConsultantId: existing.sellerConsultantId,
         sellerName: existing.sellerName }
-    : await resolveSeller(db, data.sellerUserId, data.sellerConsultantId);
+    : await resolveSeller(db, data.sellerUserId, data.sellerConsultantId, { previousSeller: existing });
   const payload = data.payload ?? existing.payload;
   const totalValue = calculateProposalTotal(payload);
   if (!Number.isFinite(totalValue)) throw new HttpError(422, 'Valor da proposta inválido.');

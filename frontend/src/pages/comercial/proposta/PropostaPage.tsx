@@ -1366,7 +1366,9 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
               editar={editar}
               erroDe={erroDe}
               orcamentista={user?.name || ''}
-              consultores={consultores}
+              consultores={form.seller && form.sellerName && !consultores.some(item => item.id === form.seller)
+                ? [...consultores, { id: String(form.seller), nome: `${String(form.sellerName)} (removido)` }]
+                : consultores}
               podeEscolherConsultor={podeEscolher}
               erroCrm={
                 pendenciaFinalizacao?.campo === 'empresaCrm'

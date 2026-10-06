@@ -174,10 +174,11 @@ model CostEstimateVersion {
 model SalesConsultant {
   id              String   @id @default(cuid())
   name            String
-  normalizedName  String   @unique
+  normalizedName  String?  @unique
   createdByUserId String?
   createdBy       User?    @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
   createdAt       DateTime @default(now())
+  archivedAt      DateTime?
   proposals       Proposal[]
 }
 
