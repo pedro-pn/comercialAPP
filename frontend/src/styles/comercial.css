@@ -166,39 +166,6 @@
 
 /* Porte de `.cost-card`: borda #d2ded6 (não a borda genérica), raio 10 e a
    sombra verde discreta. */
-.com-root .com-consultores-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
-  gap: 16px;
-  list-style: none;
-  padding: 0;
-  margin: 24px 0 16px;
-}
-
-.com-root .com-consultor-card {
-  height: 100%;
-  padding: 20px;
-  border: 1px solid var(--com-borda);
-  border-radius: 12px;
-  background: var(--com-superficie);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.com-root .com-consultor-card h3 {
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
-.com-root .com-consultor-card form {
-  display: grid;
-  gap: 16px;
-}
-
-.com-root .com-consultor-card .com-oferta-acoes { margin-top: 0; }
-
 .com-root .com-painel {
   background: var(--com-superficie);
   border: 1px solid #d2ded6;
@@ -2013,6 +1980,20 @@
   padding: 8px 9px;
   border-top: 1px solid var(--com-borda);
   vertical-align: middle;
+}
+
+.com-root .com-consultores-table-wrap { margin: 20px 0 16px; }
+.com-root .com-consultores-tabela { table-layout: fixed; }
+.com-root .com-consultores-tabela th:last-child { width: 220px; }
+.com-root .com-consultores-tabela td:first-child { overflow-wrap: anywhere; }
+.com-root .com-consultores-tabela td:first-child .field-group input { min-width: 0; }
+.com-root .com-consultores-tabela .field-group { margin: 0; }
+.com-root .com-consultores-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.com-root .com-consultores-acoes .com-btn { width: auto; padding: 6px 10px; font-size: 12px; }
+
+@media (max-width: 600px) {
+  .com-root .com-consultores-tabela th:last-child { width: 160px; }
+  .com-root .com-consultores-acoes { gap: 6px; }
 }
 
 /* --- Tabela de alocações -------------------------------------------------- */

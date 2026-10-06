@@ -78,8 +78,8 @@ anteriores, o aplicativo reaproveita essas informações.
 
 Gestores e administradores podem cadastrar consultores em **Configurações →
 Consultores de venda**, informando somente o **Nome completo**.
-Cada consultor cadastrado aparece em um card com as ações **Editar nome** e
-**Remover**. A remoção exige confirmação e retira o consultor das novas propostas;
+Os consultores cadastrados aparecem em uma tabela com os nomes e as ações
+**Editar** e **Remover** ao lado. A remoção exige confirmação e retira o consultor das novas propostas;
 as propostas anteriores e seus documentos permanecem no histórico.
 
 Em **Cliente**, o campo **Consultor de Vendas** reúne esses nomes e os usuários

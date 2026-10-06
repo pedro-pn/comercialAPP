@@ -121,38 +121,39 @@ export function ConsultoresDeVendaPanel() {
       </div>
     </form>
     {carregando ? <p>Carregando consultores…</p> : consultores.length > 0 ?
-      <ul className="com-consultores-grid" aria-label="Consultores cadastrados">
-        {consultores.map(consultor => <li key={consultor.id}>
-          <article className="com-consultor-card" aria-label={`Consultor ${consultor.nome}`}>
-            {emEdicao === consultor.id ? <form onSubmit={evento => void salvarEdicao(evento, consultor.id)}
+      <div className="com-table-wrap com-consultores-table-wrap">
+        <table className="com-consultores-tabela" aria-label="Consultores cadastrados">
+          <thead><tr><th scope="col">Nome completo</th><th scope="col">Ações</th></tr></thead>
+          <tbody>{consultores.map(consultor => <tr key={consultor.id} aria-label={`Consultor ${consultor.nome}`}>
+            <td>{emEdicao === consultor.id ? <form id={`com-consultor-edicao-${consultor.id}`}
+              onSubmit={evento => void salvarEdicao(evento, consultor.id)}
               onKeyDown={evento => {
                 if (evento.key === 'Escape' && !salvando) { evento.preventDefault(); setEmEdicao(null); }
               }}>
-              <h3>Editar consultor</h3>
               <Field label="Nome completo" required value={nomeEdicao} maxLength={200}
                 disabled={salvando} error={erroEdicao}
                 onChange={valor => { setNomeEdicao(valor); setErroEdicao(''); }} />
-              <div className="com-oferta-acoes">
-                <button type="submit" className="com-btn com-btn-primario" disabled={salvando || !nomeEdicao.trim()}>
+            </form> : consultor.nome}</td>
+            <td><div className="com-consultores-acoes">
+              {emEdicao === consultor.id ? <>
+                <button key="salvar" type="submit" form={`com-consultor-edicao-${consultor.id}`}
+                  className="com-btn com-btn-primario" disabled={salvando || !nomeEdicao.trim()}>
                   {salvando ? 'Salvando...' : 'Salvar nome'}
                 </button>
                 <button type="button" className="com-btn com-btn-fantasma" disabled={salvando}
                   onClick={() => setEmEdicao(null)}>Cancelar edição</button>
-              </div>
-            </form> : <>
-              <h3>{consultor.nome}</h3>
-              <div className="com-oferta-acoes">
-                <button type="button" className="com-btn com-btn-fantasma" disabled={salvando}
-                  aria-label={`Editar nome de ${consultor.nome}`} onClick={() => iniciarEdicao(consultor)}>Editar nome</button>
+              </> : <>
+                <button key="editar" type="button" className="com-btn com-btn-fantasma" disabled={salvando}
+                  aria-label={`Editar nome de ${consultor.nome}`} onClick={() => iniciarEdicao(consultor)}>Editar</button>
                 <button type="button" className="com-btn com-btn-perigo" disabled={salvando}
                   aria-label={`Remover ${consultor.nome}`} onClick={() => {
                     setParaRemover(consultor); setErroRemocao(''); setErro(''); setRecado('');
                   }}>Remover</button>
-              </div>
-            </>}
-          </article>
-        </li>)}
-      </ul> : <p>Nenhum consultor cadastrado.</p>}
+              </>}
+            </div></td>
+          </tr>)}</tbody>
+        </table>
+      </div> : <p>Nenhum consultor cadastrado.</p>}
     <p className="com-recado">Os usuários ativos do Comercial também ficam disponíveis na seleção da proposta.</p>
     {recado && <p className="com-recado" role="status">{recado}</p>}
     {erro && <p className="com-recado com-recado-erro" role="alert">{erro}</p>}
