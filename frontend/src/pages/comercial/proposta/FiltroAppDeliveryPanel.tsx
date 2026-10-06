@@ -65,8 +65,8 @@ export function FiltroAppDeliveryPanel({ proposalId, finalized }: {
     {!finalized && <p className="com-nota">Finalize a proposta antes de registrar a aprovação.</p>}
     {state && <div className="com-nota-regra">
       <p>Aprovação: {state.approvalStatus === 'APPROVED' ? 'aprovada' :
-        state.approvalStatus === 'REJECTED' ? 'rejeitada' : 'pendente'}
-        {state.approvalSource ? ` (${state.approvalSource === 'MANUAL' ? 'manual' : 'Nectar'})` : ''}.</p>
+        state.approvalStatus === 'REJECTED' ? 'rejeitada' : state.approvalStatus === 'CANCELLED' ? 'cancelada' : 'pendente'}
+        {state.approvalSource ? ` (${state.approvalSource === 'MANUAL' ? 'manual' : state.approvalSource === 'PRISMA' ? 'Prisma' : 'Nectar'})` : ''}.</p>
       <p>Projeto: {state.projectId || 'aguardando vínculo'}.</p>
       <p>Entrega: {state.deliveryStatus === 'SUCESSO' ? 'orçamento selecionado' :
         state.deliveryStatus === 'AGUARDANDO_SELECAO' ? 'revisão recebida; seleção pendente no FiltroAPP' :
@@ -76,7 +76,7 @@ export function FiltroAppDeliveryPanel({ proposalId, finalized }: {
     {state?.nextRetryAt && <p className="com-nota">Próxima tentativa automática: {
       new Date(state.nextRetryAt).toLocaleString('pt-BR')}.</p>}
     {finalized && user?.moduleRoles.includes('comercial:manager') && state?.deliveryStatus !== 'SUCESSO' && <>
-      {state?.opportunityId && <div className="com-local-actions">
+      {state?.opportunityId && state.approvalSource !== 'PRISMA' && <div className="com-local-actions">
         <button type="button" className="com-btn com-btn-fantasma" disabled={busy}
           onClick={() => void run(() => sincronizarAprovacaoNectar(proposalId),
             'Consultando o Nectar...')}>Consultar aprovação no Nectar</button>

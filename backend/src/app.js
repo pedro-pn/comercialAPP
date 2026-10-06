@@ -1,11 +1,13 @@
 import express from 'express';
 import { ZodError } from 'zod';
 import { HttpError, microsoftSessionHours, normalizeUsername, sessionDays } from './auth/service.js';
-import { createApiCredential, listApiCredentials, requireActiveApiCredential,
+import { CRM_API_SCOPES, CRM_EVENTS_SCOPE, CRM_RELEASES_SCOPE,
+  createApiCredential, listApiCredentials, requireActiveApiCredential,
   requireCrmApiCredential, revokeApiCredential } from './auth/api-credentials.js';
 import { createCommercialRouter } from './comercial/routes.js';
 import { requireCrmEventToken, recordCrmEvent, deliverToFiltro,
   syncNectarOpportunity, previewCrmEvent } from './comercial/crm-bridge.js';
+import { recordCrmRelease } from './comercial/crm-releases.js';
 import { crmEventSchema } from './comercial/crm-event-schema.js';
 import { z } from 'zod';
 
@@ -70,7 +72,7 @@ export function createApp({ authService, commercialDb, crm, appOrigin, additiona
 
   app.use('/api', (request, _response, next) => {
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) {
-      if (request.path === '/integrations/crm/events' ||
+      if (request.path === '/integrations/crm/events' || request.path === '/integrations/crm/releases' ||
           request.path === '/integrations/nectar/webhook') return next();
       if (request.get('x-comercial-request') !== '1' ||
           request.get('origin') && allowedOrigins.size && !allowedOrigins.has(request.get('origin'))) {
@@ -80,6 +82,11 @@ export function createApp({ authService, commercialDb, crm, appOrigin, additiona
     next();
   });
 
+  app.post('/api/integrations/crm/releases', requireCrmApiCredential(commercialDb, CRM_RELEASES_SCOPE),
+    async (request, response) => {
+      const result = await recordCrmRelease(commercialDb, request.body);
+      response.status(result.duplicate ? 200 : 202).json(result);
+    });
   app.post('/api/integrations/crm/events', requireCrmApiCredential(commercialDb), async (request, response) => {
     const event = crmEventSchema.parse(request.body);
     const recorded = await recordCrmEvent(commercialDb, event, 'PRISMA');
@@ -210,7 +217,8 @@ export function createApp({ authService, commercialDb, crm, appOrigin, additiona
   app.post('/api/admin/api-credentials', requireAuth, requireAdmin, async (request, response) => {
     const input = z.object({
       name: z.string().trim().min(3).max(100),
-      expiresInDays: z.number().int().min(1).max(365).nullable()
+      expiresInDays: z.number().int().min(1).max(365).nullable(),
+      scopeCode: z.enum(CRM_API_SCOPES).default(CRM_EVENTS_SCOPE)
     }).strict().parse(request.body);
     response.set('Cache-Control', 'no-store').status(201)
       .json(await createApiCredential(commercialDb, request.authUser, input));
@@ -222,7 +230,7 @@ export function createApp({ authService, commercialDb, crm, appOrigin, additiona
   });
 
   app.post('/api/admin/api-credentials/:id/preview', requireAuth, requireAdmin, async (request, response) => {
-    await requireActiveApiCredential(commercialDb, request.params.id);
+    await requireActiveApiCredential(commercialDb, request.params.id, CRM_EVENTS_SCOPE);
     const event = crmEventSchema.parse(request.body);
     response.set('Cache-Control', 'no-store')
       .json(await previewCrmEvent(commercialDb, event, 'PRISMA'));

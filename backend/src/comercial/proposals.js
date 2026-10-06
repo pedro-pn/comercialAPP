@@ -1,4 +1,5 @@
 import { HttpError } from '../auth/service.js';
+import { releaseForProposal } from './crm-releases.js';
 import { lerDinheiro } from '../../../shared/comercial/dist/dinheiro.js';
 import { assertCanRead, assertCanWrite, assertVersion, ConcurrentWriteError, ownerFilter } from './access.js';
 import { assertReservedCode, markNumberUsed } from './numbering.js';
@@ -65,6 +66,8 @@ function historyItem(item, viewer) {
     totalValue: item.totalValue,
     totalCost: item.costEstimate?.totalCost ?? null,
     marginPercent: item.costEstimate?.marginPercent ?? null,
+    crmReleaseId: item.crmReleaseId,
+    prismaDeliveryStatus: item.prismaDeliveryStatus,
     nectarStatus: item.nectarStatus,
     nectarOpportunityId: item.nectarOpportunityId,
     nectarPipelineId: item.nectarPipelineId,
@@ -131,6 +134,7 @@ export async function prepareRevision(db, user, proposalCode) {
     snapshot: withSnapshot?.payload ?? {},
     snapshotAvailable: Boolean(withSnapshot),
     message: withSnapshot ? 'Proposta anterior carregada por completo.' : 'Sem snapshot completo.',
+    crmReleaseId: latest.crmReleaseId,
     costEstimateId: latest.costEstimateId,
     sellerUserId: latest.sellerUserId,
     sellerConsultantId: latest.sellerConsultantId,
@@ -152,14 +156,30 @@ export async function createProposal(db, user, data) {
     throw new HttpError(409, `A próxima revisão é ${previous.nextRevision}.`);
   }
   const costEstimateId = await validateEstimateLink(db, user, data.costEstimateId, data.proposalCode);
+  const releaseId = data.crmReleaseId || previous?.crmReleaseId;
+  if (previous?.crmReleaseId && releaseId !== previous.crmReleaseId) {
+    throw new HttpError(409, 'A revisão deve preservar a liberação original.');
+  }
+  const release = releaseId ? await releaseForProposal(db, releaseId) : null;
   const seller = await resolveSeller(db, data.sellerUserId, data.sellerConsultantId,
     { previousSeller: previous });
   const totalValue = calculateProposalTotal(data.payload);
   if (!Number.isFinite(totalValue)) throw new HttpError(422, 'Valor da proposta inválido.');
   try {
     return await db.$transaction(async tx => {
+      if (release) {
+        await tx.$queryRaw`SELECT "id" FROM "CrmRelease" WHERE "id" = ${release.id} FOR SHARE`;
+        const currentRelease = await releaseForProposal(tx, release.id);
+        if (currentRelease.version !== release.version) {
+          throw new HttpError(409, 'Liberação atualizada; recarregue antes de criar a proposta.');
+        }
+      }
       const proposal = await tx.proposal.create({
         data: {
+          ...(release ? {
+            crmReleaseId: release.id, crmOpportunityId: release.opportunityId,
+            crmClientId: release.clientId, prismaProjectId: release.prismaProjectId
+          } : {}),
           proposalCode: data.proposalCode,
           revisionNumber: data.revisionNumber,
           costEstimateId,

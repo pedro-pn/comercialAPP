@@ -19,8 +19,8 @@ instalação, operação e integrações estão no [índice da documentação](#
    comercial em PDF e DOCX.
 5. Finalize a proposta para preservar a versão emitida. Os arquivos permanecem
    disponíveis no histórico.
-6. Com as integrações configuradas, envie ao Nectar e ao SharePoint e acompanhe
-   a aprovação e a entrega ao FiltroAPP.
+6. Com as integrações configuradas, envie os PDFs ao Prisma, Nectar ou SharePoint
+   e acompanhe a aprovação e a entrega ao FiltroAPP.
 
 ## Recursos
 
@@ -52,8 +52,8 @@ o preenchimento e conferidos novamente no servidor ao salvar.
 
 ### Propostas técnicas e comerciais
 
-- Criação avulsa, a partir de levantamento concluído, como revisão de proposta
-  existente ou como primeira revisão de um número legado.
+- Criação a partir de negócio liberado pelo Prisma, avulsa, de levantamento
+  concluído, como revisão de proposta existente ou de um número legado.
 - Modelos **Padrão** e **Hidrojateamento**, com matrizes, jornadas e tabelas
   próprias; o modelo de hidrojateamento contempla preços onshore e offshore.
 - Sete etapas: **Cliente**, **Escopo**, **Responsabilidades**, **Prazos**,
@@ -249,10 +249,11 @@ valida os arquivos Compose e os scripts de backup.
 | --- | --- |
 | [Tutorial de uso](docs/TUTORIAL.md) | Primeiro acesso, levantamento, proposta, documentos, histórico e integrações. |
 | [Docker](docs/DOCKER.md) | Execução local, desenvolvimento e implantação com contêineres. |
-| [Staging](docs/STAGING.md) | Homologação isolada com login local, Central de API do Prisma e conexões de saída desligadas. |
+| [Staging](docs/STAGING.md) | Homologação isolada, Central de API e envio opcional de PDFs ao sandbox Prisma. |
 | [Login Microsoft](docs/MICROSOFT_LOGIN.md) | Registro Entra, certificado, vínculo de contas e permissões. |
 | [Rascunhos e persistência](docs/RASCUNHOS.md) | Numeração, autoria, versões, conflitos, arquivos e rotas da API. |
 | [Nectar CRM](docs/NECTAR.md) | Configuração, envio, vínculo de oportunidades e retentativas. |
+| [Prisma v2](docs/PRISMA_V2.md) | Liberações de negócios, PDFs por revisão, decisões e roteiro de homologação. |
 | [Integrações externas](docs/INTEGRACOES.md) | Aprovação, eventos do Prisma, FiltroAPP, SharePoint e Google Maps. |
 | [Backup](docs/BACKUP.md) | Cópia de banco/arquivos, Backblaze B2, agendamento e retenção. |
 | [Restauração](docs/RESTORE.md) | Verificação das cópias, restauração e recuperação do ambiente. |

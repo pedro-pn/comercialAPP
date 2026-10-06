@@ -33,13 +33,16 @@ services:
       COMERCIAL_DIR: /data/comercial
       # Staging usa somente usuário/senha local e não monta certificados Entra.
       ENTRA_LOGIN_ENABLED: "off"
-      # Sem conexões de saída, inclusive se o shell/.env tiver credenciais reais.
+      # Provedores abaixo desligados, inclusive se o shell/.env tiver credenciais reais.
       # Eventos do Prisma usam tokens da Central de API no banco de staging.
       NECTAR_MODE: "off"
       SHAREPOINT_MODE: "off"
       GOOGLE_MAPS_MODE: "off"
       FILTROAPP_API_URL: ""
       FILTROAPP_API_TOKEN: ""
+      # Homologação opt-in, exclusivamente com credencial sandbox do Prisma.
+      PRISMA_API_URL: ${STAGING_PRISMA_API_URL:-}
+      PRISMA_API_TOKEN: ${STAGING_PRISMA_API_TOKEN:-}
     volumes:
       - comercial_files:/data/comercial
     depends_on:

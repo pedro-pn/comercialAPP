@@ -26,6 +26,7 @@ services:
     environment:
       DATABASE_URL: postgresql://comercial:${COMERCIAL_DB_PASSWORD:?Configure COMERCIAL_DB_PASSWORD em .env}@db:5432/comercialapp?schema=public
       APP_ORIGIN: https://comercial.filtrovali.com.br
+      APP_ENV: production
       NODE_ENV: production
       HOST: 0.0.0.0
       PORT: 4300
@@ -56,6 +57,8 @@ services:
       GOOGLE_MAPS_MAX_DIA_SUGESTOES: ${GOOGLE_MAPS_MAX_DIA_SUGESTOES:-300}
       CRM_EVENT_TOKEN: ${CRM_EVENT_TOKEN:-}
       NECTAR_WEBHOOK_TOKEN: ${NECTAR_WEBHOOK_TOKEN:-}
+      PRISMA_API_URL: ${PRISMA_API_URL:-}
+      PRISMA_API_TOKEN: ${PRISMA_API_TOKEN:-}
       FILTROAPP_API_URL: ${FILTROAPP_API_URL:-}
       FILTROAPP_API_TOKEN: ${FILTROAPP_API_TOKEN:-}
     volumes:

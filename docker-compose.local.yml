@@ -27,6 +27,7 @@ services:
       DATABASE_URL: postgresql://comercial:${COMERCIAL_DB_PASSWORD:?Configure COMERCIAL_DB_PASSWORD em .env}@db:5432/comercialapp?schema=public
       APP_ORIGIN: http://localhost:8086
       APP_ADDITIONAL_ORIGINS: http://localhost:5174,http://127.0.0.1:5174,http://127.0.0.1:8086
+      APP_ENV: development
       NODE_ENV: development
       HOST: 0.0.0.0
       PORT: 4300
@@ -57,6 +58,8 @@ services:
       GOOGLE_MAPS_MAX_DIA_SUGESTOES: ${GOOGLE_MAPS_MAX_DIA_SUGESTOES:-300}
       CRM_EVENT_TOKEN: ${CRM_EVENT_TOKEN:-}
       NECTAR_WEBHOOK_TOKEN: ${NECTAR_WEBHOOK_TOKEN:-}
+      PRISMA_API_URL: ${PRISMA_API_URL:-}
+      PRISMA_API_TOKEN: ${PRISMA_API_TOKEN:-}
       FILTROAPP_API_URL: ${FILTROAPP_API_URL:-}
       FILTROAPP_API_TOKEN: ${FILTROAPP_API_TOKEN:-}
     volumes:

@@ -327,6 +327,7 @@ export function mensagemDeErro(error: unknown, padrao: string): string {
 }
 
 export interface PropostaEntrada {
+  crmReleaseId?: string;
   proposalCode: string;
   revisionNumber?: number;
   costEstimateId?: string | null;
@@ -342,6 +343,9 @@ export interface PropostaEntrada {
 }
 
 export interface PropostaSalva {
+  crmReleaseId?: string | null;
+  crmApprovalStatus?: 'PENDENTE' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+  prismaDeliveryStatus?: 'PENDENTE' | 'ENVIANDO' | 'SUCESSO' | 'ERRO';
   id: string;
   proposalCode: string;
   revisionNumber: number;
@@ -383,6 +387,7 @@ export interface VinculoCrmDaProposta {
 }
 
 export interface ProximaRevisaoDaProposta {
+  crmReleaseId?: string | null;
   /** Nome mantido do contrato congelado. */
   base_number: number;
   /** Alias da camada de domínio do backend. */
@@ -544,8 +549,8 @@ export async function enviarPropostaAoSharePoint(proposalId: string, folder: str
 
 export interface EstadoFiltroApp {
   opportunityId: string;
-  approvalStatus: 'PENDENTE' | 'APPROVED' | 'REJECTED';
-  approvalSource: 'NECTAR' | 'MANUAL' | null;
+  approvalStatus: 'PENDENTE' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+  approvalSource: 'NECTAR' | 'PRISMA' | 'MANUAL' | null;
   approvalAt: string | null;
   projectId: string;
   deliveryStatus: 'PENDENTE' | 'ENVIANDO' | 'ERRO' | 'SUCESSO' | 'AGUARDANDO_SELECAO';

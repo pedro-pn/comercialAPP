@@ -15,11 +15,18 @@ type Destino = {
   icone: ReactNode;
 };
 
-type RotaKey = 'custos' | 'propostas' | 'historico' | 'acessos' | 'configuracoes' | 'api';
+type RotaKey = 'custos' | 'propostas' | 'historico' | 'acessos' | 'configuracoes' | 'api' | 'liberacoes';
 
 const DESTINOS: Array<
   Destino & { rotaKey: RotaKey; soGestor?: boolean; soAdmin?: boolean; soOrcamentista?: boolean }
 > = [
+  {
+    titulo: 'Negócios liberados',
+    descricao: 'Clientes e oportunidades autorizados pelo Prisma para proposta.',
+    rotaKey: 'liberacoes',
+    soOrcamentista: true,
+    icone: <><path d="M4 6h16v14H4z" /><path d="m8 12 3 3 5-6" /></>
+  },
   {
     titulo: 'Levantar custos',
     descricao:

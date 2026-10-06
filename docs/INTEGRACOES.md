@@ -121,3 +121,7 @@ credenciais e destinos preenchidos no ambiente; os `.env.example` listam todas
 as variáveis. Guarde valores reais, tokens e identificadores dos serviços somente
 no ambiente ou no cofre de segredos. Os exemplos de documentação devem permanecer
 fictícios, conforme a [política do projeto](../README.md#informações-sensíveis-na-documentação).
+
+## Prisma v2: liberações, PDFs e decisões
+
+Consulte [PRISMA_V2.md](PRISMA_V2.md) para o contrato coordenado, credenciais por direção, limites, exemplos e homologação. O envio de documentos usa PRISMA_API_URL / PRISMA_API_TOKEN e fica desligado sem configuração.
