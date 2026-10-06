@@ -9,6 +9,7 @@ import { createApp } from '../src/app.js';
 import { createDatabase } from '../src/db.js';
 import { currentDocuments, documentData, downloadDocument, finalizeLocal,
   issueDocuments, listDocuments, refreshDocuments, regenerateDocuments } from '../src/comercial/documents.js';
+import { propostaCompleta } from './fixtures/proposta-completa.js';
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 
@@ -44,12 +45,13 @@ test('regeneração preserva a proposta e publica arquivos completos com seguran
     async function fixture({ emitted = true, ...overrides } = {}) {
       const proposal = await db.proposal.create({ data: {
         proposalCode: `regeneracao-${suffix}-${++sequence}`, revisionNumber: 2,
-        clientName: 'Cliente salvo', cnpj: '12345678000100', contact: 'Contato salvo',
+        clientName: 'Cliente salvo', cnpj: '11222333000181', contact: 'Contato salvo',
         email: 'cliente@example.com', site: 'Local salvo', department: 'Compras',
         sellerUserId: seller.id, sellerName: seller.name, estimatorName: manager.name,
         createdByUserId: seller.id, updatedByUserId: seller.id, updatedByLabel: seller.name,
-        payload: { title: 'Serviço salvo', scopeItems: ['Escopo salvo'],
-          prices: [{ local: 'ONSHORE', value: 'R$ 1.000,00' }] }, totalValue: 1000
+        payload: propostaCompleta({ title: 'Serviço salvo',
+          prices: [{ local: 'ONSHORE', description: 'Serviço', quantity: '1',
+            unitValue: 'R$ 1.000,00', value: 'R$ 1.000,00' }] }), totalValue: 1000
       } });
       proposalIds.push(proposal.id);
       if (emitted) {

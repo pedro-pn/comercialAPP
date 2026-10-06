@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { ATTACHMENT_LIMITS } from '../../../shared/schemas/comercial.js';
+import { pendenciasDoDocumento } from '../../../shared/comercial/dist/proposal-validation.js';
 import { HttpError } from '../auth/service.js';
 import { preencherProposta } from '../lib/comercial/proposta-docx.js';
 import { proposalRendererHash } from '../lib/comercial/document-renderer.js';
@@ -238,6 +239,10 @@ export async function finalizeLocal(db, user, proposalId, rendererHashFn = propo
       await currentDocuments(db, proposalId)) };
   }
   validateIssue(proposal);
+  const pendencia = pendenciasDoDocumento(documentData(proposal))[0];
+  if (pendencia) {
+    throw new HttpError(422, `Complete a etapa ${pendencia.etapa} antes de finalizar: ${pendencia.mensagem}`);
+  }
   const docs = await currentDocuments(db, proposalId);
   if (!documentsMatch(docs, payloadHash(proposal), await rendererHashFn(proposal))) {
     throw new HttpError(409, 'Emita os documentos atualizados antes de finalizar.');

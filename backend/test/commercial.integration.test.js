@@ -14,6 +14,7 @@ import { recordCrmEvent, deliverToFiltro, crmBridgeStatus,
   syncNectarOpportunity, findFiltroProjects } from '../src/comercial/crm-bridge.js';
 import { sendProposalToSharePoint } from '../src/comercial/sharepoint-delivery.js';
 import { lerConfiguracao, salvarSede, distanciaDaSede } from '../src/comercial/configuracao.js';
+import { propostaCompleta } from './fixtures/proposta-completa.js';
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 
@@ -146,7 +147,7 @@ test('rascunhos, autoria, valores e concorrência no banco próprio', { skip: !d
     method: 'POST', cookie: sellerCookie,
     body: {
       proposalCode: '8700', costEstimateId: estimate.data.id,
-      clientName: 'Cliente Teste', cnpj: '12345678000100',
+      clientName: 'Cliente Teste', cnpj: '11222333000181',
       contact: 'Contato', email: 'cliente@example.com', site: 'Obra',
       sellerUserId: colleague.id,
       payload: { title: 'Teste', prices: [{ local: 'ONSHORE', value: 'R$ 1.200,00' }] }
@@ -175,7 +176,7 @@ test('rascunhos, autoria, valores e concorrência no banco próprio', { skip: !d
   assert.equal((await request('/api/comercial/propostas', {
     method: 'POST', cookie: colleagueCookie,
     body: {
-      proposalCode: '8700', clientName: 'Outro', cnpj: '12345678000100',
+      proposalCode: '8700', clientName: 'Outro', cnpj: '11222333000181',
       contact: 'Contato', email: 'outro@example.com', site: 'Obra',
       sellerUserId: seller.id, payload: {}
     }
@@ -230,14 +231,14 @@ test('rascunhos, autoria, valores e concorrência no banco próprio', { skip: !d
   const completed = await request(`/api/comercial/propostas/${proposal.data.id}`, {
     method: 'PUT', cookie: sellerCookie,
     body: { expectedUpdatedAt: updated.data.updatedAt,
-      payload: {
+      payload: propostaCompleta({
         ...prazosEJornada,
         title: 'Serviço teste', scopeItems: [{ id: 'servico-1', title: 'Limpeza', description: 'Escopo' }],
         scopeBlocks: [{ id: photo.id, type: 'photo', scopeItemId: 'servico-1',
           assetKey: photo.assetKey, fileName: 'foto.png', aspectRatio: 1 }],
-        prices: [{ local: 'ONSHORE', value: 'R$ 1.500,00' }],
-        technicalServices: [{ id: 'limpeza_quimica' }]
-      } }
+        prices: [{ local: 'ONSHORE', description: 'Serviço', quantity: '1',
+          unitValue: 'R$ 1.500,00', value: 'R$ 1.500,00' }]
+      }) }
   });
   assert.equal(completed.status, 200);
   const fakePair = async (data, type) => {
@@ -257,6 +258,29 @@ test('rascunhos, autoria, valores e concorrência no banco próprio', { skip: !d
   const commercial = issued.documentos.find(item => item.kind === 'COMERCIAL' && item.format === 'PDF');
   assert.match((await downloadDocument(db, { role: 'VIEWER' }, technical.id)).bytes.toString(), /^%PDF-/);
   await assert.rejects(() => downloadDocument(db, { role: 'VIEWER' }, commercial.id), { status: 403 });
+  let latest = completed.data;
+  for (const field of Object.keys(prazosEJornada)) {
+    const incomplete = await request(`/api/comercial/propostas/${proposal.data.id}`, {
+      method: 'PUT', cookie: sellerCookie,
+      body: { expectedUpdatedAt: latest.updatedAt, payload: { ...completed.data.payload, [field]: '  ' } }
+    });
+    assert.equal(incomplete.status, 200); // Rascunhos permitem preenchimento parcial.
+    latest = incomplete.data;
+    await issueDocuments(db, seller, proposal.data.id, async () => ({
+      docx: Buffer.from('PK rascunho'), pdf: Buffer.from('%PDF rascunho')
+    }));
+    const blocked = await request(`/api/comercial/propostas/${proposal.data.id}/finalizar-local`, {
+      method: 'POST', cookie: sellerCookie
+    });
+    assert.equal(blocked.status, 422, `${field} não pode ser omitido pela chamada direta à API`);
+    assert.match(blocked.data.error, /antes de finalizar/);
+    assert.equal((await db.proposal.findUnique({ where: { id: proposal.data.id } })).status, 'RASCUNHO');
+  }
+  const restored = await request(`/api/comercial/propostas/${proposal.data.id}`, {
+    method: 'PUT', cookie: sellerCookie,
+    body: { expectedUpdatedAt: latest.updatedAt, payload: completed.data.payload }
+  });
+  assert.equal(restored.status, 200);
   await db.proposal.update({ where: { id: proposal.data.id },
     data: { payload: { ...completed.data.payload, title: 'Serviço atualizado' } } });
   await assert.rejects(() => finalizeLocal(db, seller, proposal.data.id), { status: 409 });
@@ -385,7 +409,7 @@ test('rascunhos, autoria, valores e concorrência no banco próprio', { skip: !d
   }
   const fallback = await request('/api/comercial/propostas', {
     method: 'POST', cookie: sellerCookie,
-    body: { proposalCode: '8701', clientName: 'Cliente manual', cnpj: '12345678000100',
+    body: { proposalCode: '8701', clientName: 'Cliente manual', cnpj: '11222333000181',
       contact: 'Contato', email: 'manual@example.com', site: 'Obra',
       sellerUserId: seller.id,
       payload: { title: 'Seleção manual', prices: [{ value: 'R$ 100,00' }] } }
@@ -442,7 +466,7 @@ test('rascunhos, autoria, valores e concorrência no banco próprio', { skip: !d
   })).status, 409);
   const legacyBody = {
     proposalCode: '8702', revisionNumber: 3,
-    clientName: 'Cliente legado', cnpj: '12345678000100',
+    clientName: 'Cliente legado', cnpj: '11222333000181',
     contact: 'Contato', email: 'legado@example.com', site: 'Obra',
     sellerUserId: seller.id,
     payload: { title: 'Revisão de proposta legada', prices: [{ value: 'R$ 200,00' }] }

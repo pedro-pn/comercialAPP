@@ -10,6 +10,7 @@ import { createDatabase } from '../src/db.js';
 import { createAuthService, tokenHash } from '../src/auth/service.js';
 import { resolveSeller } from '../src/comercial/consultants.js';
 import { finalizeLocal, issueDocuments, previewPdf } from '../src/comercial/documents.js';
+import { propostaCompleta } from './fixtures/proposta-completa.js';
 
 function consultantDatabase() {
   const users = [
@@ -157,12 +158,12 @@ test('gestão cadastra nomes e propostas preservam o consultor sem conta de aces
     assert.equal((await request('/consultores', 3)).status, 403);
 
     await db.proposalNumberReservation.create({ data: { number, reservedByUserId: users[2].id } });
-    const input = { proposalCode: String(number), clientName: 'Cliente teste', cnpj: '12345678000100',
+    const input = { proposalCode: String(number), clientName: 'Cliente teste', cnpj: '11222333000181',
       contact: 'Contato teste', email: 'cliente@example.com', site: 'Obra teste',
       sellerUserId: null, sellerConsultantId: registered.data.id,
-      payload: { seller: registered.data.id, sellerConsultantId: registered.data.id,
+      payload: propostaCompleta({ seller: registered.data.id, sellerConsultantId: registered.data.id,
         sellerName: 'Nome forjado', title: 'Serviço teste', scopeItems: [{ title: 'Serviço', description: 'Escopo' }],
-        prices: [{ value: 'R$ 100,00' }] } };
+      }) };
     assert.equal((await request('/propostas', 2, 'POST', { ...input, sellerConsultantId: 'missing' })).status, 422);
     assert.equal((await request('/propostas', 2, 'POST', { ...input, sellerUserId: users[2].id })).status, 400);
     const created = await request('/propostas', 2, 'POST', input);
