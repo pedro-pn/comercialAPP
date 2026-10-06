@@ -228,7 +228,7 @@ test('rascunhos, autoria, valores e concorrência no banco próprio', { skip: !d
     permanence: '22 dias corridos', integration: '3 dias', execution: '18 dias trabalhados',
     workday: 'Das 07:00 às 16:00, de segunda a sexta.\nIntervalo de uma hora.'
   };
-  const completed = await request(`/api/comercial/propostas/${proposal.data.id}`, {
+  let completed = await request(`/api/comercial/propostas/${proposal.data.id}`, {
     method: 'PUT', cookie: sellerCookie,
     body: { expectedUpdatedAt: updated.data.updatedAt,
       payload: propostaCompleta({
@@ -241,6 +241,38 @@ test('rascunhos, autoria, valores e concorrência no banco próprio', { skip: !d
       }) }
   });
   assert.equal(completed.status, 200);
+  // Identificação em preenchimento não pode impedir a persistência dos prazos
+  // e demais campos do rascunho; a exigência completa fica na finalização.
+  for (const [column, field, value] of [
+    ['clientName', 'client', ''], ['cnpj', 'cnpj', '11.222'],
+    ['contact', 'contact', ''], ['email', 'email', 'contato@'],
+    ['email', 'email', ''], ['site', 'site', '']
+  ]) {
+    const partial = await request(`/api/comercial/propostas/${proposal.data.id}`, {
+      method: 'PUT', cookie: sellerCookie,
+      body: { expectedUpdatedAt: completed.data.updatedAt, [column]: value,
+        payload: { ...completed.data.payload, [field]: value } }
+    });
+    assert.equal(partial.status, 200, `${column} aceita preenchimento parcial no rascunho`);
+    const reopened = await request(`/api/comercial/propostas/${proposal.data.id}`, { cookie: sellerCookie });
+    assert.equal(reopened.data[column], value);
+    assert.equal(reopened.data.payload[field], value);
+    for (const [key, expected] of Object.entries(prazosEJornada)) {
+      assert.equal(reopened.data.payload[key], expected);
+    }
+    const blocked = await request(`/api/comercial/propostas/${proposal.data.id}/finalizar-local`, {
+      method: 'POST', cookie: sellerCookie
+    });
+    assert.equal(blocked.status, 422);
+    assert.equal(reopened.data.status, 'RASCUNHO');
+    const restored = await request(`/api/comercial/propostas/${proposal.data.id}`, {
+      method: 'PUT', cookie: sellerCookie,
+      body: { expectedUpdatedAt: partial.data.updatedAt,
+        [column]: completed.data[column], payload: completed.data.payload }
+    });
+    assert.equal(restored.status, 200);
+    completed = restored;
+  }
   const fakePair = async (data, type) => {
     assert.equal(data.proposalCode, '8700');
     assert.equal(data.seller, salesManager.name);

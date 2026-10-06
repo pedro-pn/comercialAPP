@@ -152,7 +152,7 @@ export function entradaDaProposta(
     email: texto('email'),
     site: texto('site'),
     department: texto('department') || null,
-    sellerUserId: conteudo.sellerConsultantId ? null : texto('seller'),
+    sellerUserId: conteudo.sellerConsultantId ? null : texto('seller') || null,
     sellerConsultantId: conteudo.sellerConsultantId || null,
     payload: dadosDaProposta(conteudo)
   };

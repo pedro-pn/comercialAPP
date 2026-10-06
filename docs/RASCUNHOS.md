@@ -53,6 +53,22 @@ Se a gravação falhar, o formulário permanece aberto com os valores digitados.
 O rascunho local é separado por número e revisão; uma resposta de salvamento
 anterior não apaga alterações mais novas guardadas no navegador.
 
+A cópia local acompanha cada edição, sem aguardar o salvamento automático no
+servidor. Recarregar imediatamente oferece a recuperação da última alteração.
+Quando o primeiro salvamento atribui um número, a cópia pendente acompanha esse
+número. A oferta de recuperação precisa ser resolvida antes de editar ou salvar.
+
+Uma proposta já criada continua sendo salva automaticamente mesmo com dados de
+identificação em preenchimento, incluindo campos vazios, e-mail incompleto ou
+consultor ainda não selecionado. As listas apagadas também são recuperadas vazias.
+Antes da criação, a identificação completa é necessária para reservar o número;
+o preenchimento parcial permanece protegido pela cópia local do navegador.
+
+O menu de etapas e o botão de próxima etapa aguardam a gravação antes de mudar
+de aba. Uma falha mantém a etapa atual aberta e permite tentar novamente. O menu
+continua permitindo consultar etapas com campos incompletos; antes de criar a
+proposta, esse preenchimento permanece na cópia local até completar a identificação.
+
 A finalização também confere no servidor os campos obrigatórios de todas as
 etapas, usando as mesmas regras da tela. Chamadas diretas à API com dados
 incompletos recebem HTTP 422 e a proposta permanece como rascunho, inclusive

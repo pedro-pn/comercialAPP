@@ -179,12 +179,27 @@ test('gestão cadastra nomes e propostas preservam o consultor sem conta de aces
     assert.equal((await request('/propostas', 2)).data.items.find(item => item.id === created.data.id)
       .sellerName, name);
 
-    const invalidUpdate = await request(`/propostas/${created.data.id}`, 2, 'PUT', {
+    const withoutConsultant = await request(`/propostas/${created.data.id}`, 2, 'PUT', {
       expectedUpdatedAt: created.data.updatedAt, sellerUserId: null, sellerConsultantId: null
     });
-    assert.equal(invalidUpdate.status, 422);
+    assert.equal(withoutConsultant.status, 200);
+    assert.equal(withoutConsultant.data.sellerUserId, null);
+    assert.equal(withoutConsultant.data.sellerConsultantId, null);
+    assert.equal(withoutConsultant.data.sellerName, '');
+    // A migração permite a ausência somente no rascunho. Nem uma atualização
+    // direta do banco pode finalizar sem consultor ou gravar dois vínculos.
+    for (const data of [
+      { status: 'FINALIZADA' },
+      { sellerUserId: users[2].id, sellerConsultantId: registered.data.id }
+    ]) {
+      await assert.rejects(() => db.proposal.update({ where: { id: created.data.id }, data }),
+        error => error.message.includes('Proposal_seller_reference_check'));
+    }
+    const blockedFinalization = await request(`/propostas/${created.data.id}/finalizar-local`, 2, 'POST');
+    assert.equal(blockedFinalization.status, 422);
+    assert.match(blockedFinalization.data.error, /consultor/);
     const changed = await request(`/propostas/${created.data.id}`, 2, 'PUT', {
-      expectedUpdatedAt: created.data.updatedAt, sellerUserId: users[2].id
+      expectedUpdatedAt: withoutConsultant.data.updatedAt, sellerUserId: users[2].id
     });
     assert.equal(changed.status, 200);
     assert.equal(changed.data.sellerConsultantId, null);

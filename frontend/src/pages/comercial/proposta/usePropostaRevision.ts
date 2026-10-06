@@ -90,14 +90,14 @@ export function usePropostaRevision({
         ...dados,
         seller: String(dados.seller || sellerUserId || '')
       });
-      if (Array.isArray(dados.scopeItems) && dados.scopeItems.length) {
+      if (Array.isArray(dados.scopeItems)) {
         setItensEscopo(dados.scopeItems as ScopeServiceItem[]);
       }
       if (Array.isArray(dados.scopeBlocks)) setBlocos(dados.scopeBlocks as ScopeBlock[]);
-      if (Array.isArray(dados.rows) && dados.rows.length) {
+      if (Array.isArray(dados.rows)) {
         setResponsabilidades(dados.rows as LinhaResponsabilidade[]);
       }
-      if (Array.isArray(dados.categorias) && dados.categorias.length) {
+      if (Array.isArray(dados.categorias)) {
         setCategorias(dados.categorias as string[]);
       }
       if (dados.technicalServices) {
@@ -106,7 +106,7 @@ export function usePropostaRevision({
       if (typeof dados.technicalReports === 'string') {
         setComplementoRelatorios(dados.technicalReports);
       }
-      if (Array.isArray(dados.prices) && dados.prices.length) {
+      if (Array.isArray(dados.prices)) {
         setPrecos(recalcularItensDePreco(dados.prices as ItemDePreco[]));
       }
       if (typeof dados.includeUnitValue === 'boolean') {
