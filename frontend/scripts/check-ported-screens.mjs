@@ -3,6 +3,7 @@ import { build } from 'esbuild';
 await build({
   entryPoints: [
     'src/pages/comercial/ComercialPage.tsx',
+    'src/pages/comercial/ApiCentralPage.tsx',
     'src/pages/comercial/custos/CustosPage.tsx',
     'src/pages/comercial/proposta/PropostaPage.tsx',
     'src/pages/comercial/historico/HistoricoPage.tsx',

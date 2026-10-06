@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.json && vite build",
+    "test": "node --test",
     "check:ported": "node scripts/check-ported-screens.mjs",
     "preview": "vite preview"
   },

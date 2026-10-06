@@ -222,7 +222,7 @@ estão nas imagens Docker e no CI.
 | `npm run dev:api` | Compila as regras e inicia a API com recarga. |
 | `npm run dev:web` | Inicia o frontend Vite. |
 | `npm run build` | Compila as regras compartilhadas e o frontend. |
-| `npm run check` | Compila, verifica as telas portadas, testa regras/backend e valida o esquema Prisma. |
+| `npm run check` | Compila, verifica as telas portadas, testa frontend/regras/backend e valida o esquema Prisma. |
 
 Os testes de integração com banco exigem `TEST_DATABASE_URL` apontando para um
 banco exclusivo chamado **`comercialapp_test`**, com as migrações aplicadas.
@@ -249,7 +249,7 @@ valida os arquivos Compose e os scripts de backup.
 | --- | --- |
 | [Tutorial de uso](docs/TUTORIAL.md) | Primeiro acesso, levantamento, proposta, documentos, histórico e integrações. |
 | [Docker](docs/DOCKER.md) | Execução local, desenvolvimento e implantação com contêineres. |
-| [Staging](docs/STAGING.md) | Homologação isolada com login local e integrações desligadas. |
+| [Staging](docs/STAGING.md) | Homologação isolada com login local, Central de API do Prisma e conexões de saída desligadas. |
 | [Login Microsoft](docs/MICROSOFT_LOGIN.md) | Registro Entra, certificado, vínculo de contas e permissões. |
 | [Rascunhos e persistência](docs/RASCUNHOS.md) | Numeração, autoria, versões, conflitos, arquivos e rotas da API. |
 | [Nectar CRM](docs/NECTAR.md) | Configuração, envio, vínculo de oportunidades e retentativas. |
