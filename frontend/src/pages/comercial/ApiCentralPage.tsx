@@ -3,6 +3,7 @@ import { ApiClientError } from '../../api/client';
 import { createApiCredential, listApiCredentials, previewCrmEvent, revokeApiCredential,
   type ApiCredential, type CrmEventPreview } from '../../api/apiCredentials';
 import { moduleRoutePath } from '../../modules/registry';
+import { randomUuid } from '../../utils/randomUuid';
 import { ComercialChrome } from './components/ComercialChrome';
 
 type ExampleOutcome = 'APPROVED' | 'REJECTED';
@@ -10,7 +11,7 @@ type ExampleOutcome = 'APPROVED' | 'REJECTED';
 function exampleEvent(outcome: ExampleOutcome) {
   return JSON.stringify({
     contractVersion: 1,
-    eventId: crypto.randomUUID(),
+    eventId: randomUuid(),
     proposalCode: '1234',
     revisionNumber: 0,
     opportunityId: 'OPORTUNIDADE-123',

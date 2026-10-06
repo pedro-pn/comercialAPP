@@ -25,8 +25,12 @@ antes de registrar a aprovação. O gestor também pode usar
 `status=2` (oportunidade ganha). O ID do projeto é lido do campo personalizado
 cujo **nome exato** foi configurado em `NECTAR_PROJECT_FIELD`.
 
-O CRM Prisma envia para `POST /api/integrations/crm/events` na origem HTTPS do
-ComercialAPP configurada no ambiente.
+O CRM Prisma envia para `POST /api/integrations/crm/events` na origem pública do
+ComercialAPP configurada no ambiente, com HTTPS obrigatório em produção.
+Em staging, a mesma rota está disponível mesmo com `NECTAR_MODE=off`; o
+[guia de staging](STAGING.md#4-liberar-a-central-de-api-e-receber-eventos-do-prisma)
+explica como acessar a Central e testar o recebimento pela origem HTTP ou HTTPS
+de homologação.
 O administrador cria o Bearer token na **Central de API** (`/api-central`),
 com validade de 1 a 365 dias ou sem vencimento. Um token sem vencimento permanece
 ativo até ser revogado. O segredo aparece uma única vez; no banco fica

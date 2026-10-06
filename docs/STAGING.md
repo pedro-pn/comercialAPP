@@ -85,10 +85,13 @@ IP/DNS fará as operações de escrita retornarem 403. `DATABASE_URL`, `APP_ENV`
 e `NODE_ENV` são definidos pelo Compose. A senha do banco só é preenchida uma vez.
 Use credenciais de teste neste ambiente HTTP.
 
-As integrações com Nectar/CRM, FiltroAPP, SharePoint e Google Maps ficam
+As conexões de saída com Nectar, FiltroAPP, SharePoint e Google Maps ficam
 desativadas diretamente no Compose. Não configure credenciais desses serviços.
 Propostas, levantamentos, fotos, anexos e geração de DOCX/PDF funcionam
 localmente. Recursos que dependem dos provedores externos ficam indisponíveis.
+O recebimento de eventos do **CRM Prisma** está disponível em
+`POST /api/integrations/crm/events`, com token próprio emitido na Central de API.
+Ele funciona com Nectar desligado; veja o procedimento abaixo.
 O login Microsoft também continua desativado, mesmo que
 `ENTRA_LOGIN_ENABLED=on` seja definido por engano fora do Compose.
 
@@ -130,6 +133,85 @@ unset COMERCIAL_STAGING_ADMIN_PASSWORD
 Entre no navegador com `admin` e a senha escolhida. Na tela **Acessos**, crie
 as contas de teste. Configure a numeração inicial antes de criar propostas.
 O bootstrap recusa executar novamente quando já há usuários no banco.
+
+## 4. Liberar a Central de API e receber eventos do Prisma
+
+A **Central de API** (`/api-central`) aparece no menu somente para contas com
+perfil **Administrador** (`ADMIN`). Uma conta com perfil **Gestor** (`MANAGER`)
+pode administrar acessos comuns, mas não emitir tokens nem acessar essa tela.
+Não há uma variável de ambiente para habilitar o menu ou o endpoint do Prisma.
+
+Se `/api-central` abre uma tela em branco em HTTP com o erro
+`crypto.randomUUID is not a function` no console do navegador, atualize o
+frontend para a versão com a geração de UUID compatível com HTTP. Os exemplos
+de eventos usam `crypto.getRandomValues`, disponível nesse ambiente; o token
+continua sendo gerado no backend.
+
+Se a Central não aparece, confira o perfil da conta em **Acessos e numeração**.
+Se já existe administrador ativo, entre com essa conta ou peça a ele para
+alterar o perfil da conta desejada para **Administrador**. Depois, entre
+novamente: a mudança de perfil encerra as sessões anteriores.
+
+Em um staging antigo que só possui gestores e **nenhum administrador ativo**,
+use o comando já disponível para promover um gestor ativo existente:
+
+```bash
+docker compose --env-file .env.staging -f docker-compose.staging.yml exec -T api npm run db:promote-admin --workspace @comercialapp/backend -- NOME_USUARIO
+```
+
+Substitua `NOME_USUARIO` pelo usuário do gestor e entre novamente. O comando
+recusa executar se já houver administrador ativo; não use o bootstrap em uma
+base que já possui usuários.
+
+Se a conta já é administradora e o cartão ainda não aparece, atualize o checkout
+para a versão que contém a Central e recompile **API e frontend**:
+
+```bash
+docker compose --env-file .env.staging -f docker-compose.staging.yml up -d --build --wait api web
+```
+
+Recarregue o navegador e abra `/api-central`. Se o acesso direto volta ao início,
+confira novamente o perfil da sessão. Se a página abre, mas as chamadas a
+`/api/admin/api-credentials` retornam 404, a API implantada também precisa ser
+atualizada.
+
+Na Central, crie um token exclusivo de homologação e configure no Prisma:
+
+| Campo | Valor |
+| --- | --- |
+| Método | `POST` |
+| URL | `http://IP_DA_VPS:8087/api/integrations/crm/events`, ou a origem HTTPS pública de staging seguida desse caminho. |
+| Autorização | `Authorization: Bearer <token emitido no staging>` |
+| Tipo do corpo | `Content-Type: application/json` |
+
+O token é criado no banco de staging e o segredo aparece uma única vez. Não use
+um token de produção nem `CRM_EVENT_TOKEN`: essa variável é um fallback do
+webhook Nectar e não autentica eventos do Prisma. A chamada externa não exige
+cookie de sessão, `Origin` ou `X-Comercial-Request`.
+
+O Nginx já encaminha `/api/` à API interna. Libere o acesso do emissor à porta
+pública de staging ou ao proxy HTTPS; não é necessário publicar a porta 4300.
+Para conferir o roteamento sem token e sem alterar propostas:
+
+```bash
+curl -i -X POST http://127.0.0.1:8087/api/integrations/crm/events \
+  -H 'Content-Type: application/json' --data '{}'
+```
+
+A resposta esperada é **401**, indicando que a rota está disponível e exige
+autenticação. **404** indica caminho/versão incorretos; falha de conexão ou
+**502** exige conferir firewall, proxy e saúde dos serviços. Use a origem pública
+no teste feito a partir da rede do Prisma.
+
+Crie e finalize uma proposta de teste no próprio staging. Use **Testar contrato**
+na Central para validar código, revisão e JSON sem registrar um evento. A chamada
+autenticada retorna **202** para um evento novo e **200** no reenvio do mesmo
+evento. O [contrato de integração](INTEGRACOES.md) descreve os campos e conflitos.
+
+Neste Compose, a entrega posterior ao FiltroAPP permanece desligada. Uma
+aprovação com `projectId` pode ser aceita com **202** e
+`delivery.status=PENDENTE`; isso confirma o recebimento pelo ComercialAPP, mas
+não uma entrega ao FiltroAPP.
 
 ## Atualizar, acompanhar e parar
 

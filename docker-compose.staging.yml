@@ -33,7 +33,8 @@ services:
       COMERCIAL_DIR: /data/comercial
       # Staging usa somente usuário/senha local e não monta certificados Entra.
       ENTRA_LOGIN_ENABLED: "off"
-      # Sem conexões externas, inclusive se o shell/.env tiver credenciais reais.
+      # Sem conexões de saída, inclusive se o shell/.env tiver credenciais reais.
+      # Eventos do Prisma usam tokens da Central de API no banco de staging.
       NECTAR_MODE: "off"
       SHAREPOINT_MODE: "off"
       GOOGLE_MAPS_MODE: "off"
