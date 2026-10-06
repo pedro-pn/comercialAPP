@@ -224,7 +224,10 @@ export async function updateProposal(db, user, id, data) {
     throw new HttpError(409, 'Código e revisão não podem ser alterados.');
   }
   const protectVersion = assertVersion(existing, data.expectedUpdatedAt, data.forceOverwrite);
-  const costEstimateId = data.costEstimateId === undefined ? existing.costEstimateId
+  // Editar custos pode devolver o levantamento a rascunho. A proposta mantém
+  // seu vínculo existente; a conclusão é exigida ao criar ou trocar o vínculo.
+  const costEstimateId = data.costEstimateId === undefined || data.costEstimateId === existing.costEstimateId
+    ? existing.costEstimateId
     : await validateEstimateLink(db, user, data.costEstimateId, existing.proposalCode);
   const seller = data.sellerUserId === undefined && data.sellerConsultantId === undefined
     ? { sellerUserId: existing.sellerUserId, sellerConsultantId: existing.sellerConsultantId,
@@ -256,6 +259,34 @@ export async function updateProposal(db, user, id, data) {
     });
   } catch (error) {
     if (protectVersion && error.code === 'P2025') {
+      const current = await db.proposal.findUnique({ where: { id } });
+      if (current) throw new ConcurrentWriteError(current);
+    }
+    throw error;
+  }
+}
+
+/** Reabre o mesmo registro, preservando numeração, vínculos e arquivos emitidos. */
+export async function reopenProposal(db, user, id, data) {
+  const existing = await getProposal(db, user, id);
+  assertCanWrite(user, existing);
+  if (existing.archivedAt || existing.status !== 'FINALIZADA') {
+    throw new HttpError(409, 'Somente propostas finalizadas e ativas podem ser reabertas para edição.');
+  }
+  assertVersion(existing, data.expectedUpdatedAt, false);
+  try {
+    return await db.proposal.update({
+      where: { id, status: 'FINALIZADA', archivedAt: null, updatedAt: existing.updatedAt },
+      data: {
+        status: 'RASCUNHO',
+        finalizedAt: null,
+        updatedByUserId: user.id,
+        updatedByLabel: user.name,
+        updatedAt: new Date(Math.max(Date.now(), existing.updatedAt.getTime() + 1))
+      }
+    });
+  } catch (error) {
+    if (error.code === 'P2025') {
       const current = await db.proposal.findUnique({ where: { id } });
       if (current) throw new ConcurrentWriteError(current);
     }

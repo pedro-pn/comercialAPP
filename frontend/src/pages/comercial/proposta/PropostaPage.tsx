@@ -22,6 +22,7 @@ import {
   mensagemDeErro,
   obterLevantamento,
   obterProposta,
+  reabrirProposta,
   reservarProximoNumero,
   registrarRevisaoLegada,
   ComercialConcurrentWriteError,
@@ -937,7 +938,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     erroDeSalvamento.current = null;
     const propostaSalva = propostaSalvaRef.current;
     if (propostaSalva.status !== 'RASCUNHO') {
-      setRecado('Confirme a criação de uma revisão para editar esta proposta.');
+      setRecado('Use Editar proposta para reabrir esta proposta antes de salvar.');
       return null;
     }
     if (propostaSalva.id && !propostaSalva.updatedAt) {
@@ -1138,15 +1139,23 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     if (preparandoEdicao || ocupadoLocal) return false;
     setPreparandoEdicao(true);
     try {
-      if (!await carregarRevisao(codigo)) return false;
-      idCarregado.current = '';
-      propostaSalvaRef.current = { id: '', updatedAt: '', status: 'RASCUNHO' };
-      setVersaoCarregada('');
-      setStatusProposta('RASCUNHO');
+      // A finalização e os envios podem atualizar a versão depois do último salvamento.
+      const atual = await obterProposta(propostaId);
+      const proposta = await reabrirProposta(propostaId, atual.updatedAt || '');
+      aplicarSnapshot(snapshotDaPropostaSalva(proposta), proposta.sellerConsultantId || proposta.sellerUserId || '');
+      propostaSalvaRef.current = { id: proposta.id, updatedAt: proposta.updatedAt || '', status: proposta.status };
+      setVersaoCarregada(proposta.updatedAt || '');
+      setStatusProposta(proposta.status);
       setPendenciaFinalizacao(null);
       setConflitoDeEdicao(null);
+      setTentouAvancar(false);
       finalizacao.reiniciarFinalizacao();
+      trocarParametros({ etapa: 'cliente', visualizacao: '' });
+      setRecado('Proposta reaberta para edição. Número e revisão mantidos. Finalize novamente após as alterações.');
       return true;
+    } catch (error) {
+      setRecado(mensagemDeErro(error, 'Não foi possível reabrir a proposta para edição.'));
+      return false;
     } finally {
       setPreparandoEdicao(false);
     }

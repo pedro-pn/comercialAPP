@@ -17,7 +17,7 @@ instalação, operação e integrações estão no [índice da documentação](#
    comerciais. Um levantamento concluído pode fornecer número, serviços e preços.
 4. Confira a prévia, inclua fotos e anexos e emita os documentos técnico e
    comercial em PDF e DOCX.
-5. Finalize a proposta para preservar a versão emitida. Os arquivos permanecem
+5. Finalize a proposta para concluir a emissão. Os arquivos permanecem
    disponíveis no histórico.
 6. Com as integrações configuradas, envie os PDFs ao Prisma, Nectar ou SharePoint
    e acompanhe a aprovação e a entrega ao FiltroAPP.
@@ -96,8 +96,10 @@ hidrojateamento; passagem de PIG e pré-engenharia.
   O conjunto de PDFs, CSV de custos quando houver e anexos deve caber em **20 MB**.
 - CSV de custos enviado às integrações quando existe levantamento vinculado.
   A finalização preserva os dados desse levantamento para a entrega da proposta.
-- Propostas finalizadas bloqueiam a edição; alterações comerciais seguem por
-  uma nova revisão.
+- **Editar proposta** no histórico ou na tela de documentos reabre a proposta
+  finalizada como rascunho, mantendo o mesmo número, revisão, vínculos e arquivos
+  anteriores. Após as alterações, finalize novamente para emitir os documentos
+  atualizados. Arquivos já enviados às integrações continuam com a versão enviada.
 
 ### Rascunhos, numeração e histórico
 

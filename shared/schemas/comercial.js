@@ -277,6 +277,9 @@ export function makeComercialSchemas(z) {
       email: z.string().trim().max(200).optional(),
       site: z.string().trim().max(300).optional(),
     }),
+    proposalReopen: z.object({
+      expectedUpdatedAt: concurrentUpdate.expectedUpdatedAt,
+    }).strict(),
 
     /** Listagem: o filtro de arquivados é explícito, nunca implícito. */
     listQuery: z.object({

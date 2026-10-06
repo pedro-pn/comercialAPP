@@ -10,6 +10,7 @@ import { createDatabase } from '../src/db.js';
 import { currentDocuments, documentData, downloadDocument, finalizeLocal,
   issueDocuments, listDocuments, refreshDocuments, regenerateDocuments } from '../src/comercial/documents.js';
 import { propostaCompleta } from './fixtures/proposta-completa.js';
+import { reopenProposal, updateProposal } from '../src/comercial/proposals.js';
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 
@@ -115,6 +116,59 @@ test('regeneração preserva a proposta e publica arquivos completos com seguran
         throw new Error('A emissão comum deve continuar reutilizando os documentos.');
       });
       assert.deepEqual(reused.documentos.map(doc => doc.id).sort(), current.map(doc => doc.id).sort());
+    });
+
+    await t.test('editar finalizada salva e finaliza o mesmo registro com documentos atualizados', async () => {
+      const proposal = await fixture();
+      const original = await currentDocuments(db, proposal.id);
+      await finalizeLocal(db, seller, proposal.id);
+      const finalized = await db.proposal.update({ where: { id: proposal.id }, data: {
+        nectarStatus: 'SUCESSO', nectarOpportunityId: 'card-preservado',
+        nectarPipelineId: 'funil-preservado', sharepointFolder: 'pasta-preservada',
+        prismaDeliveryStatus: 'SUCESSO', prismaReceivedId: 'recebimento-preservado'
+      } });
+      const reopened = await reopenProposal(db, seller, proposal.id, {
+        expectedUpdatedAt: finalized.updatedAt.toISOString()
+      });
+      assert.equal(reopened.id, finalized.id);
+      assert.equal(reopened.status, 'RASCUNHO');
+      assert.equal(reopened.finalizedAt, null);
+      assert.equal(reopened.proposalCode, finalized.proposalCode);
+      assert.equal(reopened.revisionNumber, 2);
+      assert.equal(reopened.createdByUserId, finalized.createdByUserId);
+      assert.deepEqual(reopened.payload, finalized.payload);
+      for (const field of ['nectarStatus', 'nectarOpportunityId', 'nectarPipelineId',
+        'sharepointFolder', 'prismaDeliveryStatus', 'prismaReceivedId']) {
+        assert.equal(reopened[field], finalized[field], field);
+      }
+      assert.deepEqual(await currentDocuments(db, proposal.id), original);
+
+      const edited = await updateProposal(db, seller, reopened.id, {
+        expectedUpdatedAt: reopened.updatedAt.toISOString(),
+        clientName: 'Cliente corrigido',
+        payload: { ...reopened.payload, title: 'Serviço corrigido',
+          prices: [{ local: 'ONSHORE', description: 'Serviço corrigido', quantity: '1',
+            unitValue: 'R$ 2.000,00', value: 'R$ 2.000,00' }] }
+      });
+      assert.equal(Number(edited.totalValue), 2000);
+      await assert.rejects(finalizeLocal(db, seller, edited.id), { status: 409 });
+      const issued = await refreshDocuments(db, seller, edited.id, async (data, type) => {
+        assert.equal(data.client, 'Cliente corrigido');
+        assert.equal(data.title, 'Serviço corrigido');
+        assert.equal(data.revision, '2');
+        return pair('corrigida')(data, type);
+      });
+      assert.ok(issued.documentos.every(item => !original.some(old => old.id === item.id)));
+      await finalizeLocal(db, seller, edited.id);
+      const final = await db.proposal.findUnique({ where: { id: edited.id } });
+      assert.equal(final.status, 'FINALIZADA');
+      assert.equal(final.proposalCode, finalized.proposalCode);
+      assert.equal(final.revisionNumber, 2);
+      assert.equal(final.clientName, 'Cliente corrigido');
+      assert.equal(final.payload.title, 'Serviço corrigido');
+      assert.equal(await db.proposal.count({ where: { proposalCode: final.proposalCode } }), 1);
+      assert.equal(await db.proposalDocument.count({ where: { proposalId: final.id } }), 8);
+      await assertOriginals(proposal, original);
     });
 
     await t.test('gestor pode regerar finalizada sem alterar finalização ou integrações', async () => {

@@ -127,9 +127,11 @@ preenchido pode ter formato inválido: confira a mensagem junto ao CNPJ ou e-mai
    de custos quando houver e os anexos. **Salvar rascunho** mantém a proposta
    aberta para continuar depois.
 
-A finalização local funciona sem CRM, SharePoint ou Maps. Depois dela, os dados
-da proposta ficam bloqueados para edição; use uma nova revisão para alterar o
-conteúdo. Os documentos continuam disponíveis no histórico.
+A finalização local funciona sem CRM, SharePoint ou Maps. Depois dela, use
+**Editar proposta** no histórico ou na tela de documentos para reabrir o mesmo
+registro como rascunho, sem criar uma revisão. Edite o conteúdo e finalize
+novamente para emitir os documentos atualizados. Os arquivos anteriores e os
+vínculos continuam salvos; arquivos já enviados às integrações mantêm a versão enviada.
 
 ## Enviar e acompanhar as integrações
 

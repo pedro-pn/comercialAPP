@@ -7,6 +7,8 @@ type HistoricoTabelaProps = {
   onBaixarDocumento?: (documento: DocumentoEmitido) => void;
   baixandoDocumentoId?: string;
   onAbrirProposta?: (proposta: PropostaSalva) => void;
+  onEditarProposta?: (proposta: PropostaSalva) => void;
+  editandoPropostaId?: string;
   onCriarRevisao?: (proposta: PropostaSalva) => void;
   onDocumentosRegenerados?: (proposalId: string, documents: DocumentoEmitido[]) => void;
   rascunhosOnly?: boolean;
@@ -101,11 +103,13 @@ export function HistoricoTabela({
   onBaixarDocumento,
   baixandoDocumentoId,
   onAbrirProposta,
+  onEditarProposta,
+  editandoPropostaId,
   onCriarRevisao,
   onDocumentosRegenerados,
   rascunhosOnly = false
 }: HistoricoTabelaProps) {
-  const mostraAcoes = Boolean(onAbrirProposta || onCriarRevisao);
+  const mostraAcoes = Boolean(onAbrirProposta || onEditarProposta || onCriarRevisao);
   return (
     <div className="com-history-table-wrap">
       <table className="com-history-table">
@@ -226,14 +230,26 @@ export function HistoricoTabela({
                 </td>
                 {mostraAcoes && (
                   <td>
-                    {proposta.status === 'FINALIZADA' && onCriarRevisao ? (
-                      <button
-                        type="button"
-                        className="com-btn com-btn-fantasma"
-                        onClick={() => onCriarRevisao(proposta)}
-                      >
-                        Criar revisão
-                      </button>
+                    {proposta.status === 'FINALIZADA' ? (
+                      <>
+                        {onEditarProposta && !proposta.archivedAt && (
+                          <button
+                            type="button"
+                            className="com-btn com-btn-fantasma"
+                            disabled={Boolean(editandoPropostaId)}
+                            onClick={() => onEditarProposta(proposta)}
+                          >
+                            {editandoPropostaId === proposta.id ? 'Abrindo...' : 'Editar proposta'}
+                          </button>
+                        )}
+                        {onCriarRevisao && <button
+                          type="button"
+                          className="com-btn com-btn-fantasma"
+                          onClick={() => onCriarRevisao(proposta)}
+                        >
+                          Criar revisão
+                        </button>}
+                      </>
                     ) : proposta.status === 'FINALIZANDO' ? (
                       <button
                         type="button"

@@ -6,6 +6,7 @@ import {
   listarLevantamentos,
   listarPropostas,
   mensagemDeErro,
+  reabrirProposta,
   type DocumentoEmitido,
   type LevantamentoSalvo,
   type PropostaSalva
@@ -31,6 +32,7 @@ export function HistoricoPage() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
   const [baixandoDocumentoId, setBaixandoDocumentoId] = useState('');
+  const [editandoPropostaId, setEditandoPropostaId] = useState('');
 
   const podeVerValores = Boolean(
     user?.moduleRoles?.some((role) =>
@@ -99,6 +101,20 @@ export function HistoricoPage() {
     navigate(
       `${moduleRoutePath('comercial', 'propostas')}?${parametros.toString()}`
     );
+  }
+
+  async function editarProposta(proposta: PropostaSalva) {
+    if (editandoPropostaId) return;
+    setEditandoPropostaId(proposta.id);
+    setErro('');
+    try {
+      const reaberta = await reabrirProposta(proposta.id, proposta.updatedAt || '');
+      abrirProposta(reaberta);
+    } catch (error) {
+      setErro(mensagemDeErro(error, 'Não foi possível reabrir a proposta para edição.'));
+    } finally {
+      setEditandoPropostaId('');
+    }
   }
 
   function criarRevisao(proposta: PropostaSalva) {
@@ -328,6 +344,8 @@ export function HistoricoPage() {
                   baixandoDocumentoId={baixandoDocumentoId}
                   onBaixarDocumento={(documento) => void baixar(documento)}
                   onAbrirProposta={podeVerValores ? abrirProposta : undefined}
+                  onEditarProposta={podeVerValores ? proposta => void editarProposta(proposta) : undefined}
+                  editandoPropostaId={editandoPropostaId}
                   onCriarRevisao={podeVerValores ? criarRevisao : undefined}
                   onDocumentosRegenerados={podeVerValores ? (id, documents) =>
                     setPropostas(current => current.map(proposta => proposta.id === id
