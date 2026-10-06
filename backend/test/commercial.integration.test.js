@@ -222,10 +222,16 @@ test('rascunhos, autoria, valores e concorrência no banco próprio', { skip: !d
   assert.equal((await fetch(base + `/api/comercial/escopo/fotos/${photo.id}`, {
     headers: { Cookie: colleagueCookie }
   })).status, 403);
+  const prazosEJornada = {
+    attendance: '17 dias após a aprovação', mobilization: '4 dias',
+    permanence: '22 dias corridos', integration: '3 dias', execution: '18 dias trabalhados',
+    workday: 'Das 07:00 às 16:00, de segunda a sexta.\nIntervalo de uma hora.'
+  };
   const completed = await request(`/api/comercial/propostas/${proposal.data.id}`, {
     method: 'PUT', cookie: sellerCookie,
     body: { expectedUpdatedAt: updated.data.updatedAt,
       payload: {
+        ...prazosEJornada,
         title: 'Serviço teste', scopeItems: [{ id: 'servico-1', title: 'Limpeza', description: 'Escopo' }],
         scopeBlocks: [{ id: photo.id, type: 'photo', scopeItemId: 'servico-1',
           assetKey: photo.assetKey, fileName: 'foto.png', aspectRatio: 1 }],
@@ -237,6 +243,7 @@ test('rascunhos, autoria, valores e concorrência no banco próprio', { skip: !d
   const fakePair = async (data, type) => {
     assert.equal(data.proposalCode, '8700');
     assert.equal(data.seller, salesManager.name);
+    for (const [field, value] of Object.entries(prazosEJornada)) assert.equal(data[field], value);
     assert.deepEqual((await data.lerFoto(data.scopeBlocks[0])).bytes, photoBytes);
     return { docx: Buffer.from(`PK-${type}`), pdf: Buffer.from(`%PDF-${type}\n%%EOF`) };
   };
@@ -273,6 +280,14 @@ test('rascunhos, autoria, valores e concorrência no banco próprio', { skip: !d
   })).data.items.length, 2);
   const finalized = await finalizeLocal(db, seller, proposal.data.id);
   assert.equal(finalized.status, 'FINALIZADA');
+  const reopened = await request(`/api/comercial/propostas/${proposal.data.id}`, { cookie: sellerCookie });
+  const revision = await request('/api/comercial/propostas/8700/revisao', { cookie: sellerCookie });
+  assert.equal(reopened.status, 200);
+  assert.equal(revision.status, 200);
+  for (const [field, value] of Object.entries(prazosEJornada)) {
+    assert.equal(reopened.data.payload[field], value, `${field} ao reabrir pelo histórico`);
+    assert.equal(revision.data.snapshot[field], value, `${field} ao preparar edição/revisão`);
+  }
   assert.equal((await request(`/api/comercial/propostas/${proposal.data.id}/enviar-crm`, {
     method: 'POST', cookie: sellerCookie,
     body: { pipelineId: '44', companyId: '101', contactId: '201' }

@@ -2505,10 +2505,18 @@
 }
 
 .com-root .com-bloco {
+  min-width: 0;
   padding: 0.9rem;
   border: 1px solid var(--com-borda);
   border-radius: var(--com-raio);
   background: var(--com-superficie);
+}
+
+.com-root .com-proposta-campos {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
 }
 
 .com-root .com-bloco-topo {
@@ -2522,7 +2530,44 @@
 
 .com-root .com-bloco-ordem {
   display: flex;
-  gap: 0.35rem;
+  align-items: center;
+  gap: 8px;
+}
+
+.com-root .com-bloco-ordem :is(.com-btn, .com-remover) {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.com-root .com-scope-table-wrap { margin: 16px 0; }
+.com-root .com-scope-table { table-layout: fixed; }
+.com-root .com-scope-actions-column { width: 144px; }
+.com-root .com-scope-table :is(th, td) { padding: 10px; vertical-align: top; }
+.com-root .com-scope-table th input { min-height: 40px; }
+.com-root .com-scope-table td textarea {
+  display: block;
+  min-height: 74px;
+  padding: 10px;
+}
+.com-root .com-scope-row-actions { display: flex; align-items: center; gap: 8px; }
+.com-root .com-scope-row-actions :is(.com-btn, .com-remover) {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.com-root .com-scope-table-actions { align-items: center; gap: 10px; }
+.com-root .com-scope-table-actions :is(.com-btn, .com-btn-add) {
+  width: auto;
+  min-height: 40px;
+  padding: 8px 14px;
 }
 
 .com-root .com-bloco textarea {

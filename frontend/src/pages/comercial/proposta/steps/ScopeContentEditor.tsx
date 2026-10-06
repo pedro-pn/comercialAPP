@@ -382,8 +382,12 @@ function TabelaDoEscopo({
         />
       </div>
 
-      <div className="com-table-wrap">
-        <table>
+      <div className="com-table-wrap com-scope-table-wrap">
+        <table className="com-scope-table" style={{ minWidth: tabela.columns.length * 160 + 144 }}>
+          <colgroup>
+            {tabela.columns.map((_, c) => <col key={c} />)}
+            <col className="com-scope-actions-column" />
+          </colgroup>
           <thead>
             <tr>
               {tabela.columns.map((coluna, c) => (
@@ -404,7 +408,7 @@ function TabelaDoEscopo({
                 </th>
               ))}
               <th>
-                <span className="com-sr">Ações</span>
+                Ações
               </th>
             </tr>
           </thead>
@@ -415,6 +419,7 @@ function TabelaDoEscopo({
                   <td key={`${tabela.id}-cel-${l}-${c}`}>
                     <textarea
                       aria-label={`Linha ${l + 1}, coluna ${c + 1}`}
+                      rows={3}
                       maxLength={MAX_SCOPE_TABLE_CELL_CHARACTERS}
                       value={linha[c] || ''}
                       onChange={evento =>
@@ -436,22 +441,25 @@ function TabelaDoEscopo({
                   </td>
                 ))}
                 <td>
-                  <button type="button" className="com-btn com-btn-fantasma"
-                    aria-label={`Mover linha ${l + 1} para cima`} disabled={l === 0}
-                    onClick={() => moverLinha(l, -1)}>↑</button>
-                  <button type="button" className="com-btn com-btn-fantasma"
-                    aria-label={`Mover linha ${l + 1} para baixo`} disabled={l === tabela.rows.length - 1}
-                    onClick={() => moverLinha(l, 1)}>↓</button>
-                  <button
-                    type="button"
-                    className="com-remover"
-                    aria-label={`Remover linha ${l + 1}`}
-                    onClick={() =>
-                      onChange(t => ({ ...t, rows: t.rows.filter((_, i) => i !== l) }))
-                    }
-                  >
-                    ×
-                  </button>
+                  <div className="com-scope-row-actions" role="group" aria-label={`Ações da linha ${l + 1}`}>
+                    <button type="button" className="com-btn com-btn-fantasma"
+                      aria-label={`Mover linha ${l + 1} para cima`} title="Mover linha para cima" disabled={l === 0}
+                      onClick={() => moverLinha(l, -1)}>↑</button>
+                    <button type="button" className="com-btn com-btn-fantasma"
+                      aria-label={`Mover linha ${l + 1} para baixo`} title="Mover linha para baixo" disabled={l === tabela.rows.length - 1}
+                      onClick={() => moverLinha(l, 1)}>↓</button>
+                    <button
+                      type="button"
+                      className="com-remover"
+                      aria-label={`Remover linha ${l + 1}`}
+                      title="Remover linha"
+                      onClick={() =>
+                        onChange(t => ({ ...t, rows: t.rows.filter((_, i) => i !== l) }))
+                      }
+                    >
+                      ×
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -459,7 +467,10 @@ function TabelaDoEscopo({
         </table>
       </div>
 
-      <div className="com-blocos-acoes">
+      {tabela.columns.length > 3 && <p className="com-ajuda-campo">
+        Role a tabela na horizontal para ver todas as colunas e as ações.
+      </p>}
+      <div className="com-blocos-acoes com-scope-table-actions">
         <button
           type="button"
           className="com-btn-add"
@@ -473,7 +484,7 @@ function TabelaDoEscopo({
             onChange(t => ({ ...t, rows: [...t.rows, t.columns.map(() => '')] }))
           }
         >
-          ＋ Linha
+          + Linha
         </button>
 
         <button
@@ -493,7 +504,7 @@ function TabelaDoEscopo({
             }))
           }
         >
-          ＋ Coluna
+          + Coluna
         </button>
 
         <button
