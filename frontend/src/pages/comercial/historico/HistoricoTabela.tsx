@@ -52,7 +52,7 @@ function formatarDataHora(valor: string | null | undefined) {
   return valor ? dataHora.format(new Date(valor)) : '—';
 }
 
-function classeDaIntegracao(status: PropostaSalva['nectarStatus']) {
+function classeDaIntegracao(status: PropostaSalva['nectarStatus'] | PropostaSalva['prismaDeliveryStatus']) {
   if (status === 'SUCESSO') return 'is-ok';
   if (status === 'ERRO') return 'is-fail';
   return 'is-pending';
@@ -137,6 +137,7 @@ export function HistoricoTabela({
                     {formatarData(proposta.finalizedAt || proposta.createdAt)}
                   </small>
                   <small>{proposta.status}</small>
+                  {proposta.crmReleaseId && <small>Prisma: {{ PENDENTE: 'Aguardando decisão', APPROVED: 'Aceita', REJECTED: 'Recusada', CANCELLED: 'Cancelada' }[proposta.crmApprovalStatus || 'PENDENTE']}</small>}
                 </td>
                 <td>
                   <strong>{proposta.clientName || '—'}</strong>
@@ -187,6 +188,7 @@ export function HistoricoTabela({
                 )}
                 {!rascunhosOnly && <td>
                   <div className="com-history-status">
+                    {proposta.crmReleaseId && <span className={classeDaIntegracao(proposta.prismaDeliveryStatus)}>Prisma · {proposta.prismaDeliveryStatus === 'SUCESSO' ? 'recebida' : proposta.prismaDeliveryStatus === 'ERRO' ? 'falha no envio' : proposta.prismaDeliveryStatus === 'ENVIANDO' ? 'enviando PDFs' : 'envio pendente'}</span>}
                     <span className={classeDaIntegracao(proposta.nectarStatus)}>
                       Nectar
                     </span>

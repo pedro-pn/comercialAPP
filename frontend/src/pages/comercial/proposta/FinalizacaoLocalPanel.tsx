@@ -10,6 +10,7 @@ import { CrmDeliveryPanel } from './CrmDeliveryPanel';
 import { SharePointDeliveryPanel } from './SharePointDeliveryPanel';
 import { FiltroAppDeliveryPanel } from './FiltroAppDeliveryPanel';
 import { RegerarDocumentosButton } from './RegerarDocumentosButton';
+import { PrismaDeliveryPanel } from './PrismaDeliveryPanel';
 
 function download(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
@@ -187,7 +188,8 @@ export function FinalizacaoLocalPanel({ proposalId, status, save, validate,
     </div>}
     {message && <p className="com-recado" role="status">{message}</p>}
     {documentsError && <p className="com-recado" role="alert">{documentsError}</p>}
-  </section><CrmDeliveryPanel proposalId={proposalId} finalized={finalized} />
+  </section><PrismaDeliveryPanel proposalId={proposalId} finalized={finalized} />
+    <CrmDeliveryPanel proposalId={proposalId} finalized={finalized} />
     <SharePointDeliveryPanel proposalId={proposalId} finalized={finalized} />
     <FiltroAppDeliveryPanel proposalId={proposalId} finalized={finalized} /></>;
 }

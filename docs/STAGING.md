@@ -89,8 +89,9 @@ As conexões de saída com Nectar, FiltroAPP, SharePoint e Google Maps ficam
 desativadas diretamente no Compose. Não configure credenciais desses serviços.
 Propostas, levantamentos, fotos, anexos e geração de DOCX/PDF funcionam
 localmente. Recursos que dependem dos provedores externos ficam indisponíveis.
-O recebimento de eventos do **CRM Prisma** está disponível em
-`POST /api/integrations/crm/events`, com token próprio emitido na Central de API.
+O recebimento de liberações e eventos do **CRM Prisma** está disponível em
+`POST /api/integrations/crm/releases` e `POST /api/integrations/crm/events`,
+com tokens de permissões separadas emitidos na Central de API.
 Ele funciona com Nectar desligado; veja o procedimento abaixo.
 O login Microsoft também continua desativado, mesmo que
 `ENTRA_LOGIN_ENABLED=on` seja definido por engano fora do Compose.
@@ -175,7 +176,7 @@ confira novamente o perfil da sessão. Se a página abre, mas as chamadas a
 `/api/admin/api-credentials` retornam 404, a API implantada também precisa ser
 atualizada.
 
-Na Central, crie um token exclusivo de homologação e configure no Prisma:
+Na Central, crie um token exclusivo de homologação com a permissão **Status das revisões** e configure no Prisma:
 
 | Campo | Valor |
 | --- | --- |
@@ -212,6 +213,13 @@ Neste Compose, a entrega posterior ao FiltroAPP permanece desligada. Uma
 aprovação com `projectId` pode ser aceita com **202** e
 `delivery.status=PENDENTE`; isso confirma o recebimento pelo ComercialAPP, mas
 não uma entrega ao FiltroAPP.
+
+Para iniciar propostas com negócios do Prisma e devolver os dois PDFs, siga o
+[contrato v2 e o roteiro de homologação](PRISMA_V2.md#6-homologação-e-entrada-em-produção).
+Crie outro token, com **Liberações de negócios**, para o endpoint de liberações.
+O envio de PDFs é opcional: configure `STAGING_PRISMA_API_URL` (receptor sandbox)
+e `STAGING_PRISMA_API_TOKEN` em `.env.staging`, depois recrie a API. Essas variáveis
+ficam vazias por padrão e não habilitam as outras conexões de saída.
 
 ## Atualizar, acompanhar e parar
 

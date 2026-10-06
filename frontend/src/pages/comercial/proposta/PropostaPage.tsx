@@ -1,3 +1,4 @@
+import {apiClient} from '../../../api/client';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { fillScopeFromDimensioning } from '../../../../../shared/comercial/dist/dimensioning-scope.js';
@@ -198,6 +199,8 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     formularioInicial(modelo ?? 'padrao')
   );
   // O usuário escolhe modelos de texto ou importa os serviços do levantamento.
+  const liberacaoId = params.get('liberacao') || '';
+  const [liberacaoCarregada, setLiberacaoCarregada] = useState('');
   const [itensEscopo, setItensEscopo] = useState<ScopeServiceItem[]>([]);
   const [blocos, setBlocos] = useState<ScopeBlock[]>([]);
   const escopoAtual = useRef({ items: itensEscopo, blocks: blocos });
@@ -306,6 +309,26 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     setTentouAvancar,
     setRecado
   });
+
+  useEffect(() => {
+    if (!liberacaoId || propostaId || modo !== 'new' || !modelo) return;
+    let vivo = true;
+    setLiberacaoCarregada('');
+    apiClient.get(`/comercial/liberacoes/${encodeURIComponent(liberacaoId)}`)
+      .then(({ data }) => {
+        if (!vivo) return;
+        const v = data.snapshot;
+        setForm(atual => ({ ...atual, client: v.legalName, cnpj: v.taxId,
+          contact: v.contactName, email: v.email, department: v.department,
+          site: v.site, title: v.description }));
+        setLiberacaoCarregada(liberacaoId);
+        setRecado('Dados do negócio liberado pelo Prisma carregados.');
+      })
+      .catch(error => {
+        if (vivo) setRecado(mensagemDeErro(error, 'Não foi possível carregar a liberação Prisma.'));
+      });
+    return () => { vivo = false; };
+  }, [liberacaoId, propostaId, modo, modelo]);
 
   const levantamentoAplicado = useRef('');
   const usarDadosDoLevantamento = params.get('usarLevantamento') === '1';
@@ -422,6 +445,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     (!propostaId || Boolean(versaoCarregada)) &&
     statusProposta === 'RASCUNHO' &&
     revisaoPronta &&
+    (!liberacaoId || modo !== 'new' || Boolean(propostaId) || liberacaoCarregada === liberacaoId) &&
     (!levantamentoId || Boolean(levantamentoVinculado));
   const identificacaoCompleta =
     pendenciasDaEtapa('cliente', form, {
@@ -434,8 +458,8 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
   const rascunho = useRascunhoLocal({
     conta: user?.id || '',
     tela: 'proposta',
-    modo: levantamentoId ? 'levantamento' : 'avulsa',
-    codigo: levantamentoId,
+    modo: liberacaoId ? 'prisma' : levantamentoId ? 'levantamento' : 'avulsa',
+    codigo: liberacaoId || levantamentoId,
     dados: dadosDaEdicao,
     // A hidratação do servidor e a aplicação do levantamento vinculado são a
     // base inicial, não edições. O rascunho só começa a observar depois delas.
@@ -445,7 +469,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
 
   const autosave = useAutosaveServidor({
     dados: dadosDaEdicao,
-    identidade: `proposta:${modo || 'inicio'}:${levantamentoId || 'avulsa'}:${
+    identidade: `proposta:${modo || 'inicio'}:${liberacaoId || levantamentoId || 'avulsa'}:${
       modo === 'revision' ? `${codigo}:${revisionNumber}` : 'nova'
     }`,
     ativo: propostaProntaParaSalvar,
@@ -903,6 +927,10 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
       setRecado(erro.message);
       return null;
     }
+    if (liberacaoId && modo === 'new' && !propostaSalva.id && liberacaoCarregada !== liberacaoId) {
+      setRecado('Aguarde os dados da liberação Prisma antes de salvar.');
+      return null;
+    }
     setSalvando(true);
     if (!automatico)
       setRecado(propostaId ? 'Salvando...' : 'Salvando a proposta...');
@@ -915,7 +943,11 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
         trocarParametros({ proposta: codigoAtual });
       }
 
-      const entrada = entradaDaProposta(conteudo(codigoAtual), levantamentoId);
+      const entrada = {
+        ...entradaDaProposta(conteudo(codigoAtual), levantamentoId),
+        ...(!propostaSalvaRef.current.id && modo === 'new' && liberacaoId
+          ? { crmReleaseId: liberacaoId } : {})
+      };
 
       const salva = propostaSalva.id
         ? await atualizarProposta(propostaSalva.id, entrada, {

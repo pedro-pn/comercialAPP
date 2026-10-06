@@ -6,11 +6,12 @@ import { moduleRoutePath } from '../../modules/registry';
 import { randomUuid } from '../../utils/randomUuid';
 import { ComercialChrome } from './components/ComercialChrome';
 
-type ExampleOutcome = 'APPROVED' | 'REJECTED';
+type ExampleOutcome = 'APPROVED' | 'REJECTED' | 'CANCELLED';
 
 function exampleEvent(outcome: ExampleOutcome) {
   return JSON.stringify({
-    contractVersion: 1,
+    contractVersion: 2,
+    statusSequence: 1,
     eventId: randomUuid(),
     proposalCode: '1234',
     revisionNumber: 0,
@@ -44,6 +45,7 @@ export function ApiCentralPage() {
   const [items, setItems] = useState<ApiCredential[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [scopeCode, setScopeCode] = useState('crm.events.write');
   const [name, setName] = useState('CRM Prisma');
   const [expiresInDays, setExpiresInDays] = useState<number | null>(90);
   const [issued, setIssued] = useState<{ token: string; credential: ApiCredential } | null>(null);
@@ -51,7 +53,8 @@ export function ApiCentralPage() {
   const [eventText, setEventText] = useState(() => exampleEvent('APPROVED'));
   const [exampleOutcome, setExampleOutcome] = useState<ExampleOutcome>('APPROVED');
   const [contractExamples] = useState(() => ({
-    APPROVED: exampleEvent('APPROVED'), REJECTED: exampleEvent('REJECTED')
+    APPROVED: exampleEvent('APPROVED'), REJECTED: exampleEvent('REJECTED'),
+    CANCELLED: exampleEvent('CANCELLED')
   }));
   const [preview, setPreview] = useState<CrmEventPreview | null>(null);
   const [revokeId, setRevokeId] = useState<string | null>(null);
@@ -64,7 +67,7 @@ export function ApiCentralPage() {
       .then(result => {
         if (!active) return;
         setItems(result);
-        setSelectedId(result.find(isActive)?.id || '');
+        setSelectedId(result.find(item => isActive(item) && item.scopeCode === 'crm.events.write')?.id || '');
       })
       .catch(cause => { if (active) setError(errorMessage(cause)); })
       .finally(() => { if (active) setLoading(false); });
@@ -81,10 +84,10 @@ export function ApiCentralPage() {
     setError('');
     setMessage('');
     try {
-      const result = await createApiCredential({ name: name.trim(), expiresInDays });
+      const result = await createApiCredential({ name: name.trim(), expiresInDays, scopeCode });
       setIssued(result);
       setItems(previous => [result.credential, ...previous]);
-      setSelectedId(result.credential.id);
+      if (result.credential.scopeCode === 'crm.events.write') setSelectedId(result.credential.id);
       setName('');
     } catch (cause) { setError(errorMessage(cause)); }
     finally { setBusy(false); }
@@ -128,29 +131,39 @@ export function ApiCentralPage() {
     }
   }
 
-  const activeItems = items.filter(isActive);
+  const activeItems = items.filter(item => isActive(item) && item.scopeCode === 'crm.events.write');
 
   return <ComercialChrome
     voltarPara={moduleRoutePath('comercial', 'index')}
     eyebrow="FILTROVALI / ADMINISTRAÇÃO"
     titulo="Central de API"
-    descricao="Credenciais e contrato para receber eventos do CRM Prisma."
+    descricao="Credenciais para receber liberações de negócios e decisões do CRM Prisma."
     variante="proposta"
   >
     <div className="com-api-page">
       {error && <p className="com-recado com-recado-erro" role="alert">{error}</p>}
       {message && <p className="com-recado" role="status">{message}</p>}
 
+      <p className="com-nota-regra">Para liberações, use um token com a permissão “Liberações de negócios” em
+        <code> POST /api/integrations/crm/releases</code>. Para decisões, use outro token com “Status das revisões”.
+        O contrato v2 de liberação é fornecido ao desenvolvedor do Prisma junto das instruções de implantação.</p>
+
       <div className="com-api-grid">
         <section className="com-painel" aria-labelledby="api-create-title">
           <div className="com-secao-titulo"><div>
             <h2 id="api-create-title">Gerar token</h2>
-            <p>Permissão: enviar aprovação ou rejeição de propostas pelo CRM.</p>
+            <p>Gere credenciais separadas para liberações e eventos de status do CRM.</p>
           </div></div>
           <form className="com-api-form" onSubmit={handleCreate}>
             <label className="com-access-field">Nome da integração
               <input required minLength={3} maxLength={100} value={name}
                 onChange={event => setName(event.target.value)} placeholder="CRM Prisma" />
+            </label>
+            <label className="com-access-field">Permissão
+              <select value={scopeCode} onChange={event => setScopeCode(event.target.value)}>
+                <option value="crm.events.write">Status das revisões</option>
+                <option value="crm.releases.write">Liberações de negócios</option>
+              </select>
             </label>
             <label className="com-access-field">Validade
               <select value={expiresInDays === null ? 'never' : String(expiresInDays)}
@@ -213,6 +226,10 @@ export function ApiCentralPage() {
                 aria-pressed={exampleOutcome === 'REJECTED'} onClick={() => setExampleOutcome('REJECTED')}>
                 Rejeição
               </button>
+              <button type="button" className={exampleOutcome === 'CANCELLED' ? 'is-selected' : ''}
+                aria-pressed={exampleOutcome === 'CANCELLED'} onClick={() => setExampleOutcome('CANCELLED')}>
+                Cancelamento
+              </button>
             </div>
             <pre className="com-api-example"><code>{contractExamples[exampleOutcome]}</code></pre>
             <div className="com-api-actions">
@@ -228,6 +245,7 @@ export function ApiCentralPage() {
             </div>
             <p className="com-api-hint"><code>eventId</code> deve ser um UUID novo para cada mudança; no reenvio
               da mesma mudança, reutilize o mesmo ID e o mesmo conteúdo. A proposta precisa estar finalizada.
+              Aumente <code>statusSequence</code> a cada decisão desta revisão.
               O <code>opportunityId</code> deve continuar igual nos eventos seguintes. Informe
               <code> projectId</code> na aprovação quando o projeto já estiver definido; sem ele,
               a entrega ao FiltroAPP fica pendente.</p>
@@ -265,6 +283,7 @@ export function ApiCentralPage() {
             {items.map(item => <article key={item.id} className="com-api-token">
               <div>
                 <h3>{item.name}</h3>
+                <p>Permissão: {item.scopeCode === 'crm.releases.write' ? 'Liberações de negócios' : 'Status das revisões'}</p>
                 <p><code>{item.tokenPrefix}_…{item.tokenLastFour}</code></p>
                 <p>Emitido em {dateLabel(item.createdAt)}{item.createdByName ? ` por ${item.createdByName}` : ''}
                   {' · '}{item.expiresAt ? `Vence em ${dateLabel(item.expiresAt)}` : 'Nunca expira'}

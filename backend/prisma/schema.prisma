@@ -217,6 +217,19 @@ model Proposal {
   sharepointAttemptId String?
   sharepointAttemptAt DateTime?
   sharepointError    String?
+  crmReleaseId       String?
+  crmRelease         CrmRelease? @relation(fields: [crmReleaseId], references: [id])
+  crmClientId        String?
+  prismaProjectId    String?
+  crmStatusSequence  Int @default(0)
+  prismaDeliveryStatus String @default("PENDENTE")
+  prismaReceivedId   String?
+  prismaDeliveryError String?
+  prismaDeliveryAttemptId String?
+  prismaDeliveryAttemptAt DateTime?
+  prismaDeliveryAttempts Int @default(0)
+  prismaDeliveryNextRetryAt DateTime?
+  prismaDeliveryGenerationId String?
   crmApprovalStatus  String    @default("PENDENTE")
   crmOpportunityId   String?
   crmProjectId       String?
@@ -247,6 +260,7 @@ model Proposal {
   @@index([sellerUserId, createdAt])
   @@index([sellerConsultantId])
   @@index([status])
+  @@index([prismaDeliveryStatus, prismaDeliveryNextRetryAt])
 }
 
 model CrmProposalEvent {
@@ -260,6 +274,8 @@ model CrmProposalEvent {
   projectId      String?
   occurredAt     DateTime
   reason         String?
+  statusSequence Int?
+  payloadHash String?
   receivedAt     DateTime @default(now())
 
   @@index([proposalId, occurredAt])
@@ -305,4 +321,28 @@ model ScopePhotoAsset {
   createdAt        DateTime @default(now())
 
   @@index([uploadedByUserId, createdAt])
+}
+
+model CrmRelease {
+  id              String     @id
+  clientId        String
+  opportunityId   String     @unique
+  prismaProjectId String?
+  version         Int
+  status          String
+  snapshot        Json
+  occurredAt      DateTime
+  proposals       Proposal[]
+
+  @@index([status, occurredAt])
+}
+
+model CrmReleaseEvent {
+  eventId     String   @id
+  releaseId   String
+  version     Int
+  payloadHash String
+  receivedAt  DateTime @default(now())
+
+  @@unique([releaseId, version])
 }

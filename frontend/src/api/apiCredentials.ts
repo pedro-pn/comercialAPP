@@ -31,7 +31,7 @@ export async function listApiCredentials() {
   return data.items;
 }
 
-export async function createApiCredential(input: { name: string; expiresInDays: number | null }) {
+export async function createApiCredential(input: { name: string; expiresInDays: number | null; scopeCode?: string }) {
   const { data } = await apiClient.post<{ credential: ApiCredential; token: string }>(
     '/admin/api-credentials', input
   );

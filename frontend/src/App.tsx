@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState, type FormEvent } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router';
+import { LiberacoesPage } from './pages/comercial/LiberacoesPage';
 import { ApiClientError } from './api/client';
 import loginImageUrl from './assets/login/img_login.png';
 import loginImage2Url from './assets/login/img_login2.png';
@@ -155,7 +156,7 @@ export function App() {
 
   if (user && (location.pathname === '/' ||
     location.pathname === '/custos' || location.pathname === '/propostas' ||
-    location.pathname === '/configuracoes')) {
+    location.pathname === '/configuracoes' || location.pathname === '/liberacoes')) {
     if (user.role === 'VIEWER' && location.pathname !== '/') return <Navigate to="/" replace />;
     if (location.pathname === '/configuracoes' && !['ADMIN', 'MANAGER'].includes(user.role)) {
       return <Navigate to="/" replace />;
@@ -168,6 +169,7 @@ export function App() {
         {location.pathname === '/' ? <ComercialPage /> :
           <Suspense fallback={<LoadingScreen />}>
             {location.pathname === '/custos' ? <CustosPage somenteLevantamento /> :
+              location.pathname === '/liberacoes' ? <LiberacoesPage /> :
               location.pathname === '/configuracoes' ? <ConfiguracoesPage /> :
                 <PropostaPage somenteRascunho />}
           </Suspense>}

@@ -4,6 +4,7 @@ import { calculateEstimate } from '../../../shared/comercial/dist/cost-model.js'
 import { assertCanRead } from './access.js';
 import { createNectarClient } from './nectar.js';
 import { estimateForFinalizedProposal } from './finalized-estimate.js';
+import { canonicalHash } from './crm-releases.js';
 
 const LEASE_MS = 2 * 60_000;
 
@@ -45,6 +46,10 @@ export async function crmBridgeStatus(db, user, proposalId) {
 }
 
 function matchesStoredEvent(existing, event, source, proposalId) {
+  if (event.contractVersion === 2) {
+    return existing.proposalId === proposalId && existing.source === source
+      && existing.payloadHash === canonicalHash(event);
+  }
   return existing.proposalId === proposalId && existing.source === source &&
     existing.approvalStatus === event.approvalStatus &&
     existing.projectId === (event.projectId || null) &&
@@ -68,7 +73,7 @@ async function inspectCrmEvent(db, event, source) {
       proposal.crmOpportunityId !== event.opportunityId) {
     throw new HttpError(409, 'Oportunidade do Prisma não corresponde à proposta.');
   }
-  if (proposal.filtroStatus === 'SUCESSO' && (
+  if (event.contractVersion !== 2 && proposal.filtroStatus === 'SUCESSO' && (
     event.approvalStatus !== 'APPROVED' || event.projectId !== proposal.crmProjectId
   )) throw new HttpError(409, 'A proposta já foi entregue a outro estado ou projeto.');
   const existing = await db.crmProposalEvent.findUnique({ where: { eventId: event.eventId } });
@@ -80,7 +85,19 @@ async function inspectCrmEvent(db, event, source) {
   }
   const occurredAt = new Date(event.occurredAt);
   if (!Number.isFinite(occurredAt.getTime())) throw new HttpError(400, 'Data do evento inválida.');
-  if (proposal.crmApprovalAt && occurredAt <= proposal.crmApprovalAt) {
+  if (event.contractVersion === 2) {
+    if ((event.proposalId && event.proposalId !== proposal.id)
+      || (event.releaseId && event.releaseId !== proposal.crmReleaseId)
+      || (event.clientId && event.clientId !== proposal.crmClientId)
+      || ('prismaProjectId' in event && event.prismaProjectId !== proposal.prismaProjectId)) {
+      throw new HttpError(409, 'Identificadores Prisma da revisão divergentes.');
+    }
+    if (event.statusSequence <= proposal.crmStatusSequence
+      || (proposal.crmApprovalAt && occurredAt < proposal.crmApprovalAt)) {
+      throw new HttpError(409, 'Evento CRM anterior ao estado atual.');
+    }
+  }
+  if (event.contractVersion !== 2 && proposal.crmApprovalAt && occurredAt <= proposal.crmApprovalAt) {
     throw new HttpError(409, 'Evento CRM anterior ou igual ao estado já registrado.');
   }
   return { proposal, existing: null, occurredAt };
@@ -104,28 +121,44 @@ export async function recordCrmEvent(db, event, source = 'NECTAR') {
     return { duplicate: true, proposalId: proposal.id, approvalStatus: proposal.crmApprovalStatus,
       deliveryStatus: proposal.filtroStatus };
   }
+  let deliveryStatus;
   try {
     await db.$transaction(async tx => {
+      await tx.$queryRaw`SELECT "id" FROM "Proposal" WHERE "id" = ${proposal.id} FOR UPDATE`;
+      const current = await tx.proposal.findUnique({ where: { id: proposal.id } });
+      if (current.filtroStatus === 'SUCESSO' && event.approvalStatus === 'APPROVED'
+        && event.projectId && event.projectId !== current.crmProjectId) {
+        throw new HttpError(409, 'A proposta já foi entregue a outro projeto operacional.');
+      }
+      deliveryStatus = current.filtroStatus === 'SUCESSO' ? 'SUCESSO' : 'PENDENTE';
       await tx.crmProposalEvent.create({ data: {
         eventId: event.eventId, proposalId: proposal.id, source,
         opportunityId: event.opportunityId || null,
         approvalStatus: event.approvalStatus, projectId: event.projectId || null,
-        occurredAt, reason: event.reason || null
+        occurredAt, reason: event.reason || null,
+        ...(event.contractVersion === 2 ? {
+          statusSequence: event.statusSequence, payloadHash: canonicalHash(event)
+        } : {})
       } });
       const result = await tx.proposal.updateMany({
         where: { id: proposal.id, AND: [
-          { OR: [{ crmApprovalAt: null }, { crmApprovalAt: { lt: occurredAt } }] },
+          ...(event.contractVersion === 2 ? [
+            { crmStatusSequence: { lt: event.statusSequence } },
+            { OR: [{ crmApprovalAt: null }, { crmApprovalAt: { lte: occurredAt } }] }
+          ] : [{ OR: [{ crmApprovalAt: null }, { crmApprovalAt: { lt: occurredAt } }] }]),
           ...(source === 'PRISMA' ? [{ OR: [
             { crmOpportunityId: null }, { crmOpportunityId: event.opportunityId }
           ] }] : [])
         ] },
         data: {
           ...(source === 'PRISMA' ? { crmOpportunityId: event.opportunityId } : {}),
+          ...(event.contractVersion === 2 ? { crmStatusSequence: event.statusSequence } : {}),
           crmApprovalStatus: event.approvalStatus,
           crmApprovalSource: source,
           crmApprovalAt: occurredAt,
-          crmProjectId: event.approvalStatus === 'APPROVED' ? event.projectId || null : null,
-          ...(proposal.filtroStatus === 'SUCESSO' ? {} :
+          crmProjectId: current.filtroStatus === 'SUCESSO' ? current.crmProjectId
+            : event.approvalStatus === 'APPROVED' ? event.projectId || null : null,
+          ...(current.filtroStatus === 'SUCESSO' ? {} :
             { filtroStatus: 'PENDENTE', filtroError: null,
               filtroAttempts: 0, filtroNextRetryAt: null })
         }
@@ -138,13 +171,14 @@ export async function recordCrmEvent(db, event, source = 'NECTAR') {
       if (!concurrent || !matchesStoredEvent(concurrent, event, source, proposal.id)) {
         throw new HttpError(409, 'ID de evento reutilizado com conteúdo diferente.');
       }
+      const latest = await db.proposal.findUnique({ where: { id: proposal.id } });
       return { duplicate: true, proposalId: proposal.id,
-        approvalStatus: proposal.crmApprovalStatus, deliveryStatus: proposal.filtroStatus };
+        approvalStatus: latest.crmApprovalStatus, deliveryStatus: latest.filtroStatus };
     }
     throw error;
   }
   return { duplicate: false, proposalId: proposal.id, approvalStatus: event.approvalStatus,
-    deliveryStatus: proposal.filtroStatus === 'SUCESSO' ? 'SUCESSO' : 'PENDENTE' };
+    deliveryStatus };
 }
 
 export async function recordManualSelection(db, user, proposalId, { projectId, reason }) {

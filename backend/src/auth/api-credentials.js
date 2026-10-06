@@ -2,6 +2,8 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { HttpError } from './service.js';
 
 export const CRM_EVENTS_SCOPE = 'crm.events.write';
+export const CRM_RELEASES_SCOPE = 'crm.releases.write';
+export const CRM_API_SCOPES = [CRM_EVENTS_SCOPE, CRM_RELEASES_SCOPE];
 const TOKEN_PATTERN = /^cma_([A-Za-z0-9_-]{16})_([A-Za-z0-9_-]{43})$/;
 const DUMMY_HASH = Buffer.alloc(32);
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -41,7 +43,8 @@ export async function listApiCredentials(db) {
   return records.map(publicCredential);
 }
 
-export async function createApiCredential(db, actor, { name, expiresInDays }) {
+export async function createApiCredential(db, actor, { name, expiresInDays, scopeCode = CRM_EVENTS_SCOPE }) {
+  if (!CRM_API_SCOPES.includes(scopeCode)) throw new HttpError(400, 'Permissão de API inválida.');
   const selector = randomBytes(12).toString('base64url');
   const secret = randomBytes(32).toString('base64url');
   const token = `cma_${selector}_${secret}`;
@@ -50,7 +53,7 @@ export async function createApiCredential(db, actor, { name, expiresInDays }) {
     selector,
     tokenHash: tokenHash(token).toString('hex'),
     tokenLastFour: secret.slice(-4),
-    scopeCode: CRM_EVENTS_SCOPE,
+    scopeCode,
     createdByUserId: actor.id,
     expiresAt: expiresInDays === null ? null : new Date(Date.now() + expiresInDays * DAY_MS)
   }, include: { createdBy: { select: { name: true } } } });
@@ -70,10 +73,13 @@ export async function revokeApiCredential(db, actor, id) {
     include: { createdBy: { select: { name: true } }, revokedBy: { select: { name: true } } } }));
 }
 
-export async function requireActiveApiCredential(db, id) {
+export async function requireActiveApiCredential(db, id, scopeCode) {
   const record = await db.apiCredential.findUnique({ where: { id } });
   if (!record) throw new HttpError(404, 'Token não encontrado.');
   if (!credentialIsActive(record)) throw new HttpError(409, 'Token revogado ou expirado.');
+  if (scopeCode && record.scopeCode !== scopeCode) {
+    throw new HttpError(403, 'Token sem permissão para este contrato.');
+  }
   return publicCredential(record);
 }
 
@@ -96,11 +102,11 @@ export async function authenticateApiCredential(db, rawToken, scopeCode = CRM_EV
   return publicCredential(record);
 }
 
-export function requireCrmApiCredential(db) {
+export function requireCrmApiCredential(db, scopeCode = CRM_EVENTS_SCOPE) {
   return async (request, _response, next) => {
     try {
       const match = /^Bearer (\S+)$/.exec(request.get('authorization') || '');
-      request.apiCredential = await authenticateApiCredential(db, match?.[1]);
+      request.apiCredential = await authenticateApiCredential(db, match?.[1], scopeCode);
       next();
     } catch (error) { next(error); }
   };

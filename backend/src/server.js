@@ -4,6 +4,7 @@ import { createAuthService } from './auth/service.js';
 import { createMicrosoftAuthFromEnv } from './auth/microsoft.js';
 import { createDatabase } from './db.js';
 import { retryPendingFiltro } from './comercial/crm-bridge.js';
+import { retryPendingPrisma } from './comercial/prisma-delivery.js';
 import { readRuntimeConfig } from './runtime-config.js';
 
 const port = Number(process.env.PORT ?? 4300);
@@ -19,6 +20,7 @@ const server = app.listen(port, host, () => {
 });
 
 const retryTimer = setInterval(() => {
+  retryPendingPrisma(db).catch(error => console.error('Retentativa Prisma:', error));
   retryPendingFiltro(db).catch(error => console.error('Retentativa FiltroAPP:', error));
 }, 60_000);
 retryTimer.unref();

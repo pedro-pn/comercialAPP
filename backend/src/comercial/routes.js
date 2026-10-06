@@ -18,6 +18,7 @@ import { downloadDocument, finalizeLocal, issueDocuments, listDocuments, preview
   refreshDocuments, regenerateDocuments } from './documents.js';
 import { readPhoto, uploadPhoto } from './photos.js';
 import { ATTACHMENT_LIMITS, SCOPE_PHOTO_LIMITS } from '../../../shared/schemas/comercial.js';
+import { sendFinalizedToPrisma } from './prisma-delivery.js';
 import { HttpError } from '../auth/service.js';
 import { crmStatus, sendProposalToCrm } from './crm-delivery.js';
 import { createNectarClient } from './nectar.js';
@@ -28,6 +29,7 @@ import { crmBridgeStatus, recordManualSelection, deliverToFiltro,
   syncNectarOpportunity, findFiltroProjects } from './crm-bridge.js';
 
 const schemas = makeComercialSchemas(z);
+const proposalCreateSchema = schemas.proposalCreate.safeExtend({ crmReleaseId: z.string().uuid().optional() });
 const initialNumberSchema = z.object({ initialNumber: z.number().int().min(1).max(2_147_483_646) });
 const legacyRevisionSchema = z.object({
   proposalCode: z.string().regex(/^[1-9]\d*$/).max(10),
@@ -55,6 +57,24 @@ function sendFile(response, { bytes, contentType, fileName }) {
 
 export function createCommercialRouter(db, { crm = createNectarClient() } = {}) {
   const router = Router();
+
+  router.get('/liberacoes', requireEstimator, async (_request, response) => {
+    const items = await db.crmRelease.findMany({ where: { status: 'ACTIVE' },
+      orderBy: { occurredAt: 'desc' }, take: 100 });
+    response.set('Cache-Control', 'no-store').json({ items });
+  });
+
+  router.get('/liberacoes/:id', requireEstimator, async (request, response) => {
+    const release = await db.crmRelease.findUnique({ where: { id: request.params.id } });
+    if (!release || release.status !== 'ACTIVE') throw new HttpError(404, 'Liberação indisponível.');
+    response.set('Cache-Control', 'no-store').json(release);
+  });
+
+  router.post('/propostas/:id/enviar-prisma', requireEstimator, async (request, response) => {
+    z.object({}).strict().parse(request.body ?? {});
+    const proposal = await getProposal(db, request.authUser, request.params.id);
+    response.json(await sendFinalizedToPrisma(db, proposal.id));
+  });
 
   router.get('/status', (_request, response) => {
     response.json({ module: 'COMERCIAL', status: 'EM_EXTRACAO' });
@@ -181,7 +201,7 @@ export function createCommercialRouter(db, { crm = createNectarClient() } = {}) 
   });
 
   router.post('/propostas', requireEstimator, async (request, response) => {
-    const data = schemas.proposalCreate.parse(request.body);
+    const data = proposalCreateSchema.parse(request.body);
     response.status(201).json(await createProposal(db, request.authUser, data));
   });
 
@@ -296,7 +316,10 @@ export function createCommercialRouter(db, { crm = createNectarClient() } = {}) 
   });
 
   router.post('/propostas/:id/finalizar-local', requireEstimator, async (request, response) => {
-    response.json(await finalizeLocal(db, request.authUser, request.params.id));
+    const finalized = await finalizeLocal(db, request.authUser, request.params.id);
+    const delivery = await sendFinalizedToPrisma(db, request.params.id)
+      .catch(() => ({ status: 'ERRO' }));
+    response.json({ ...finalized, prismaDelivery: delivery });
   });
 
   router.get('/propostas/:id/anexos', requireEstimator, async (request, response) => {

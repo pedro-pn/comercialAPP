@@ -80,6 +80,7 @@ test('playground não escreve e evento Prisma vincula a oportunidade sem Nectar'
       async findUnique({ where }) { return events.get(where.eventId) || null; },
       async create({ data }) { events.set(data.eventId, data); return data; }
     },
+    async $queryRaw() { return []; },
     async $transaction(callback) { return callback(this); }
   };
   const event = { eventId: randomUUID(), proposalCode: '8700', revisionNumber: 0,

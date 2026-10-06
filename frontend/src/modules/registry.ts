@@ -1,5 +1,6 @@
 const routes: Record<string, string> = {
   index: '/',
+  liberacoes: '/liberacoes',
   custos: '/custos',
   propostas: '/propostas',
   historico: '/historico',
