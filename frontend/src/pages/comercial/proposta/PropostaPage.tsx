@@ -257,6 +257,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
   const [statusProposta, setStatusProposta] = useState('RASCUNHO');
   const [preparandoEdicao, setPreparandoEdicao] = useState(false);
   const [saindo, setSaindo] = useState(false);
+  const [mudandoEtapa, setMudandoEtapa] = useState(false);
   const saidaEmAndamento = useRef(false);
   // O download pode aguardar o autosave; depois do await precisa do id e da
   // versão recém-gravados, inclusive antes de o React concluir o render.
@@ -440,8 +441,10 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
   const dadosAtuaisRef = useRef(dadosDaEdicao);
   dadosAtuaisRef.current = dadosDaEdicao;
   const nomeDoConsultor =
-    consultores.find((consultor) => consultor.id === form.seller)?.nome ||
-    String(form.sellerName || '');
+    form.seller
+      ? consultores.find((consultor) => consultor.id === form.seller)?.nome ||
+        String(form.sellerName || '')
+      : '';
   const propostaProntaParaSalvar =
     modo !== null &&
     modelo !== null &&
@@ -458,6 +461,9 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
       errosTecnicos,
       precos
     }).length === 0;
+  const identidadeDoTrabalho = `proposta:${modo || 'inicio'}:${liberacaoId || levantamentoId || 'avulsa'}:${
+    modo === 'revision' ? `${codigo}:${revisionNumber}` : 'nova'
+  }`;
 
   const rascunho = useRascunhoLocal({
     conta: user?.id || '',
@@ -466,6 +472,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     codigo: precisaDeNumero(codigo)
       ? liberacaoId || levantamentoId
       : `${codigo}:rev${revisionNumber}`,
+    identidade: identidadeDoTrabalho,
     dados: dadosDaEdicao,
     // A hidratação do servidor e a aplicação do levantamento vinculado são a
     // base inicial, não edições. O rascunho só começa a observar depois delas.
@@ -475,14 +482,13 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
 
   const autosave = useAutosaveServidor({
     dados: dadosDaEdicao,
-    identidade: `proposta:${modo || 'inicio'}:${liberacaoId || levantamentoId || 'avulsa'}:${
-      modo === 'revision' ? `${codigo}:${revisionNumber}` : 'nova'
-    }`,
+    identidade: identidadeDoTrabalho,
     ativo: propostaProntaParaSalvar,
-    // A API cria a proposta somente depois que os campos de identificação
-    // obrigatórios existem. Até lá, o rascunho local continua protegendo o
-    // preenchimento e o autosave fica pendente, pronto para a última resposta.
-    ocupado: salvando || ocupadoLocal || saindo || !identificacaoCompleta,
+    // A identificação completa é necessária só para o primeiro POST. Depois
+    // dele, o rascunho deve salvar também campos em preenchimento ou apagados.
+    ocupado: salvando || ocupadoLocal || saindo || mudandoEtapa || Boolean(rascunho.oferta) ||
+      Boolean(conflitoDeEdicao) ||
+      (!propostaId && !identificacaoCompleta),
     salvar: async () => Boolean(await salvar(false, true))
   });
 
@@ -520,7 +526,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
           : ehVendedor
             ? resposta.items.find(item => item.id === user?.id)
             : undefined;
-        if (consultorInicial) {
+        if (consultorInicial && !propostaId) {
           setForm((atual) => atual.seller
             ? atual
             : { ...atual, seller: consultorInicial.id });
@@ -536,7 +542,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     return () => {
       vivo = false;
     };
-  }, [user?.id, ehVendedor]);
+  }, [user?.id, ehVendedor, propostaId]);
 
   /**
    * Proposta já salva: recarrega o conteúdo do servidor.
@@ -653,6 +659,29 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     }
   }
 
+  async function mudarEtapa(destino: EtapaProposta) {
+    if (destino === etapa || mudandoEtapa || saindo || ocupadoLocal ||
+        finalizacao.finalizando || rascunho.oferta || !propostaProntaParaSalvar) return;
+
+    // Antes da identificação completa, a cópia local protege o preenchimento
+    // sem consumir um número só para consultar outra aba.
+    if (!propostaId && !identificacaoCompleta) {
+      irPara(destino);
+      setRecado('Rascunho guardado neste navegador. Complete os dados do cliente para salvar no servidor.');
+      return;
+    }
+
+    setMudandoEtapa(true);
+    try {
+      await salvarParaDocumentos();
+      irPara(destino);
+    } catch (error) {
+      setRecado(mensagemDeErro(error, 'Não foi possível salvar esta etapa. Tente novamente antes de avançar.'));
+    } finally {
+      setMudandoEtapa(false);
+    }
+  }
+
   /**
    * "Salvar e continuar" — e ele salva mesmo, desde a primeira etapa.
    *
@@ -695,9 +724,14 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
       return;
     }
 
-    const id = await salvar();
-    if (!id) return;
-    if (proximaEtapa) irPara(proximaEtapa.value, true);
+    setMudandoEtapa(true);
+    try {
+      const id = await salvar();
+      if (!id) return;
+      if (proximaEtapa) irPara(proximaEtapa.value, true);
+    } finally {
+      setMudandoEtapa(false);
+    }
   }
 
   function validarParaEmissaoLocal() {
@@ -1017,7 +1051,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
   }
 
   async function prepararSaida(): Promise<boolean> {
-    if (saidaEmAndamento.current || ocupadoLocal || finalizacao.finalizando) return false;
+    if (saidaEmAndamento.current || mudandoEtapa || ocupadoLocal || finalizacao.finalizando) return false;
     if (statusProposta !== 'RASCUNHO' || !propostaProntaParaSalvar ||
         (!identificacaoCompleta && !propostaId) ||
         (!salvamentoEmAndamento.current && !autosave.temAlteracoesPendentes())) return true;
@@ -1086,7 +1120,8 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
         posicao={posicao}
         onCancelar={() => void voltarAoInicio()}
         onSalvarRascunho={statusProposta === 'RASCUNHO' &&
-          (!somenteRascunho || identificacaoCompleta) ? () => void salvar() : undefined}
+          (!somenteRascunho || Boolean(propostaId) || identificacaoCompleta)
+            ? () => void salvar() : undefined}
         primeiraEtapa={indice === 0}
         aviso={avisoDePendencias(pendencias)}
         rotulo={
@@ -1114,14 +1149,16 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
                           proximaEtapa?.label
                         )
         }
-        ocupado={salvando || ocupadoLocal || saindo || gerandoPdf || finalizacao.bloqueada ||
+        ocupado={salvando || ocupadoLocal || saindo || mudandoEtapa || gerandoPdf || finalizacao.bloqueada ||
+          Boolean(rascunho.oferta) ||
+          (statusProposta === 'RASCUNHO' && !propostaProntaParaSalvar) ||
           (somenteRascunho && statusProposta === 'FINALIZADA')}
         onVoltar={() =>
           statusProposta !== 'RASCUNHO'
             ? navigate(moduleRoutePath('comercial', 'historico'))
             : indice === 0
               ? void voltarAoInicio()
-              : irPara(ETAPAS[indice - 1].value)
+              : void mudarEtapa(ETAPAS[indice - 1].value)
         }
         onAvancar={avancar}
       />
@@ -1168,7 +1205,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
   return (
     <ComercialChrome
       antesDeSair={prepararSaida}
-      navegacaoOcupada={saindo || ocupadoLocal || finalizacao.finalizando}
+      navegacaoOcupada={saindo || mudandoEtapa || ocupadoLocal || finalizacao.finalizando}
       variante="proposta"
       semContainer
       eyebrow={somenteRascunho ?
@@ -1254,11 +1291,14 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
                         : undefined
                   }
                   aria-current={i === indice ? 'step' : undefined}
+                  disabled={!alcancavel || mudandoEtapa || saindo || ocupadoLocal ||
+                    finalizacao.finalizando || Boolean(rascunho.oferta) ||
+                    !propostaProntaParaSalvar}
                   aria-disabled={!alcancavel || undefined}
                   title={
                     !alcancavel ? 'Proposta já emitida. Acesse Revisão.' : undefined
                   }
-                  onClick={() => alcancavel && irPara(item.value)}
+                  onClick={() => void mudarEtapa(item.value)}
                 >
                   <b aria-hidden="true">{concluida ? '✓' : i + 1}</b>
                   <span>{item.label}</span>
@@ -1381,10 +1421,10 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
                         ...dados.form
                       });
                     }
-                    if (dados.itensEscopo?.length)
+                    if (Array.isArray(dados.itensEscopo))
                       setItensEscopo(dados.itensEscopo);
                     if (dados.blocos) setBlocos(dados.blocos);
-                    if (dados.responsabilidades?.length) {
+                    if (Array.isArray(dados.responsabilidades)) {
                       // Rascunho guardado antes da categoria existir vem sem ela, e
                       // um `value` indefinido tornaria o campo não controlado no
                       // meio da digitação. Sem categoria, a linha só não ganha
@@ -1396,7 +1436,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
                         }))
                       );
                     }
-                    if (dados.categorias?.length)
+                    if (Array.isArray(dados.categorias))
                       setCategorias(dados.categorias);
                     if (dados.servicosTecnicos) {
                       // Passa pelo normalizador: o rascunho pode ter sido guardado
@@ -1411,7 +1451,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
                     if (typeof dados.complementoRelatorios === 'string') {
                       setComplementoRelatorios(dados.complementoRelatorios);
                     }
-                    if (dados.precos?.length) {
+                    if (Array.isArray(dados.precos)) {
                       setPrecos(recalcularItensDePreco(dados.precos));
                     }
                     if (typeof dados.incluirUnitario === 'boolean') {
@@ -1433,8 +1473,8 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
           )}
 
           <fieldset className="com-proposta-campos"
-            disabled={saindo || ocupadoLocal || finalizacao.finalizando ||
-              Boolean(propostaId && !versaoCarregada) || !revisaoPronta}>
+            disabled={saindo || mudandoEtapa || ocupadoLocal || finalizacao.finalizando ||
+              !propostaProntaParaSalvar || Boolean(rascunho.oferta)}>
           {etapa === 'cliente' ? (
             <ClienteStep
               somenteRascunho={somenteRascunho}

@@ -14,15 +14,13 @@ import {
  * Liga o rascunho local a uma tela (tarefas T089 a T092 — lacuna **L3**).
  *
  * A regra mora em `rascunhoLocal.ts`, que é puro e testado. Aqui fica só o que
- * depende do React: o *debounce*, o `beforeunload` e o estado da oferta.
+ * depende do React: o `beforeunload` e o estado da oferta.
  *
  * **Ordem importa na montagem.** O rascunho é lido **uma vez**, antes de o
  * autossalvamento começar. Se as duas coisas rodassem juntas, o primeiro `setDraft`
  * do componente sobrescreveria o rascunho guardado com o payload em branco — e o
  * trabalho que se queria proteger sumiria justamente ao abrir a tela.
  */
-
-const DEBOUNCE_MS = 800;
 
 function assinaturaDosDados(dados: unknown) {
   try {
@@ -37,6 +35,7 @@ export function useRascunhoLocal({
   tela,
   modo,
   codigo,
+  identidade,
   dados,
   ativo,
   rotulo
@@ -46,6 +45,8 @@ export function useRascunhoLocal({
   tela: string;
   modo: string | null;
   codigo: string;
+  /** Mantém o mesmo trabalho quando o primeiro salvamento atribui um número. */
+  identidade?: string;
   dados: unknown;
   /** Falso enquanto a tela não está em trabalho — não guarda rascunho de diálogo. */
   ativo: boolean;
@@ -53,6 +54,7 @@ export function useRascunhoLocal({
 }) {
   const storage = typeof window === 'undefined' ? null : window.localStorage;
   const chave = conta && modo ? chaveDoRascunho(conta, tela, modo, codigo) : null;
+  const trabalho = identidade ? `${conta}:${tela}:${modo}:${identidade}` : chave;
 
   const [oferta, setOferta] = useState<RascunhoGuardado | null>(null);
   const [alterado, setAlterado] = useState(false);
@@ -65,42 +67,67 @@ export function useRascunhoLocal({
    */
   const liberado = useRef(false);
   const chaveLida = useRef<string | null>(null);
+  const trabalhoLido = useRef<string | null>(null);
   const assinaturaBase = useRef('');
+  const assinaturaGuardada = useRef('');
+  const assinaturaAtual = assinaturaDosDados(dados);
 
   // Leitura inicial — uma vez por chave.
   useEffect(() => {
     if (!storage || !chave || !ativo) return;
     if (chaveLida.current === chave) return;
 
-    chaveLida.current = chave;
-    liberado.current = false;
-
     const encontrado = lerRascunho(storage, chave);
+    const assinatura = assinaturaDosDados(dados);
+    // A reserva do primeiro número muda a chave durante o POST. Transfere a
+    // cópia pendente sem transformar a última edição em uma nova base salva.
+    if (chaveLida.current && trabalhoLido.current === trabalho &&
+        liberado.current && !encontrado && assinatura !== assinaturaBase.current) {
+      if (guardarRascunho(storage, chave, dados, rotulo)) {
+        descartarRascunho(storage, chaveLida.current);
+        assinaturaGuardada.current = assinatura;
+      } else {
+        assinaturaGuardada.current = '';
+      }
+      chaveLida.current = chave;
+      setAlterado(true);
+      return;
+    }
+
+    chaveLida.current = chave;
+    trabalhoLido.current = trabalho;
+    liberado.current = false;
+    assinaturaBase.current = assinatura;
+    assinaturaGuardada.current = '';
+    setAlterado(false);
     if (encontrado) {
       setOferta(encontrado);
     } else {
       // Abrir um registro salvo (ou um formulário novo ainda intocado) não é
       // uma alteração. Esta assinatura impede que a hidratação inicial do
-      // servidor seja regravada como "rascunho não salvo" 800 ms depois.
-      assinaturaBase.current = assinaturaDosDados(dados);
-      setAlterado(false);
+      // servidor seja regravada como "rascunho não salvo".
+      setOferta(null);
       liberado.current = true;
     }
-  }, [storage, chave, ativo, dados]);
+  }, [storage, chave, ativo, dados, trabalho, rotulo]);
 
-  // Autossalvamento com debounce.
+  // A cópia local é imediata: recarregar antes do debounce do servidor também
+  // precisa oferecer a última edição, inclusive se a identificação está incompleta.
   useEffect(() => {
     if (!storage || !chave || !ativo || !liberado.current) return;
-    const assinaturaAtual = assinaturaDosDados(dados);
-    if (assinaturaAtual === assinaturaBase.current) return;
+    if (assinaturaAtual === assinaturaBase.current) {
+      if (assinaturaGuardada.current) descartarRascunho(storage, chave);
+      assinaturaGuardada.current = '';
+      setAlterado(false);
+      return;
+    }
+    if (assinaturaAtual === assinaturaGuardada.current) return;
 
-    const timer = window.setTimeout(() => {
-      guardarRascunho(storage, chave, dados, rotulo);
-      setAlterado(true);
-    }, DEBOUNCE_MS);
-
-    return () => window.clearTimeout(timer);
-  }, [storage, chave, ativo, dados, rotulo]);
+    if (guardarRascunho(storage, chave, dados, rotulo)) {
+      assinaturaGuardada.current = assinaturaAtual;
+    }
+    setAlterado(true);
+  }, [storage, chave, ativo, dados, rotulo, assinaturaAtual]);
 
   /**
    * Aviso de saída.
@@ -125,6 +152,7 @@ export function useRascunhoLocal({
     const dadosRecuperados = oferta?.dados;
     setOferta(null);
     liberado.current = true;
+    setAlterado(true);
     return dadosRecuperados;
   }, [oferta]);
 
@@ -133,6 +161,7 @@ export function useRascunhoLocal({
     if (storage && chave) descartarRascunho(storage, chave);
     setOferta(null);
     assinaturaBase.current = assinaturaDosDados(dados);
+    assinaturaGuardada.current = '';
     setAlterado(false);
     liberado.current = true;
   }, [storage, chave, dados]);
@@ -142,6 +171,7 @@ export function useRascunhoLocal({
     if (!storage) return;
     descartarRascunhosDaTela(storage, conta, tela);
     assinaturaBase.current = assinaturaDosDados(dados);
+    assinaturaGuardada.current = '';
     setAlterado(false);
   }, [storage, conta, tela, dados]);
 
@@ -149,6 +179,7 @@ export function useRascunhoLocal({
   const limparAtual = useCallback(() => {
     if (storage && chave) descartarRascunho(storage, chave);
     assinaturaBase.current = assinaturaDosDados(dados);
+    assinaturaGuardada.current = '';
     setAlterado(false);
   }, [storage, chave, dados]);
 

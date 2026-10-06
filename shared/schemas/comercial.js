@@ -259,7 +259,17 @@ export function makeComercialSchemas(z) {
     proposalCreate: proposalCreate.refine(data => Boolean(data.sellerUserId) !== Boolean(data.sellerConsultantId), {
       message: 'Selecione um consultor de vendas.', path: ['sellerConsultantId']
     }),
-    proposalUpdate: proposalCreate.partial().extend(concurrentUpdate),
+    // O rascunho já criado aceita identificação em preenchimento. A criação
+    // reserva um número somente com identificação completa; a finalização
+    // continua exigindo os campos obrigatórios e os formatos válidos.
+    proposalUpdate: proposalCreate.partial().extend({
+      ...concurrentUpdate,
+      clientName: z.string().trim().max(200).optional(),
+      cnpj: z.string().trim().max(20).optional(),
+      contact: z.string().trim().max(200).optional(),
+      email: z.string().trim().max(200).optional(),
+      site: z.string().trim().max(300).optional(),
+    }),
 
     /** Listagem: o filtro de arquivados é explícito, nunca implícito. */
     listQuery: z.object({

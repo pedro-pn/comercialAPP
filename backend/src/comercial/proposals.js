@@ -226,7 +226,9 @@ export async function updateProposal(db, user, id, data) {
   const seller = data.sellerUserId === undefined && data.sellerConsultantId === undefined
     ? { sellerUserId: existing.sellerUserId, sellerConsultantId: existing.sellerConsultantId,
         sellerName: existing.sellerName }
-    : await resolveSeller(db, data.sellerUserId, data.sellerConsultantId, { previousSeller: existing });
+    : !data.sellerUserId && !data.sellerConsultantId
+      ? { sellerUserId: null, sellerConsultantId: null, sellerName: '' }
+      : await resolveSeller(db, data.sellerUserId, data.sellerConsultantId, { previousSeller: existing });
   const payload = data.payload ?? existing.payload;
   const totalValue = calculateProposalTotal(payload);
   if (!Number.isFinite(totalValue)) throw new HttpError(422, 'Valor da proposta inválido.');
