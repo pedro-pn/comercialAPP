@@ -277,7 +277,7 @@ export function rotuloDoAvanco(
   proximaEtapa = ''
 ): string {
   if (ultima) return 'Gerar e salvar técnica + comercial';
-  return proximaEtapa ? `Salvar e ir para ${proximaEtapa} →` : 'Salvar e continuar →';
+  return proximaEtapa ? `Continuar para ${proximaEtapa} →` : 'Continuar →';
 }
 
 /** "Preencha N campo(s) obrigatório(s)" — o aviso ao lado do botão. */

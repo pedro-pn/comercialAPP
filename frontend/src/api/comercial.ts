@@ -471,6 +471,7 @@ export async function listarPropostas(
   filtros: {
     busca?: string;
     arquivados?: boolean;
+    status?: 'RASCUNHO' | 'FINALIZANDO' | 'FINALIZADA' | 'FALHA_INTEGRACAO';
     page?: number;
     pageSize?: number;
   } = {}
@@ -482,6 +483,7 @@ export async function listarPropostas(
     params: {
       busca: filtros.busca || '',
       arquivados: filtros.arquivados ? 1 : 0,
+      status: filtros.status,
       page: filtros.page || 1,
       pageSize: filtros.pageSize || 25
     }

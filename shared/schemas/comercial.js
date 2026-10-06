@@ -166,7 +166,7 @@ export function makeComercialSchemas(z) {
   const costEstimateCreate = z.object({
     proposalCode: z.string().trim().min(1).max(40),
     revisionNumber: z.number().int().min(0).default(0),
-    title: z.string().trim().min(1).max(200),
+    title: z.string().trim().max(200).default(""),
     mode: z.enum(COST_ESTIMATE_MODES),
     status: z.enum(COST_ESTIMATE_STATUSES).default("SALVO"),
     payload: costEstimatePayload,
@@ -215,11 +215,11 @@ export function makeComercialSchemas(z) {
     proposalCode: z.string().trim().min(1).max(40),
     revisionNumber: z.number().int().min(0).default(0),
     costEstimateId: id.nullable().optional(),
-    clientName: z.string().trim().min(1).max(200),
-    cnpj: z.string().trim().min(1).max(20),
-    contact: z.string().trim().min(1).max(200),
-    email: z.string().trim().email().max(200),
-    site: z.string().trim().min(1).max(300),
+    clientName: z.string().trim().max(200).default(""),
+    cnpj: z.string().trim().max(20).default(""),
+    contact: z.string().trim().max(200).default(""),
+    email: z.string().trim().max(200).default(""),
+    site: z.string().trim().max(300).default(""),
     department: z.string().trim().max(200).optional().nullable(),
     sellerUserId: id.nullable().optional(),
     sellerConsultantId: id.nullable().optional(),
@@ -229,6 +229,11 @@ export function makeComercialSchemas(z) {
     // que o gerador do documento usa. Aceitá-lo do cliente permitiria mandar ao
     // CRM um valor que o PDF não confirma — e ninguém confere os dois.
   });
+
+  const costEstimateWithTitle = costEstimateCreate.refine(
+    data => data.status === 'RASCUNHO' || Boolean(data.title),
+    { message: 'Informe o título do levantamento.', path: ['title'] }
+  );
 
   /**
    * Versão otimista obrigatória nos dois PUTs (FR-070). `forceOverwrite` é a
@@ -251,17 +256,19 @@ export function makeComercialSchemas(z) {
     SCOPE_PHOTO_LIMITS,
 
     costEstimatePayload,
-    costEstimateCreate,
+    costEstimateCreate: costEstimateWithTitle,
     costEstimateUpdate: costEstimateCreate
       .partial({ mode: true })
-      .extend(concurrentUpdate),
+      .extend({ ...concurrentUpdate, title: z.string().trim().max(200) })
+      .refine(data => data.status === 'RASCUNHO' || Boolean(data.title), {
+        message: 'Informe o título do levantamento.', path: ['title']
+      }),
     scopeContentBlocks,
-    proposalCreate: proposalCreate.refine(data => Boolean(data.sellerUserId) !== Boolean(data.sellerConsultantId), {
-      message: 'Selecione um consultor de vendas.', path: ['sellerConsultantId']
+    proposalCreate: proposalCreate.refine(data => !(data.sellerUserId && data.sellerConsultantId), {
+      message: 'Selecione apenas um consultor de vendas.', path: ['sellerConsultantId']
     }),
-    // O rascunho já criado aceita identificação em preenchimento. A criação
-    // reserva um número somente com identificação completa; a finalização
-    // continua exigindo os campos obrigatórios e os formatos válidos.
+    // Rascunhos aceitam identificação vazia ou em preenchimento desde o POST.
+    // A finalização exige os campos obrigatórios e os formatos válidos.
     proposalUpdate: proposalCreate.partial().extend({
       ...concurrentUpdate,
       clientName: z.string().trim().max(200).optional(),
@@ -311,6 +318,7 @@ export function makeComercialSchemas(z) {
     proposalListQuery: z.object({
       arquivados: queryBoolean,
       busca: z.string().trim().max(200).default(""),
+      status: z.enum(PROPOSAL_STATUSES).optional(),
       page: pagina,
       pageSize: tamanhoDaPagina,
     }),
