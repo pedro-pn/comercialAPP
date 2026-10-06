@@ -40,6 +40,7 @@ test('rascunhos, autoria, valores e concorrência no banco próprio', { skip: !d
   });
 
   await db.proposal.deleteMany();
+  await db.salesConsultant.deleteMany();
   await db.costEstimateVersion.deleteMany();
   await db.costEstimate.deleteMany();
   await db.proposalNumberReservation.deleteMany();
@@ -102,7 +103,7 @@ test('rascunhos, autoria, valores e concorrência no banco próprio', { skip: !d
     assert.deepEqual(consultants.data.items.map(item => item.id),
       [manager.id, salesManager.id, colleague.id, seller.id]);
     assert.ok(consultants.data.items.every(item =>
-      Object.keys(item).sort().join(',') === 'id,nome,username'));
+      Object.keys(item).sort().join(',') === 'id,nome,tipo,username'));
   }
   assert.equal((await request('/api/comercial/consultores', { cookie: viewerCookie })).status, 403);
 

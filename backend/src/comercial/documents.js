@@ -96,7 +96,8 @@ async function generatePair(data, type) {
 export async function previewPdf(db, user, input, generate = generatePair) {
   const { tipo, ...payload } = input;
   if (tipo !== 'commercial' && tipo !== 'technical') throw new HttpError(400, 'Tipo de documento inválido.');
-  const selectedSeller = await resolveSeller(db, payload.seller || user.id);
+  const selectedSeller = await resolveSeller(db,
+    payload.sellerConsultantId ? null : payload.seller || user.id, payload.sellerConsultantId);
   const data = { ...payload, seller: selectedSeller.sellerName,
     lerFoto: block => readPhoto(db, user, block.id) };
   return (await generate(data, tipo)).pdf;

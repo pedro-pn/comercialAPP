@@ -268,6 +268,9 @@ export function ResponsabilidadesStep({
             mostrarErros && erroDe('equipamentos') ? ' is-invalid' : ''
           }`}
           aria-labelledby="com-equipamentos-titulo"
+          aria-invalid={mostrarErros && Boolean(erroDe('equipamentos')) || undefined}
+          aria-describedby={mostrarErros && erroDe('equipamentos')
+            ? 'com-equipamentos-erro' : undefined}
         >
           <div className="com-equipamentos-cabecalho">
             <div>
@@ -405,7 +408,9 @@ export function ResponsabilidadesStep({
 
           {recadoEquipamentos && <p className="com-recado">{recadoEquipamentos}</p>}
           {mostrarErros && erroDe('equipamentos') && (
-            <AvisoPendencia>{erroDe('equipamentos')}</AvisoPendencia>
+            <div id="com-equipamentos-erro">
+              <AvisoPendencia>{erroDe('equipamentos')}</AvisoPendencia>
+            </div>
           )}
         </section>
       )}

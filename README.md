@@ -134,6 +134,9 @@ A gestão pode alterar perfis, ativar/desativar contas e redefinir senhas locais
 Mudanças de acesso revogam as sessões do usuário. Somente administradores podem
 atribuir ou alterar o perfil Administrador.
 
+Em **Configurações**, gestores e administradores podem cadastrar consultores de
+venda apenas pelo nome completo. Os nomes ficam disponíveis no campo da proposta.
+
 A **Central de API** permite criar e revogar tokens para eventos do CRM Prisma,
 consultar validade e uso e validar o contrato em um playground sem gravar eventos.
 O segredo é exibido uma única vez; o banco armazena somente seu hash. Tokens

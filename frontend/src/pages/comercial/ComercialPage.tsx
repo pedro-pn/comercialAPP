@@ -77,7 +77,7 @@ const DESTINOS: Array<
   },
   {
     titulo: 'Configurações',
-    descricao: 'Defina a sede usada no cálculo automático de distâncias.',
+    descricao: 'Cadastre consultores de venda e defina o endereço da sede.',
     rotaKey: 'configuracoes',
     soGestor: true,
     icone: <><circle cx="12" cy="12" r="8" /><path d="M12 7v5l3 2" /></>

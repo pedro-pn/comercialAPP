@@ -13,17 +13,15 @@ import {
 } from '../../../../../shared/comercial/dist/scope-content.js';
 import {
   atualizarProposta,
+  atualizarDocumentosDaProposta,
   baixarPreviaEmPdf,
   criarProposta,
-  emitirDocumentos,
   finalizarPropostaLocal,
   listarConsultores,
-  listarDocumentosDaProposta,
   mensagemDeErro,
   obterLevantamento,
   obterProposta,
   reservarProximoNumero,
-  regerarDocumentosDaProposta,
   registrarRevisaoLegada,
   ComercialConcurrentWriteError,
   type Consultor,
@@ -96,6 +94,7 @@ import { ComercialStep } from './steps/ComercialStep';
 import { ResponsabilidadesStep } from './steps/ResponsabilidadesStep';
 import { RevisaoStep } from './steps/RevisaoStep';
 import { FinalizacaoLocalPanel } from './FinalizacaoLocalPanel';
+import { PropostaDocumentosPage } from './PropostaDocumentosPage';
 import { useDocumentosDaProposta } from './useDocumentosDaProposta';
 import { TecnicaStep } from './steps/TecnicaStep';
 import { TutorialDoModulo } from '../TutorialDoModulo';
@@ -253,6 +252,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
   const [finalizandoLocal, setFinalizandoLocal] = useState(false);
   const [versaoCarregada, setVersaoCarregada] = useState('');
   const [statusProposta, setStatusProposta] = useState('RASCUNHO');
+  const [preparandoEdicao, setPreparandoEdicao] = useState(false);
   // O download pode aguardar o autosave; depois do await precisa do id e da
   // versão recém-gravados, inclusive antes de o React concluir o render.
   const propostaSalvaRef = useRef({ id: propostaId, updatedAt: versaoCarregada, status: statusProposta });
@@ -261,7 +261,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
   const erroDeSalvamento = useRef<unknown>(null);
   const salvarAtual = useRef(salvar);
   salvarAtual.current = salvar;
-  const documentosLocais = useDocumentosDaProposta(somenteRascunho ? propostaId : '',
+  const documentosLocais = useDocumentosDaProposta(propostaId,
     etapa === 'revisao' ? `${versaoCarregada}:${statusProposta}` : '');
   const [pendenciaFinalizacao, setPendenciaFinalizacao] =
     useState<PendenciaDaFinalizacao | null>(null);
@@ -475,7 +475,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
   /**
    * Consultores.
    *
-   * Todos podem escolher um usuário ativo do Comercial. O próprio vendedor
+   * Todos podem escolher um consultor da lista. O próprio vendedor
    * continua como seleção inicial, sem substituir um consultor já informado.
    */
   useEffect(() => {
@@ -532,7 +532,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
         // sem buscar e a proposta reaparecia vazia no F5.
         idCarregado.current = propostaId;
         const dados = snapshotDaPropostaSalva(proposta);
-        aplicarSnapshot(dados, proposta.sellerUserId);
+        aplicarSnapshot(dados, proposta.sellerConsultantId || proposta.sellerUserId || '');
         setVersaoCarregada(proposta.updatedAt || '');
         setStatusProposta(proposta.status || 'RASCUNHO');
         finalizacao.marcarFinalizada(proposta.status === 'FINALIZADA');
@@ -647,6 +647,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
       return;
     }
     if (pendencias.length > 0) {
+      setRecado(pendencias[0].mensagem);
       setEtapaParaFocar(etapa);
       return;
     }
@@ -675,7 +676,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     irPara(pendencia.etapa);
     setTentouAvancar(true);
     setEtapaParaFocar(pendencia.etapa);
-    setRecado(`Complete a etapa ${ETAPAS.find(item => item.value === pendencia.etapa)?.label || pendencia.etapa} antes de emitir.`);
+    setRecado(`Complete a etapa ${ETAPAS.find(item => item.value === pendencia.etapa)?.label || pendencia.etapa}: ${pendencia.mensagem}`);
     return false;
   }
 
@@ -685,20 +686,16 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     setOcupadoLocal(true);
     setFinalizandoLocal(true);
     try {
-      const id = await salvar();
-      if (!id) return;
+      const id = await salvarParaDocumentos();
       setRecado('Emitindo os documentos atualizados...');
-      const anteriores = await listarDocumentosDaProposta(id);
-      // Os dados podem ser iguais, mas a formatação do modelo ter sido corrigida.
-      const emitidos = anteriores.length === 4
-        ? await regerarDocumentosDaProposta(id)
-        : await emitirDocumentos(id);
+      const emitidos = await atualizarDocumentosDaProposta(id);
       documentosLocais.atualizarDocumentos(id, emitidos.documentos);
       setRecado('Finalizando a proposta...');
       const finalizada = await finalizarPropostaLocal(id);
       documentosLocais.atualizarDocumentos(id, finalizada.documentos);
       setStatusProposta('FINALIZADA');
       finalizacao.marcarFinalizada(true);
+      trocarParametros({ etapa: 'revisao', visualizacao: 'documentos' });
       setRecado('Proposta finalizada. Os arquivos permanecem disponíveis no histórico.');
     } catch (error) {
       setRecado(mensagemDeErro(error, 'Não foi possível finalizar a proposta.'));
@@ -709,6 +706,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
   }
 
   function editar(patch: AnyRecord) {
+    if (statusProposta !== 'RASCUNHO') return;
     setForm((atual) => ({ ...atual, ...patch }));
     if (
       pendenciaFinalizacao &&
@@ -762,6 +760,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
 
   /** O estado da tela no formato que `salvamento.ts` consome. */
   function conteudo(codigoAtual = codigo): ConteudoDaProposta {
+    const consultor = consultores.find(item => item.id === form.seller);
     return {
       form: { ...form, sellerName: nomeDoConsultor },
       codigo: codigoAtual,
@@ -775,7 +774,10 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
       precos,
       incluirUnitario,
       servicosTecnicos,
-      complementoRelatorios
+      complementoRelatorios,
+      sellerConsultantId: consultor
+        ? consultor.tipo === 'cadastro' ? consultor.id : ''
+        : form.sellerConsultantId === form.seller ? String(form.sellerConsultantId || '') : ''
     };
   }
 
@@ -891,6 +893,10 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
   ): Promise<string | null> {
     erroDeSalvamento.current = null;
     const propostaSalva = propostaSalvaRef.current;
+    if (propostaSalva.status !== 'RASCUNHO') {
+      setRecado('Confirme a criação de uma revisão para editar esta proposta.');
+      return null;
+    }
     if (propostaSalva.id && !propostaSalva.updatedAt) {
       const erro = new Error('Aguarde a proposta terminar de carregar antes de salvar.');
       erroDeSalvamento.current = erro;
@@ -1049,6 +1055,43 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
         onAvancar={avancar}
       />
     );
+  }
+
+  async function iniciarEdicaoDaFinalizada() {
+    if (preparandoEdicao || ocupadoLocal) return false;
+    setPreparandoEdicao(true);
+    try {
+      if (!await carregarRevisao(codigo)) return false;
+      idCarregado.current = '';
+      propostaSalvaRef.current = { id: '', updatedAt: '', status: 'RASCUNHO' };
+      setVersaoCarregada('');
+      setStatusProposta('RASCUNHO');
+      setPendenciaFinalizacao(null);
+      setConflitoDeEdicao(null);
+      finalizacao.reiniciarFinalizacao();
+      return true;
+    } finally {
+      setPreparandoEdicao(false);
+    }
+  }
+
+  if (statusProposta === 'FINALIZADA') {
+    return <PropostaDocumentosPage
+      codigo={codigoExibido}
+      cliente={String(form.client || '')}
+      titulo={String(form.title || '')}
+      recado={recado}
+      busy={ocupadoLocal || finalizandoLocal || preparandoEdicao}
+      onEditar={iniciarEdicaoDaFinalizada}
+      documentos={<FinalizacaoLocalPanel
+        proposalId={propostaId} status={statusProposta}
+        save={salvarParaDocumentos} validate={validarParaEmissaoLocal}
+        docs={documentosLocais.documentos} documentsError={documentosLocais.erro}
+        onDocumentsChange={documentosLocais.atualizarDocumentos}
+        busy={ocupadoLocal || finalizandoLocal || preparandoEdicao}
+        onBusyChange={setOcupadoLocal}
+      />}
+    />;
   }
 
   return (
@@ -1386,7 +1429,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
                 <div className="com-secao-titulo">
                   <div>
                     <h2>Revisão da proposta</h2>
-                    <p>Confira o conteúdo, emita os arquivos e finalize antes de enviar ao Nectar.</p>
+                    <p>Confira o conteúdo. Ao finalizar, os documentos serão gerados e a página de downloads será aberta.</p>
                   </div>
                 </div>
                 <p><strong>Cliente:</strong> {String(form.client || 'Não informado')}</p>

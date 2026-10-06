@@ -221,7 +221,8 @@ export function makeComercialSchemas(z) {
     email: z.string().trim().email().max(200),
     site: z.string().trim().min(1).max(300),
     department: z.string().trim().max(200).optional().nullable(),
-    sellerUserId: id,
+    sellerUserId: id.nullable().optional(),
+    sellerConsultantId: id.nullable().optional(),
     payload: proposalPayload,
     // `totalValue` NÃO entra, pelo mesmo motivo dos totais do levantamento: o
     // servidor soma os itens de preço do payload com a mesma leitura de moeda
@@ -255,7 +256,9 @@ export function makeComercialSchemas(z) {
       .partial({ mode: true })
       .extend(concurrentUpdate),
     scopeContentBlocks,
-    proposalCreate,
+    proposalCreate: proposalCreate.refine(data => Boolean(data.sellerUserId) !== Boolean(data.sellerConsultantId), {
+      message: 'Selecione um consultor de vendas.', path: ['sellerConsultantId']
+    }),
     proposalUpdate: proposalCreate.partial().extend(concurrentUpdate),
 
     /** Listagem: o filtro de arquivados é explícito, nunca implícito. */

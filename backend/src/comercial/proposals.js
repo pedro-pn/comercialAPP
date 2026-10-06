@@ -61,6 +61,7 @@ function historyItem(item, viewer) {
     ...output,
     costEstimateId: item.costEstimateId,
     sellerUserId: item.sellerUserId,
+    sellerConsultantId: item.sellerConsultantId,
     totalValue: item.totalValue,
     totalCost: item.costEstimate?.totalCost ?? null,
     marginPercent: item.costEstimate?.marginPercent ?? null,
@@ -132,6 +133,7 @@ export async function prepareRevision(db, user, proposalCode) {
     message: withSnapshot ? 'Proposta anterior carregada por completo.' : 'Sem snapshot completo.',
     costEstimateId: latest.costEstimateId,
     sellerUserId: latest.sellerUserId,
+    sellerConsultantId: latest.sellerConsultantId,
     sellerName: latest.sellerName,
     crm: withCrm ? {
       opportunityId: withCrm.nectarOpportunityId,
@@ -150,7 +152,7 @@ export async function createProposal(db, user, data) {
     throw new HttpError(409, `A próxima revisão é ${previous.nextRevision}.`);
   }
   const costEstimateId = await validateEstimateLink(db, user, data.costEstimateId, data.proposalCode);
-  const seller = await resolveSeller(db, data.sellerUserId);
+  const seller = await resolveSeller(db, data.sellerUserId, data.sellerConsultantId);
   const totalValue = calculateProposalTotal(data.payload);
   if (!Number.isFinite(totalValue)) throw new HttpError(422, 'Valor da proposta inválido.');
   try {
@@ -200,9 +202,10 @@ export async function updateProposal(db, user, id, data) {
   const protectVersion = assertVersion(existing, data.expectedUpdatedAt, data.forceOverwrite);
   const costEstimateId = data.costEstimateId === undefined ? existing.costEstimateId
     : await validateEstimateLink(db, user, data.costEstimateId, existing.proposalCode);
-  const seller = data.sellerUserId === undefined
-    ? { sellerUserId: existing.sellerUserId, sellerName: existing.sellerName }
-    : await resolveSeller(db, data.sellerUserId);
+  const seller = data.sellerUserId === undefined && data.sellerConsultantId === undefined
+    ? { sellerUserId: existing.sellerUserId, sellerConsultantId: existing.sellerConsultantId,
+        sellerName: existing.sellerName }
+    : await resolveSeller(db, data.sellerUserId, data.sellerConsultantId);
   const payload = data.payload ?? existing.payload;
   const totalValue = calculateProposalTotal(payload);
   if (!Number.isFinite(totalValue)) throw new HttpError(422, 'Valor da proposta inválido.');

@@ -66,6 +66,7 @@ model User {
   createdProposals  Proposal[]                 @relation("ProposalCreator")
   updatedProposals  Proposal[]                 @relation("ProposalUpdater")
   soldProposals     Proposal[]                 @relation("ProposalSeller")
+  registeredSalesConsultants SalesConsultant[]
   numberReservations ProposalNumberReservation[]
 
   @@unique([microsoftTenantId, microsoftObjectId])
@@ -170,6 +171,16 @@ model CostEstimateVersion {
   @@index([costEstimateId, createdAt])
 }
 
+model SalesConsultant {
+  id              String   @id @default(cuid())
+  name            String
+  normalizedName  String   @unique
+  createdByUserId String?
+  createdBy       User?    @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  createdAt       DateTime @default(now())
+  proposals       Proposal[]
+}
+
 model Proposal {
   id                 String                    @id @default(cuid())
   proposalCode       String
@@ -182,8 +193,10 @@ model Proposal {
   email              String
   site               String
   department         String?
-  sellerUserId       String
-  seller             User                      @relation("ProposalSeller", fields: [sellerUserId], references: [id])
+  sellerUserId       String?
+  seller             User?                     @relation("ProposalSeller", fields: [sellerUserId], references: [id])
+  sellerConsultantId String?
+  sellerConsultant   SalesConsultant?           @relation(fields: [sellerConsultantId], references: [id])
   sellerName         String
   estimatorName      String
   payload            Json
@@ -231,6 +244,7 @@ model Proposal {
   @@unique([proposalCode, revisionNumber])
   @@index([createdByUserId, archivedAt, createdAt])
   @@index([sellerUserId, createdAt])
+  @@index([sellerConsultantId])
   @@index([status])
 }
 

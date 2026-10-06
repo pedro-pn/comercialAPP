@@ -2,7 +2,7 @@ import { Router, raw } from 'express';
 import { z } from 'zod';
 import { makeComercialSchemas } from '../../../shared/schemas/comercial.js';
 import { requireAdmin, requireEstimator, requireManager } from './access.js';
-import { listConsultants } from './consultants.js';
+import { createConsultant, listConsultants } from './consultants.js';
 import {
   archiveCostEstimate, createCostEstimate, getCostEstimate,
   listCostEstimates, updateCostEstimate
@@ -85,11 +85,17 @@ export function createCommercialRouter(db, { crm = createNectarClient() } = {}) 
   });
 
   router.get('/consultores', requireEstimator, async (_request, response) => {
-    const users = await listConsultants(db);
+    const consultants = await listConsultants(db);
     response.set('Cache-Control', 'no-store').json({
-      items: users.map(item => ({ id: item.id, nome: item.name, username: item.username })),
+      items: consultants.map(item => ({ id: item.id, nome: item.name,
+        username: item.username, tipo: item.tipo })),
       podeEscolher: true
     });
+  });
+
+  router.post('/consultores', requireManager, async (request, response) => {
+    const { nome } = z.object({ nome: z.string().max(500) }).strict().parse(request.body);
+    response.status(201).json(await createConsultant(db, request.authUser, nome));
   });
 
   router.get('/nectar/funis', requireEstimator, async (_request, response) => {
