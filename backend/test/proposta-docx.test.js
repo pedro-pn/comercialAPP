@@ -7,6 +7,7 @@ import AdmZip from 'adm-zip';
 import { DOMParser } from '@xmldom/xmldom';
 import { arquivoDoModelo, preencherProposta } from '../src/lib/comercial/proposta-docx.js';
 import { scopeTablesFromDimensioning } from '../../shared/comercial/dist/dimensioning-scope.js';
+import { createTechnicalServiceSelection } from '../../shared/comercial/dist/technical-services.js';
 import { textoCondicoesPagamento, TEXTO_IMPOSTOS, TEXTO_OBSERVACOES_GERAIS }
   from '../../shared/comercial/dist/modelo-documento.js';
 
@@ -131,6 +132,53 @@ function propriedadeDoTexto(run, styles, tag) {
 }
 
 for (const modelo of ['padrao', 'hidrojateamento']) {
+  test(`escopo técnico ${modelo} mantém as 13 etapas do reservatório como itens de lista independentes`, async () => {
+    const servico = createTechnicalServiceSelection('limpeza_reservatorio', 'reservatorio');
+    const zip = new AdmZip(await preencherProposta({ modelo, technicalServices: [servico] }, 'technical'));
+    const doc = lerParte(zip, 'word/document.xml');
+    const etapas = servico.text.split('\n').filter(linha => linha.startsWith('• '))
+      .map(linha => linha.slice(2));
+    assert.equal(etapas.length, 13);
+    const itens = Array.from(doc.getElementsByTagName('w:p')).filter(p => etapas.includes(texto(p)));
+    assert.deepEqual(itens.map(texto), etapas);
+    const numbering = lerParte(zip, 'word/numbering.xml');
+    for (const item of itens) {
+      assert.equal(item.getElementsByTagName('w:br').length, 0, 'Cada etapa deve ter seu próprio parágrafo');
+      assert.equal(item.getElementsByTagName('w:jc').item(0)?.getAttribute('w:val'), 'left');
+      const id = item.getElementsByTagName('w:numId').item(0)?.getAttribute('w:val');
+      const numero = Array.from(numbering.getElementsByTagName('w:num')).find(n => n.getAttribute('w:numId') === id);
+      assert.ok(numero, 'O marcador deve usar uma lista válida do Word');
+      const abstractId = numero.getElementsByTagName('w:abstractNumId').item(0).getAttribute('w:val');
+      const lista = Array.from(numbering.getElementsByTagName('w:abstractNum'))
+        .find(n => n.getAttribute('w:abstractNumId') === abstractId);
+      assert.equal(lista.getElementsByTagName('w:lvl').item(0).getElementsByTagName('w:numFmt')
+        .item(0).getAttribute('w:val'), 'bullet');
+    }
+  });
+
+  test(`escopo técnico ${modelo} preserva textos editados e continuações dentro dos itens`, async () => {
+    const doc = lerParte(new AdmZip(await preencherProposta({ modelo, technicalServices: [{
+      serviceId: 'limpeza_reservatorio', usesTemplate: false,
+      text: 'Introdução personalizada com • no meio.\r\nContinuação da introdução.\r\n\r\n'
+        + 'Etapas previstas:\r\n  • Abertura editada & inspeção <reservatório>;\r\nContinuação do primeiro item.\r\n'
+        + ' • Organização personalizada.\r\n\r\nConclusão personalizada.'
+    }] }, 'technical')), 'word/document.xml');
+    const paragrafos = Array.from(doc.getElementsByTagName('w:p'));
+    const introducao = paragrafos.find(p => texto(p).startsWith('Introdução personalizada'));
+    assert.equal(texto(introducao), 'Introdução personalizada com • no meio.Continuação da introdução.');
+    assert.equal(introducao.getElementsByTagName('w:br').length, 1);
+    assert.equal(introducao.getElementsByTagName('w:numPr').length, 0);
+    const primeiro = paragrafos.find(p => texto(p).startsWith('Abertura editada'));
+    assert.equal(texto(primeiro), 'Abertura editada & inspeção <reservatório>;Continuação do primeiro item.');
+    assert.equal(primeiro.getElementsByTagName('w:br').length, 1);
+    assert.equal(primeiro.getElementsByTagName('w:jc').item(0).getAttribute('w:val'), 'left');
+    assert.ok(primeiro.getElementsByTagName('w:numPr').length);
+    const ultimo = paragrafos.find(p => texto(p) === 'Organização personalizada.');
+    assert.ok(ultimo?.getElementsByTagName('w:numPr').length);
+    assert.equal(paragrafos.find(p => texto(p) === 'Conclusão personalizada.')
+      ?.getElementsByTagName('w:numPr').length, 0);
+  });
+
   test(`documento comercial ${modelo} preenche a identificação conforme o modelo`, async () => {
     const zip = new AdmZip(await preencherProposta({
       modelo, title: 'Limpeza & inspeção <circuito A>', client: 'Cliente de teste',

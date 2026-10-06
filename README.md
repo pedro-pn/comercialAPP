@@ -234,6 +234,8 @@ Com LibreOffice, Python/UNO e Poppler (`pdftotext`) instalados, execute
 `TEST_SCOPE_TABLE_PDF=1 node --test backend/test/proposta-tabelas.test.js`
 para conferir os cabeçalhos, o alinhamento e as quebras de página das tabelas
 nos PDFs técnicos e comerciais dos dois modelos.
+Para validar também os marcadores e o espaçamento do escopo técnico, execute
+`TEST_TECHNICAL_SCOPE_PDF=1 node --test backend/test/proposta-escopo-tecnico.test.js`.
 
 ## Estrutura do repositório
 
