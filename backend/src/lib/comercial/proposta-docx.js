@@ -315,16 +315,25 @@ const escapar = valor =>
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 
-/** Uma tabela do escopo, montada com a largura da folha. */
+/** Uma tabela do escopo com colunas proporcionais ao conteúdo. */
 function xmlDeTabela(bloco) {
-  const colunas = bloco.columns.length || 1;
-  const largura = Math.floor(9000 / colunas);
-  const celula = (texto, cabecalho) => `
+  const larguraTotal = 9000;
+  const maiorPalavra = texto => Math.max(0, ...String(texto ?? '').split(/\s+/u)
+    .map(palavra => palavra.length));
+  // Cabeçalhos e palavras dos dados precisam caber sem dividir suas letras.
+  // Limitar o peso dos dados evita que um identificador longo comprima as demais colunas.
+  const pesos = bloco.columns.map((titulo, indice) => Math.max(7, maiorPalavra(titulo) + 1,
+    ...bloco.rows.map(linha => Math.min(16, maiorPalavra(linha[indice])))));
+  const soma = pesos.reduce((total, peso) => total + peso, 0);
+  const larguras = pesos.map(peso => Math.floor(larguraTotal * peso / soma));
+  larguras[larguras.length - 1] += larguraTotal - larguras.reduce((total, valor) => total + valor, 0);
+  const celula = (texto, cabecalho, indice) => `
     <w:tc>
-      <w:tcPr><w:tcW w:w="${largura}" w:type="dxa"/>${
+      <w:tcPr><w:tcW w:w="${larguras[indice]}" w:type="dxa"/>${
         cabecalho ? '<w:shd w:val="clear" w:fill="E8F0EB"/>' : ''
-      }</w:tcPr>
-      <w:p><w:pPr><w:spacing w:before="120" w:after="120" w:line="360" w:lineRule="auto"/><w:rPr>
+      }<w:vAlign w:val="center"/></w:tcPr>
+      <w:p><w:pPr>${cabecalho ? '<w:keepNext/>' : '<w:keepNext w:val="0"/>'}<w:keepLines/>
+        <w:spacing w:before="120" w:after="120" w:line="360" w:lineRule="auto"/><w:jc w:val="left"/><w:rPr>
         <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="20"/><w:szCs w:val="20"/>${cabecalho ? '<w:b/>' : ''}
       </w:rPr></w:pPr>
       <w:r><w:rPr>
@@ -333,17 +342,22 @@ function xmlDeTabela(bloco) {
     </w:tc>`;
 
   const linha = (celulas, cabecalho) =>
-    `<w:tr>${celulas.map(t => celula(t, cabecalho)).join('')}</w:tr>`;
+    `<w:tr><w:trPr><w:cantSplit/>${cabecalho ? '<w:tblHeader/>' : ''}</w:trPr>${
+      celulas.map((texto, indice) => celula(texto, cabecalho, indice)).join('')
+    }</w:tr>`;
 
   return `<w:tbl xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
     <w:tblPr>
-      <w:tblW w:w="9000" w:type="dxa"/>
+      <w:tblW w:w="${larguraTotal}" w:type="dxa"/><w:jc w:val="left"/>
       <w:tblBorders>
         ${['top', 'left', 'bottom', 'right', 'insideH', 'insideV']
           .map(l => `<w:${l} w:val="single" w:sz="4" w:color="999999"/>`)
           .join('')}
       </w:tblBorders>
+      <w:tblLayout w:type="fixed"/>
+      <w:tblCellMar><w:left w:w="80" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tblCellMar>
     </w:tblPr>
+    <w:tblGrid>${larguras.map(largura => `<w:gridCol w:w="${largura}"/>`).join('')}</w:tblGrid>
     ${linha(bloco.columns, true)}
     ${bloco.rows
       .map(r =>
@@ -398,14 +412,14 @@ function ajustarRelatorios(doc, servicos) {
 }
 
 function paragrafoDeTexto(doc, texto, {
-  negrito = false, titulo = false, nivelLista = null, lista = 2
+  negrito = false, titulo = false, nivelLista = null, lista = 2, manterComProximo = false
 } = {}) {
   const estilo = titulo ? '<w:pStyle w:val="Ttulo2"/>'
     : nivelLista !== null ? '<w:pStyle w:val="PargrafodaLista"/>' : '';
   const numeracao = nivelLista !== null
     ? `<w:numPr><w:ilvl w:val="${nivelLista}"/><w:numId w:val="${lista}"/></w:numPr>` : '';
   const xml = `<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-    <w:pPr>${estilo}${numeracao}<w:spacing w:before="${titulo ? 200 : 0}" w:after="120" w:line="360" w:lineRule="auto"/><w:jc w:val="${titulo ? 'left' : 'both'}"/></w:pPr>
+    <w:pPr>${estilo}${manterComProximo ? '<w:keepNext/><w:keepLines/>' : ''}${numeracao}<w:spacing w:before="${titulo ? 200 : 0}" w:after="120" w:line="360" w:lineRule="auto"/><w:jc w:val="${titulo ? 'left' : 'both'}"/></w:pPr>
     <w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:b w:val="${negrito}"/><w:bCs w:val="${negrito}"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t xml:space="preserve">${escapar(texto)}</w:t></w:r>
   </w:p>`;
   return new DOMParser().parseFromString(xml, 'text/xml').documentElement;
@@ -712,7 +726,9 @@ async function preencherBlocosDoEscopo(zip, doc, blocos, lerFoto) {
 
   for (const bloco of blocos) {
     if (bloco.type === 'table') {
-      if (bloco.title) inserir(paragrafoDeTexto(doc, bloco.title, { negrito: true }));
+      if (bloco.title) inserir(paragrafoDeTexto(doc, bloco.title, {
+        negrito: true, manterComProximo: true
+      }));
       inserir(new DOMParser().parseFromString(xmlDeTabela(bloco), 'text/xml').documentElement);
       inserir(paragrafoDeTexto(doc, ''));
       continue;
