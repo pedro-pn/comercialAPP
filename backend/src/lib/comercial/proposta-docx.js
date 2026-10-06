@@ -412,26 +412,33 @@ function ajustarRelatorios(doc, servicos) {
 }
 
 function paragrafoDeTexto(doc, texto, {
-  negrito = false, titulo = false, nivelLista = null, lista = 2, manterComProximo = false
+  negrito = false, titulo = false, nivelLista = null, lista = 2, manterComProximo = false,
+  alinhamento = titulo ? 'left' : 'both'
 } = {}) {
   const estilo = titulo ? '<w:pStyle w:val="Ttulo2"/>'
     : nivelLista !== null ? '<w:pStyle w:val="PargrafodaLista"/>' : '';
   const numeracao = nivelLista !== null
     ? `<w:numPr><w:ilvl w:val="${nivelLista}"/><w:numId w:val="${lista}"/></w:numPr>` : '';
   const xml = `<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-    <w:pPr>${estilo}${manterComProximo ? '<w:keepNext/><w:keepLines/>' : ''}${numeracao}<w:spacing w:before="${titulo ? 200 : 0}" w:after="120" w:line="360" w:lineRule="auto"/><w:jc w:val="${titulo ? 'left' : 'both'}"/></w:pPr>
+    <w:pPr>${estilo}${manterComProximo ? '<w:keepNext/><w:keepLines/>' : ''}${numeracao}<w:spacing w:before="${titulo ? 200 : 0}" w:after="120" w:line="360" w:lineRule="auto"/><w:jc w:val="${alinhamento}"/></w:pPr>
     <w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:b w:val="${negrito}"/><w:bCs w:val="${negrito}"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t xml:space="preserve">${escapar(texto)}</w:t></w:r>
   </w:p>`;
   return new DOMParser().parseFromString(xml, 'text/xml').documentElement;
 }
 
-/** Linhas em branco separam parágrafos; uma quebra simples permanece na linha. */
-function paragrafosDeTexto(doc, texto) {
+/** Linhas em branco separam parágrafos; no escopo, cada marcador abre um item de lista. */
+function paragrafosDeTexto(doc, texto, { identificarListas = false } = {}) {
   return String(texto || '')
     .trim()
     .split(/(?:\r?\n\s*){2,}/u)
+    .flatMap(trecho => identificarListas
+      ? trecho.trim().split(/(?:\r\n|\r|\n)(?=\s*•\s*\S)/u)
+      : [trecho.trim()])
     .map(trecho => {
-      const paragrafo = paragrafoDeTexto(doc, trecho.trim());
+      const itemDeLista = identificarListas && /^•\s*\S/u.test(trecho.trim());
+      const paragrafo = paragrafoDeTexto(doc,
+        itemDeLista ? trecho.trim().replace(/^•\s*/u, '') : trecho.trim(),
+        itemDeLista ? { nivelLista: 0, lista: 3, alinhamento: 'left' } : {});
       preserveWordTextLineBreaks(paragrafo);
       return paragrafo;
     });
@@ -614,7 +621,7 @@ function ajustarEscopoTecnico(doc, servicos) {
       { titulo: true }
     );
     ancora.parentNode.insertBefore(titulo, ancora);
-    for (const texto of paragrafosDeTexto(doc, servico.text || '')) {
+    for (const texto of paragrafosDeTexto(doc, servico.text || '', { identificarListas: true })) {
       ancora.parentNode.insertBefore(texto, ancora);
     }
   });
