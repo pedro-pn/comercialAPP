@@ -4147,15 +4147,24 @@
   margin: 0;
 }
 
+.com-root .com-table-wrap td textarea.com-matriz-texto {
+  display: block;
+  width: 100%;
+  min-height: 64px;
+  padding: 8px 10px;
+  box-sizing: border-box;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow: hidden;
+  resize: none;
+}
+
 /* ---------------------------------------------------------------------------
    Impressão
    ---------------------------------------------------------------------------
-   "Imprimir prévia" chama `window.print()`, e sem estas regras o navegador
-   mandava a TELA INTEIRA para o papel — barra, hero, stepper e formulário junto
-   com o documento. Era essa a origem de "o PDF baixado não é o mesmo da prévia".
-
-   Isto NÃO substitui o gerador (T072), que produz o PDF oficial no servidor.
-   É o caminho de conferência: imprime só o documento, uma folha por página.
+   Regras para a impressão manual da tela. A ação "Visualizar PDF" abre o
+   documento gerado no servidor, com a formatação e a paginação do modelo Word.
    -------------------------------------------------------------------------- */
 @media print {
   .com-root .com-topbar,
@@ -4207,7 +4216,7 @@
   margin: 0;
 }
 
-/* Duas ações no pé da prévia: o PDF de verdade e a impressão da tela. */
+/* Download e visualização do PDF gerado pelo modelo. */
 .com-root .com-previa-acoes {
   display: flex;
   gap: 8px;
@@ -4227,6 +4236,44 @@
   opacity: 0.6;
   cursor: progress;
 }
+
+.com-root .com-pdf-visualizador {
+  width: min(1200px, 96vw);
+  max-width: 96vw;
+  height: 92dvh;
+  max-height: 92dvh;
+  padding: 0;
+  border: 1px solid var(--com-borda);
+  border-radius: 12px;
+  color: var(--com-texto);
+  background: var(--com-superficie);
+}
+
+.com-root .com-pdf-visualizador::backdrop {
+  background: rgb(12 22 38 / 70%);
+}
+
+.com-root .com-pdf-conteudo {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.com-root .com-pdf-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--com-borda);
+}
+
+.com-root .com-pdf-cabecalho h2 { margin: 0; font-size: 18px; }
+.com-root .com-pdf-cabecalho p { margin: 4px 0 0; font-size: 12px; }
+.com-root .com-pdf-acoes { display: flex; gap: 8px; }
+.com-root .com-pdf-documento { flex: 1; width: 100%; min-height: 0; border: 0; }
+.com-root .com-pdf-mensagem { margin: auto; padding: 24px; text-align: center; }
 
 /* ---------------------------------------------------------------------------
  * Sugestões de endereço (T134)

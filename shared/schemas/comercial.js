@@ -52,7 +52,7 @@ export const PROPOSAL_STEPS = [
  */
 export const SCOPE_LIMITS = {
   photos: 8,
-  tables: 8,
+  tables: 80,
   tableColumns: 6,
   tableRows: 40,
   tableCellCharacters: 300,

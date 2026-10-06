@@ -50,7 +50,8 @@ export const MAX_SCOPE_TOPICS = 100;
 // O modelo Word possui níveis de 0 (capítulo) a 8.
 export const MAX_SCOPE_TOPIC_DEPTH = 8;
 export const MAX_SCOPE_PHOTOS = 8;
-export const MAX_SCOPE_TABLES = 8;
+// Até vinte serviços com tabelas dos circuitos e dos quatro tipos de dimensionamento.
+export const MAX_SCOPE_TABLES = 80;
 export const MAX_SCOPE_TABLE_COLUMNS = 6;
 export const MAX_SCOPE_TABLE_ROWS = 40;
 export const MAX_SCOPE_TABLE_CELL_CHARACTERS = 300;

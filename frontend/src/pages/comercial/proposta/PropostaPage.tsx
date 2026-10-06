@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
+import { fillScopeFromDimensioning } from '../../../../../shared/comercial/dist/dimensioning-scope.js';
 
 import {
   normalizeTechnicalServiceSelections,
@@ -71,6 +72,7 @@ import { PropostaFooter } from './PropostaFooter';
 import { PropostaModeDialog } from './PropostaModeDialog';
 import { PropostaModeloDialog } from './PropostaModeloDialog';
 import { PropostaPreviewPanel } from './PropostaPreviewPanel';
+import { PropostaPdfViewer } from './PropostaPdfViewer';
 import {
   ETAPAS_VISIVEIS_DA_FINALIZACAO,
   type PendenciaDaFinalizacao
@@ -82,7 +84,6 @@ import {
   itemDePrecoDoLevantamento,
   localDaObraDoLevantamento,
   parametrosDaPropostaComLevantamento,
-  preencherEscopoAusenteDoLevantamento,
   preencherPrecosAusentesDoLevantamento,
   preencherServicosTecnicosAusentesDoLevantamento,
   servicosImportadosDoLevantamento,
@@ -200,6 +201,8 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
   // O usuário escolhe modelos de texto ou importa os serviços do levantamento.
   const [itensEscopo, setItensEscopo] = useState<ScopeServiceItem[]>([]);
   const [blocos, setBlocos] = useState<ScopeBlock[]>([]);
+  const escopoAtual = useRef({ items: itensEscopo, blocks: blocos });
+  escopoAtual.current = { items: itensEscopo, blocks: blocos };
   // A proposta nasce com a matriz do modelo, não em branco: são ~35 obrigações
   // que se repetem em toda obra, e digitá-las de novo a cada proposta é como o
   // erro entra. O vendedor apaga o que não se aplica.
@@ -240,6 +243,11 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
   const [levantamentoVinculado, setLevantamentoVinculado] =
     useState<LevantamentoSalvo | null>(null);
   const [gerandoPdf, setGerandoPdf] = useState(false);
+  const [previaPdf, setPreviaPdf] = useState<{
+    tipo: TipoDeDocumento;
+    dados: AnyRecord;
+    nome: string;
+  } | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [ocupadoLocal, setOcupadoLocal] = useState(false);
   const [finalizandoLocal, setFinalizandoLocal] = useState(false);
@@ -353,9 +361,12 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
             ? preencherPrecosAusentesDoLevantamento(atuais, importado)
             : [importado];
         });
-        setItensEscopo(atuais =>
-          preencherEscopoAusenteDoLevantamento(atuais, servicosImportados.escopo)
-        );
+        const escopoPreenchido = fillScopeFromDimensioning(escopoAtual.current, {
+          items: servicosImportados.escopo,
+          blocks: servicosImportados.blocos
+        });
+        setItensEscopo(escopoPreenchido.items);
+        setBlocos(escopoPreenchido.blocks);
         setServicosTecnicos(atuais =>
           preencherServicosTecnicosAusentesDoLevantamento(
             atuais,
@@ -364,7 +375,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
         );
         setRecado(
           `Levantamento ${levantamento.proposalCode} vinculado. ` +
-            'Os campos ausentes, os serviços e o preço de venda foram carregados para a proposta.'
+            'Os campos ausentes, os serviços, as tabelas do dimensionamento e o preço de venda foram carregados para a proposta.'
         );
       })
       .catch((error) => {
@@ -984,6 +995,14 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     }
   }
 
+  function visualizarPdf() {
+    setPreviaPdf({
+      tipo: documentoNaPrevia,
+      dados: dadosDaProposta(conteudo()),
+      nome: `Proposta ${documentoNaPrevia === 'technical' ? 'Técnica' : 'Comercial'} - ${codigoExibido}.pdf`
+    });
+  }
+
   function renderAcoesDaProposta(posicao: 'topo' | 'rodape') {
     return (
       <PropostaFooter
@@ -1073,9 +1092,9 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
           <button
             type="button"
             className="com-btn com-btn-fantasma"
-            onClick={() => window.print()}
+            onClick={visualizarPdf}
           >
-            Imprimir prévia
+            Visualizar PDF
           </button>
         </>
       }
@@ -1488,8 +1507,10 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
           modelo={modelo ?? 'padrao'}
           gerando={gerandoPdf}
           onGerarPdf={gerarPdf}
+          onVisualizarPdf={visualizarPdf}
         />
       </section>
+      {previaPdf && <PropostaPdfViewer {...previaPdf} onFechar={() => setPreviaPdf(null)} />}
     </ComercialChrome>
   );
 }

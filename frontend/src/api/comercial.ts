@@ -995,12 +995,13 @@ export function urlDaFotoDoEscopo(id: string) {
  */
 export async function baixarPreviaEmPdf(
   tipo: 'commercial' | 'technical',
-  dados: Record<string, unknown>
+  dados: Record<string, unknown>,
+  signal?: AbortSignal
 ): Promise<Blob> {
   const { data } = await apiClient.post<Blob>(
     '/comercial/propostas/previa.pdf',
     { ...dados, tipo },
-    { responseType: 'blob' }
+    { responseType: 'blob', signal }
   );
   return data;
 }

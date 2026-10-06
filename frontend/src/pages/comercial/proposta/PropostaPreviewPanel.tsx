@@ -24,6 +24,7 @@ export function PropostaPreviewPanel({
   modelo,
   gerando,
   onGerarPdf,
+  onVisualizarPdf,
   somenteRascunho = false
 }: {
   indice: number;
@@ -41,6 +42,7 @@ export function PropostaPreviewPanel({
   modelo: ModeloProposta;
   gerando: boolean;
   onGerarPdf: () => void;
+  onVisualizarPdf: () => void;
   somenteRascunho?: boolean;
 }) {
   return (
@@ -106,9 +108,10 @@ export function PropostaPreviewPanel({
         <button
           type="button"
           className="com-previa-imprimir com-previa-imprimir-secundario"
-          onClick={() => window.print()}
+          disabled={gerando}
+          onClick={onVisualizarPdf}
         >
-          Imprimir prévia
+          Visualizar PDF
         </button>
       </div>
     </aside>
