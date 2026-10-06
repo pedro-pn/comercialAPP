@@ -230,6 +230,11 @@ Sem essa variável, os testes de banco são pulados. O
 [CI](.github/workflows/ci.yml) prepara essa base, executa `npm run check` e
 valida os arquivos Compose e os scripts de backup.
 
+Com LibreOffice, Python/UNO e Poppler (`pdftotext`) instalados, execute
+`TEST_SCOPE_TABLE_PDF=1 node --test backend/test/proposta-tabelas.test.js`
+para conferir os cabeçalhos, o alinhamento e as quebras de página das tabelas
+nos PDFs técnicos e comerciais dos dois modelos.
+
 ## Estrutura do repositório
 
 | Diretório | Conteúdo |
