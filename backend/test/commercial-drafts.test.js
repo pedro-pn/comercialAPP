@@ -121,4 +121,34 @@ test('API salva, lista e reabre rascunhos incompletos de propostas e custos',
       proposalCode: estimate.data.proposalCode, mode: 'NOVA', status: 'SALVO', title: '',
       expectedUpdatedAt: estimate.data.updatedAt, payload: estimate.data.payload
     })).status, 400);
+
+    const completedEstimate = await request(`/levantamentos/${estimate.data.id}`, 'PUT', {
+      proposalCode: estimate.data.proposalCode, mode: 'NOVA', status: 'SALVO',
+      title: 'Levantamento vinculado', expectedUpdatedAt: estimate.data.updatedAt, payload: {}
+    });
+    assert.equal(completedEstimate.status, 200);
+    const linkedProposal = await request('/propostas', 'POST', {
+      proposalCode: estimate.data.proposalCode, costEstimateId: estimate.data.id,
+      payload: { title: 'Proposta com custos' }
+    });
+    assert.equal(linkedProposal.status, 201);
+    proposalIds.push(linkedProposal.data.id);
+    const editedEstimate = await request(`/levantamentos/${estimate.data.id}`, 'PUT', {
+      proposalCode: estimate.data.proposalCode, mode: 'NOVA', status: 'RASCUNHO',
+      title: 'Custos em edição', expectedUpdatedAt: completedEstimate.data.updatedAt, payload: {}
+    });
+    assert.equal(editedEstimate.status, 200);
+    const savedLinkedProposal = await request(`/propostas/${linkedProposal.data.id}`, 'PUT', {
+      expectedUpdatedAt: linkedProposal.data.updatedAt, costEstimateId: estimate.data.id,
+      payload: { title: 'Proposta em edição', attendance: '10 dias' }
+    });
+    assert.equal(savedLinkedProposal.status, 200);
+    assert.equal(savedLinkedProposal.data.costEstimateId, estimate.data.id);
+    assert.equal(savedLinkedProposal.data.payload.attendance, '10 dias');
+    assert.equal((await request(`/levantamentos/${estimate.data.id}`)).data.status, 'RASCUNHO');
+    // Vincular o rascunho a uma nova revisão continua exigindo a conclusão.
+    assert.equal((await request('/propostas', 'POST', {
+      proposalCode: estimate.data.proposalCode, revisionNumber: 1,
+      costEstimateId: estimate.data.id, payload: {}
+    })).status, 422);
   });

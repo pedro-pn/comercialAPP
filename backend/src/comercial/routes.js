@@ -11,7 +11,7 @@ import { initializeNumbering, numberingStatus, registerLegacyRevision, reserveNu
   updateInitialNumber } from './numbering.js';
 import {
   archiveProposal, createProposal, getProposal, listProposals,
-  prepareRevision, updateProposal
+  prepareRevision, reopenProposal, updateProposal
 } from './proposals.js';
 import { addAttachment, downloadAttachment, listAttachments, removeAttachment } from './attachments.js';
 import { downloadDocument, finalizeLocal, issueDocuments, listDocuments, previewPdf,
@@ -256,6 +256,11 @@ export function createCommercialRouter(db, { crm = createNectarClient() } = {}) 
   router.get('/propostas/:id', requireEstimator, async (request, response) => {
     response.set('Cache-Control', 'no-store')
       .json(await getProposal(db, request.authUser, request.params.id));
+  });
+
+  router.post('/propostas/:id/reabrir', requireEstimator, async (request, response) => {
+    const data = schemas.proposalReopen.parse(request.body);
+    response.json(await reopenProposal(db, request.authUser, request.params.id, data));
   });
 
   router.get('/propostas/:id/documentos', async (request, response) => {

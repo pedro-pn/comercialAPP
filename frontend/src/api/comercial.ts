@@ -445,6 +445,19 @@ export async function obterProposta(id: string) {
   return data;
 }
 
+/** Retoma a edição da proposta finalizada sem criar registro ou revisão. */
+export async function reabrirProposta(id: string, expectedUpdatedAt: string) {
+  try {
+    const { data } = await apiClient.post<PropostaSalva>(
+      `/comercial/propostas/${id}/reabrir`,
+      { expectedUpdatedAt }
+    );
+    return data;
+  } catch (error) {
+    throw interpretarConflitoDeEdicao(error) || error;
+  }
+}
+
 /**
  * Carrega o ponto de partida de uma revisão sem criar registro nem consumir
  * numeração. Ausência de snapshot completo é uma resposta normal: o backend

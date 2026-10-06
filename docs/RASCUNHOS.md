@@ -38,6 +38,14 @@ Não configurar produção com um número de exemplo.
   da seleção de novas propostas; exclusivos da gestão. A remoção preserva vínculos
   e nomes das propostas anteriores, inclusive para novas revisões.
 - `GET /api/comercial/propostas/:codigo/revisao` prepara a revisão sem gravá-la.
+- `POST /api/comercial/propostas/:id/reabrir`, com `expectedUpdatedAt`, reabre
+  uma proposta finalizada e ativa como rascunho, mantendo ID, número, revisão,
+  vínculos e arquivos. A ação **Editar proposta** está disponível no histórico
+  e na tela de documentos para os perfis com permissão de edição.
+
+Uma proposta já vinculada pode continuar sendo salva quando seu levantamento
+volta a rascunho durante a edição de custos. Criar ou trocar o vínculo ainda
+exige um levantamento concluído e ativo.
 
 O servidor recalcula custo, preço e margem do levantamento a partir do payload,
 sem aceitar totais calculados pelo navegador. Na proposta, o total é calculado

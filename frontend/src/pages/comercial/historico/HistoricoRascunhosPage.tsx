@@ -7,6 +7,7 @@ import {
   listarLevantamentos,
   listarPropostas,
   mensagemDeErro,
+  reabrirProposta,
   type LevantamentoSalvo,
   type PropostaSalva,
   type DocumentoEmitido
@@ -37,6 +38,7 @@ export function HistoricoRascunhosPage({ user, onLogout }: Props) {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
   const [baixandoDocumentoId, setBaixandoDocumentoId] = useState('');
+  const [editandoPropostaId, setEditandoPropostaId] = useState('');
 
   useEffect(() => {
     let ativo = true;
@@ -88,6 +90,20 @@ export function HistoricoRascunhosPage({ user, onLogout }: Props) {
 
   function abrirProposta(proposta: PropostaSalva) {
     navigate(`/propostas?id=${encodeURIComponent(proposta.id)}`);
+  }
+
+  async function editarProposta(proposta: PropostaSalva) {
+    if (editandoPropostaId) return;
+    setEditandoPropostaId(proposta.id);
+    setErro('');
+    try {
+      const reaberta = await reabrirProposta(proposta.id, proposta.updatedAt || '');
+      abrirProposta(reaberta);
+    } catch (error) {
+      setErro(mensagemDeErro(error, 'Não foi possível reabrir a proposta para edição.'));
+    } finally {
+      setEditandoPropostaId('');
+    }
   }
 
   async function baixar(documento: DocumentoEmitido) {
@@ -205,6 +221,8 @@ export function HistoricoRascunhosPage({ user, onLogout }: Props) {
                 onBaixarDocumento={(documento) => { void baixar(documento); }}
                 baixandoDocumentoId={baixandoDocumentoId}
                 onAbrirProposta={podeVerValores ? abrirProposta : undefined}
+                onEditarProposta={podeVerValores ? proposta => void editarProposta(proposta) : undefined}
+                editandoPropostaId={editandoPropostaId}
                 onDocumentosRegenerados={podeVerValores ? (id, documents) =>
                   setPropostas(current => current.map(proposta => proposta.id === id
                     ? { ...proposta, documents } : proposta)) : undefined} />
