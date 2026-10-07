@@ -3576,6 +3576,16 @@
   color: var(--com-marca-forte);
 }
 
+.com-root .com-doc-tabela-informativa {
+  table-layout: fixed;
+}
+
+.com-root .com-doc-tabela-informativa th,
+.com-root .com-doc-tabela-informativa td {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
 /* 10 pt em A4 (595,28 pt de largura), proporcionais à folha da prévia. */
 .com-root .com-pagina-conteudo {
   container-type: inline-size;

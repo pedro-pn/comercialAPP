@@ -234,6 +234,23 @@ export function itemDePrecoCompleto(item: ItemDePreco): boolean {
   );
 }
 
+/** Itens da tabela opcional, separados dos preços que compõem o total contratado. */
+export function itensInformativosDaProposta(form: Formulario): ItemDePreco[] {
+  if (!Array.isArray(form.informationalPrices)) return [];
+  return form.informationalPrices.map(valor => {
+    const item = valor && typeof valor === 'object' ? valor : {};
+    const quantity = texto(item, 'quantity');
+    const unitValue = texto(item, 'unitValue');
+    return {
+      description: typeof item.description === 'string' ? item.description : texto(item, 'description'),
+      unit: texto(item, 'unit') || 'VB',
+      quantity,
+      unitValue,
+      value: valorTotalDoItemDePreco(quantity, unitValue)
+    };
+  });
+}
+
 export function pendenciasDaTecnica(erros: string[]): PendenciaEtapa[] {
   return erros.map(mensagem => ({ campo: 'tecnica', mensagem }));
 }
@@ -258,6 +275,16 @@ export function pendenciasDaComercial(
       campo: 'precos',
       mensagem: 'Informe ao menos um item de preço com descrição, quantidade e valor unitário.'
     });
+  }
+
+  if (form.includeInformationalPrices === true) {
+    const informativos = itensInformativosDaProposta(form);
+    if (!informativos.length || informativos.some(item => !itemDePrecoCompleto(item))) {
+      faltando.push({
+        campo: 'informationalPrices',
+        mensagem: 'Informe descrição, quantidade e valor unitário de todos os itens de equipamentos e outras despesas, ou desmarque a tabela opcional.'
+      });
+    }
   }
 
   const obrigatorios: Array<[string, string]> = [

@@ -97,7 +97,8 @@ export function quebrarTexto(
  */
 export function paginarLinhasDaTabela(
   linhas: string[][],
-  quantidadeDeColunas: number
+  quantidadeDeColunas: number,
+  { dividirConteudo = false }: { dividirConteudo?: boolean } = {}
 ): string[][][] {
   const paginas: string[][][] = [];
   let pagina: string[][] = [];
@@ -134,7 +135,9 @@ export function paginarLinhasDaTabela(
     while (deslocamento < alturaDaLinha) {
       if (restantes <= 1) fecharPagina();
       const nestaPagina = Math.min(alturaDaLinha - deslocamento, restantes - 1);
-      pagina.push(linha);
+      pagina.push(dividirConteudo && alturaDaLinha + 1 > ORCAMENTO_DE_LINHAS
+        ? celulas.map(celula => celula.slice(deslocamento, deslocamento + nestaPagina).join('\n'))
+        : linha);
       restantes -= nestaPagina + 1;
       deslocamento += nestaPagina;
       if (deslocamento < alturaDaLinha) fecharPagina();

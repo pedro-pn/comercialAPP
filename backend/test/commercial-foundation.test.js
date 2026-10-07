@@ -86,6 +86,22 @@ test('somatório da proposta respeita o cenário escolhido', () => {
   assert.equal(calculateProposalTotal({ ...payload, priceScenario: 'OFFSHORE' }), 2500);
 });
 
+test('equipamentos e despesas informativos nunca compõem o total da proposta', () => {
+  const informationalPrices = [{ description: 'Locação de equipamento', quantity: '3',
+    unitValue: 'R$ 1.500,00', value: 'R$ 4.500,00' }];
+  for (const includeInformationalPrices of [true, false, undefined]) {
+    const optional = { informationalPrices, includeInformationalPrices };
+    assert.equal(calculateProposalTotal(optional), 0);
+    assert.equal(calculateProposalTotal({ ...optional, prices: [{ value: 'R$ 120,50' }] }), 120.5);
+    const scenarios = { ...optional, prices: [
+      { local: 'ONSHORE', value: 'R$ 1.200,00' },
+      { local: 'OFFSHORE', value: 'R$ 2.500,00' }
+    ] };
+    assert.equal(calculateProposalTotal({ ...scenarios, priceScenario: 'ONSHORE' }), 1200);
+    assert.equal(calculateProposalTotal({ ...scenarios, priceScenario: 'OFFSHORE' }), 2500);
+  }
+});
+
 test('revisão legada mantém número, começa na revisão informada e não colide com a sequência', async () => {
   const seller = { id: 'seller', name: 'Vendedor', role: 'SELLER' };
   const colleague = { id: 'colleague', name: 'Colega', role: 'SELLER' };

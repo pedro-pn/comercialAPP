@@ -8,6 +8,7 @@ import { DOMParser, XMLSerializer } from '@xmldom/xmldom';
 
 import {
   categoriaCanonicaResponsabilidade,
+  CABECALHO_PRECOS_INFORMATIVOS,
   incluirServicosExtraEscopo,
   ordenarLinhasDeResponsabilidade,
   paragrafosComerciais,
@@ -15,10 +16,13 @@ import {
   rotuloStandbyEquipe,
   SERVICOS_EXTRA_ESCOPO,
   tabelasDePrecoDoModelo,
+  TITULO_PRECOS_INFORMATIVOS,
+  NOTA_PRECOS_INFORMATIVOS,
   textoJornada,
   totalStandbyEquipe
 } from '../../../../shared/comercial/dist/modelo-documento.js';
 import { scopeDescriptionParagraphs } from '../../../../shared/comercial/dist/scope-descriptions.js';
+import { itensInformativosDaProposta } from '../../../../shared/comercial/dist/proposal-validation.js';
 import {
   REPORTS_NOTICE,
   TECHNICAL_REPORT_SENTENCES,
@@ -455,6 +459,26 @@ function tituloDoCorpo(doc, trecho) {
   );
 }
 
+/** A tabela informativa fica no item 7 e nunca participa dos totais de preços. */
+function inserirPrecosInformativos(doc, dados) {
+  if (dados.includeInformationalPrices !== true) return;
+  const itens = itensInformativosDaProposta(dados);
+  if (!itens.length) return;
+  const ancora = tituloDoCorpo(doc, '- Condições de pagamento:');
+  if (!ancora) return;
+  const inserir = no => ancora.parentNode.insertBefore(no, ancora);
+  inserir(paragrafoDeTexto(doc, TITULO_PRECOS_INFORMATIVOS, {
+    negrito: true, manterComProximo: true, alinhamento: 'left'
+  }));
+  inserir(paragrafoDeTexto(doc, NOTA_PRECOS_INFORMATIVOS, { manterComProximo: true }));
+  const tabela = new DOMParser().parseFromString(xmlDeTabela({
+    columns: CABECALHO_PRECOS_INFORMATIVOS,
+    rows: itens.map(item => [item.description, item.quantity, item.unitValue, item.value])
+  }), 'text/xml').documentElement;
+  preserveWordTextLineBreaks(tabela);
+  inserir(tabela);
+}
+
 /** Remove o conteúdo entre dois títulos do corpo e devolve a âncora final. */
 function limparEntreTitulos(doc, tituloInicial, tituloFinal) {
   const inicio = tituloDoCorpo(doc, tituloInicial);
@@ -852,6 +876,7 @@ export async function preencherProposta(dados, tipo) {
       if (tipo === 'commercial') ajustarServicosExtraEscopo(doc, dados.technicalServices);
       if (tipo === 'technical') ajustarEscopoTecnico(doc, dados.technicalServices);
       ajustarTextosEditaveis(doc, dados, tipo);
+      if (tipo === 'commercial') inserirPrecosInformativos(doc, dados);
     }
     if (/^word\/header\d*\.xml$/.test(parte)) alinharDataDoCabecalho(doc);
 

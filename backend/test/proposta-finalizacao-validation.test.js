@@ -55,3 +55,18 @@ test('a API permite finalizar com o conteúdo obrigatório completo e os documen
   assert.equal((await valid.finalize()).status, 'FINALIZADA');
   assert.equal(valid.updates(), 1);
 });
+
+test('a API valida a tabela informativa somente quando está incluída', async () => {
+  for (const informationalPrices of [[], [null], [{ description: 'Bomba', quantity: '0', unitValue: 'R$ 100,00' }],
+    [{ description: 'Bomba', quantity: '1', unitValue: '' }],
+    [{ description: '', quantity: '1', unitValue: 'R$ 100,00' }]]) {
+    const incomplete = scenario(propostaCompleta({ includeInformationalPrices: true, informationalPrices }));
+    await assert.rejects(incomplete.finalize(), { status: 422 });
+    assert.equal(incomplete.updates(), 0);
+    const omitted = scenario(propostaCompleta({ includeInformationalPrices: false, informationalPrices }));
+    assert.equal((await omitted.finalize()).status, 'FINALIZADA');
+  }
+  const complete = scenario(propostaCompleta({ includeInformationalPrices: true,
+    informationalPrices: [{ description: 'Bomba', quantity: '2', unitValue: 'R$ 120,50' }] }));
+  assert.equal((await complete.finalize()).status, 'FINALIZADA');
+});

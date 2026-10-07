@@ -105,6 +105,47 @@ function texto(no) {
   return Array.from(no.getElementsByTagName('w:t')).map(item => item.textContent).join('');
 }
 
+for (const modelo of ['padrao', 'hidrojateamento']) {
+  test(`a tabela opcional ${modelo} exibe equipamentos sem alterar os totais ou o documento técnico`, async () => {
+    const dados = {
+      modelo,
+      includeInformationalPrices: true,
+      prices: [{ local: 'ONSHORE', description: 'Serviço contratado', quantity: '1',
+        unitValue: 'R$ 1.000,00', value: 'R$ 1.000,00' }],
+      informationalPrices: [{ description: 'Bomba & acessórios <reserva>', quantity: '2,5',
+        unitValue: 'R$ 120,50', value: 'R$ 999.999,99' }]
+    };
+    for (const includeUnitValue of [true, false]) {
+      const doc = lerParte(new AdmZip(await preencherProposta({ ...dados, includeUnitValue }, 'commercial')), 'word/document.xml');
+      const tables = Array.from(doc.getElementsByTagName('w:tbl'));
+      const informativa = tables.find(table => texto(table).includes('Bomba & acessórios <reserva>'));
+      const principal = tables.find(table => texto(table).includes('Serviço contratado'));
+      assert.ok(informativa, 'A tabela opcional deve aparecer separada');
+      assert.ok(principal);
+      assert.notEqual(informativa, principal);
+      assert.match(texto(informativa), /VALOR UNIT\./);
+      assert.match(texto(informativa), /2,5/);
+      assert.match(texto(informativa), /R\$\s*301,25/);
+      assert.doesNotMatch(texto(informativa), /999\.999|TOTAL GERAL/);
+      assert.match(texto(principal), /R\$\s*1\.000,00/);
+      assert.doesNotMatch(texto(principal), /301,25/);
+      const content = texto(doc);
+      assert.match(content, /Estes itens não compõem o valor total da proposta/);
+      assert.ok(content.indexOf('Serviço contratado') < content.indexOf('Bomba & acessórios'));
+      assert.ok(content.indexOf('Bomba & acessórios') < content.lastIndexOf('- Condições de pagamento:'));
+      assert.doesNotMatch(content, /\{\{/);
+      const header = informativa.getElementsByTagName('w:tr').item(0);
+      assert.ok(header.getElementsByTagName('w:tblHeader').length, 'O cabeçalho se repete nas páginas seguintes');
+    }
+    for (const [tipo, includeInformationalPrices] of [
+      ['technical', true], ['commercial', false], ['commercial', undefined]
+    ]) {
+      const doc = lerParte(new AdmZip(await preencherProposta({ ...dados, includeInformationalPrices }, tipo)), 'word/document.xml');
+      assert.doesNotMatch(texto(doc), /Bomba & acessórios|Equipamentos e outras despesas|Valores informativos/);
+    }
+  });
+}
+
 function propriedadeDoTexto(run, styles, tag) {
   const propriedade = no => no?.getElementsByTagName('w:rPr').item(0)
     ?.getElementsByTagName(tag).item(0);
