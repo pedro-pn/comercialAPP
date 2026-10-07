@@ -33,9 +33,23 @@ function decode(file, limit) {
   return bytes;
 }
 
-async function parseFiles(input, resolutions = {}) {
+async function assertLegacyNumberAvailable(db, parsed, revisionNumber) {
+  const reservation = await db.proposalNumberReservation.findUnique({
+    where: { number: Number(parsed.proposalCode) }
+  });
+  if (!reservation) return;
+  // Compatible legacy reservations allow retries; import still validates authorship.
+  const compatibleLegacyRevision = reservation.legacyFirstRevision != null &&
+    reservation.legacyFirstRevision > parsed.sourceRevisionNumber &&
+    (revisionNumber === undefined || reservation.legacyFirstRevision === revisionNumber);
+  if (compatibleLegacyRevision) return;
+  throw new HttpError(409, `O número ${parsed.proposalCode} já está reservado no app. Confira o histórico antes de importar a proposta legada.`);
+}
+
+async function parseFiles(db, input, resolutions = {}) {
   const lecBytes = decode(input.lec, LEC_MAX_BYTES);
   let parsed = parseLec(lecBytes, input.lec.fileName);
+  await assertLegacyNumberAvailable(db, parsed, input.revisionNumber);
   let pdfBytes;
   if (input.pdf) {
     pdfBytes = decode(input.pdf, LEGACY_PDF_MAX_BYTES);
@@ -45,15 +59,15 @@ async function parseFiles(input, resolutions = {}) {
   return { parsed, lecBytes, pdfBytes };
 }
 
-export async function previewLegacyImport(input) {
-  const { parsed } = await parseFiles(filesSchema.parse(input));
+export async function previewLegacyImport(db, input) {
+  const { parsed } = await parseFiles(db, filesSchema.parse(input));
   return { ...lecPreview(parsed), conflicts: parsed.conflicts ?? [] };
 }
 
 /** Reservation, costs and proposal are committed together, all as editable drafts. */
 export async function importLegacyRevision(db, user, input) {
   const data = importSchema.parse(input);
-  const { parsed, lecBytes, pdfBytes } = await parseFiles(data, data.resolutions);
+  const { parsed, lecBytes, pdfBytes } = await parseFiles(db, data, data.resolutions);
   if ((parsed.conflicts ?? []).some(conflict => !data.resolutions[conflict.field])) {
     throw new HttpError(422, 'Escolha o conteúdo do LEC ou do PDF para cada diferença antes de importar.');
   }

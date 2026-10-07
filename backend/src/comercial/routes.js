@@ -107,7 +107,7 @@ export function createCommercialRouter(db, { crm = createNectarClient() } = {}) 
 
   const legacyFilesBody = json({ limit: '28mb' });
   router.post('/propostas/legado/lec/previa', requireEstimator, legacyFilesBody, async (request, response) => {
-    response.set('Cache-Control', 'no-store').json(await previewLegacyImport(request.body));
+    response.set('Cache-Control', 'no-store').json(await previewLegacyImport(db, request.body));
   });
   router.post('/propostas/legado/lec/importar', requireEstimator, legacyFilesBody, async (request, response) => {
     const imported = await importLegacyRevision(db, request.authUser, request.body);
