@@ -12,6 +12,8 @@ import {
 // próprio aqui mostraria ao vendedor um total que o CRM não confirma.
 import { lerDinheiro, moeda, somarDinheiro } from '../../../../../../shared/comercial/dist/dinheiro.js';
 import { itensInformativosDaProposta } from '../../../../../../shared/comercial/dist/proposal-validation.js';
+import { descontosDaProposta, precosComDescontos,
+  type DescontoDaProposta } from '../../../../../../shared/comercial/dist/proposal-pricing.js';
 import {
   CAMPOS_STANDBY,
   formatarDinheiro,
@@ -80,6 +82,11 @@ export function ComercialStep({
   const completos = precos.filter(itemDePrecoCompleto).length;
   const informativos = itensInformativosDaProposta(form);
   const incluirInformativos = form.includeInformationalPrices === true;
+  const descontos = descontosDaProposta(form);
+
+  function atualizarDescontos(atualizar: (atual: DescontoDaProposta[]) => DescontoDaProposta[]) {
+    editar({ discounts: atualizar(descontos) });
+  }
 
   function atualizarInformativos(atualizar: (atual: ItemDePreco[]) => ItemDePreco[]) {
     editar({ informationalPrices: atualizar(informativos) });
@@ -139,13 +146,16 @@ export function ComercialStep({
           onPrecos={onPrecos}
           mostrarErros={mostrarErros}
           editarPreco={editarPreco}
+          descontos={descontos}
+          onDescontos={atualizarDescontos}
         />
       ))}
+      {erroDe('discounts') && <AvisoPendencia>{erroDe('discounts')}</AvisoPendencia>}
 
       {locais && locais.length > 1 && (
         <CenarioContratado
           locais={locais}
-          precos={precos}
+          precos={precosComDescontos(precos, descontos)}
           escolhido={cenarioEscolhido}
           onEscolher={valor => editar({ priceScenario: valor })}
         />
@@ -333,7 +343,9 @@ function TabelaDePrecos({
   onPrecos,
   mostrarErros,
   editarPreco,
-  informativa = false
+  informativa = false,
+  descontos = [],
+  onDescontos
 }: {
   local?: LocalOperacao;
   precos: ItemDePreco[];
@@ -341,34 +353,52 @@ function TabelaDePrecos({
   mostrarErros: boolean;
   editarPreco: (indice: number, campo: keyof ItemDePreco, valor: string) => void;
   informativa?: boolean;
+  descontos?: DescontoDaProposta[];
+  onDescontos?: (atualizar: (atual: DescontoDaProposta[]) => DescontoDaProposta[]) => void;
 }) {
   const daTabela = precos
     .map((item, indice) => ({ item, indice }))
     .filter(({ item }) => (local ? item.local === local : true));
+  const descontosDaTabela = descontos
+    .map((item, indice) => ({ item, indice }))
+    .filter(({ item }) => local ? item.local === local : true);
 
   return (
     <div className="com-tabela-precos">
       <div className="com-secao-titulo">
         {local ? <h3>{local}</h3> : <span />}
-        <button
-          type="button"
-          className="com-btn-add"
-          onClick={() =>
-            onPrecos(atual => [
-              ...atual,
-              {
-                description: '',
-                unit: 'VB',
-                quantity: '1',
-                unitValue: '',
-                value: '',
-                ...(local ? { local } : {})
-              }
-            ])
-          }
-        >
-          {informativa ? '+ Adicionar equipamento ou despesa' : '+ Adicionar item de preço'}
-        </button>
+        <div className="com-rodape-acoes">
+          <button
+            type="button"
+            className="com-btn-add"
+            onClick={() =>
+              onPrecos(atual => [
+                ...atual,
+                {
+                  description: '',
+                  unit: 'VB',
+                  quantity: '1',
+                  unitValue: '',
+                  value: '',
+                  ...(local ? { local } : {})
+                }
+              ])
+            }
+          >
+            {informativa ? '+ Adicionar equipamento ou despesa' : '+ Adicionar item de preço'}
+          </button>
+          {onDescontos && (
+            <button
+              type="button"
+              className="com-btn-add"
+              onClick={() => onDescontos(atual => [
+                ...atual, { description: '', value: '', ...(local ? { local } : {}) }
+              ])}
+            >
+              + Adicionar desconto
+            </button>
+          )}
+        </div>
       </div>
 
       {daTabela.length > 0 ? (
@@ -477,6 +507,37 @@ function TabelaDePrecos({
           {informativa ? 'Nenhum equipamento ou despesa cadastrado.' : 'Nenhum item de preço cadastrado.'}
         </div>
       )}
+      {onDescontos && descontosDaTabela.length > 0 && <div className="com-table-wrap">
+        <table>
+          <thead><tr>
+            <th scope="col">Descrição do desconto<span className="survey-required-marker">*</span></th>
+            <th scope="col">Valor do desconto<span className="survey-required-marker">*</span></th>
+            <th scope="col"><span className="com-sr">Ações</span></th>
+          </tr></thead>
+          <tbody>{descontosDaTabela.map(({ item, indice }, ordem) => {
+            const rotulo = `${ordem + 1}${local ? ` de ${local}` : ''}`;
+            const descricaoInvalida = mostrarErros && !item.description.trim();
+            const valorInvalido = mostrarErros && lerDinheiro(item.value) <= 0;
+            function editarDesconto(campo: 'description' | 'value', value: string) {
+              onDescontos?.(atual => atual.map((desconto, i) => i === indice ? { ...desconto, [campo]: value } : desconto));
+            }
+            return <tr key={indice}>
+              <td><input aria-label={`Descrição do desconto ${rotulo}`} value={item.description}
+                aria-invalid={descricaoInvalida || undefined} className={descricaoInvalida ? 'com-campo-invalido' : undefined}
+                onChange={event => editarDesconto('description', event.target.value)} /></td>
+              <td><input aria-label={`Valor do desconto ${rotulo}`} value={item.value} inputMode="numeric" placeholder="R$ 0,00"
+                aria-invalid={valorInvalido || undefined} className={valorInvalido ? 'com-campo-invalido' : undefined}
+                onChange={event => editarDesconto('value', formatarDinheiro(event.target.value))} /></td>
+              <td><button type="button" className="com-remover" aria-label={`Remover desconto ${rotulo}`}
+                onClick={() => onDescontos(atual => atual.filter((_, i) => i !== indice))}>×</button></td>
+            </tr>;
+          })}</tbody>
+        </table>
+      </div>}
+      {!informativa && <p className="com-fieldset-nota">
+        Total geral: {moeda(somarDinheiro(precosComDescontos(daTabela.map(({ item }) => item),
+          descontosDaTabela.map(({ item }) => item)).map(item => item.value)))}
+      </p>}
     </div>
   );
 }

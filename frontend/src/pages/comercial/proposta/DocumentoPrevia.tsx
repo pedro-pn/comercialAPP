@@ -39,6 +39,8 @@ import {
 } from '../../../../../shared/comercial/dist/proposal-visuals.js';
 import type { ItemDePreco, LinhaResponsabilidade } from './etapas';
 import { itensInformativosDaProposta } from '../../../../../shared/comercial/dist/proposal-validation.js';
+import { descontosDaProposta, precosComDescontos } from '../../../../../shared/comercial/dist/proposal-pricing.js';
+import { moeda, somarDinheiro } from '../../../../../shared/comercial/dist/dinheiro.js';
 import {
   folhasDaMatriz,
   paginasDoEscopo,
@@ -214,7 +216,7 @@ export function DocumentoPrevia({
   itensEscopo,
   blocos,
   responsabilidades,
-  precos,
+  precos: precosInformados,
   incluirUnitario,
   servicosTecnicos,
   complementoRelatorios,
@@ -233,6 +235,7 @@ export function DocumentoPrevia({
   modelo?: ModeloProposta;
 }) {
   const tecnico = tipo === 'technical';
+  const precos = precosComDescontos(precosInformados, descontosDaProposta(form));
   const indice = tecnico ? INDICE_TECNICO : INDICE_COMERCIAL;
   const texto = (campo: string, padrao: string) =>
     String(form[campo] ?? '').trim() || padrao;
@@ -755,14 +758,5 @@ function dinheiro(valor: unknown): number {
  * contrário do que `Number()` espera.
  */
 function somaDosPrecos(precos: ItemDePreco[]): string {
-  const total = precos.reduce((soma, item) => {
-    const limpo = String(item.value || '').replace(/[^\d,.-]/g, '');
-    const numero = Number(limpo.replace(/\./g, '').replace(',', '.'));
-    return soma + (Number.isFinite(numero) ? numero : 0);
-  }, 0);
-
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(total);
+  return moeda(somarDinheiro(precos.map(item => item.value)));
 }

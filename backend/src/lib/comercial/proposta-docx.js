@@ -23,6 +23,7 @@ import {
 } from '../../../../shared/comercial/dist/modelo-documento.js';
 import { scopeDescriptionParagraphs } from '../../../../shared/comercial/dist/scope-descriptions.js';
 import { itensInformativosDaProposta } from '../../../../shared/comercial/dist/proposal-validation.js';
+import { descontosDaProposta, precosComDescontos } from '../../../../shared/comercial/dist/proposal-pricing.js';
 import {
   REPORTS_NOTICE,
   TECHNICAL_REPORT_SENTENCES,
@@ -32,7 +33,7 @@ import {
 import { convertDocxToPdf } from '../report-pdf-from-docx.js';
 import { EMU_POR_MM, registrarImagem, xmlDeImagem } from '../docx/imagem.js';
 import { marcarSumarioParaAtualizar, separarSumarios } from '../docx/sumario.js';
-import { lerDinheiro, moeda } from './dinheiro.js';
+import { lerDinheiro, moeda, somarDinheiro } from './dinheiro.js';
 import {
   cloneBefore,
   elementText,
@@ -307,7 +308,7 @@ function preencherPrecos(doc, itens, sufixo) {
   }));
 
   repetirLinha(doc, `{{descricao_${sufixo}}}`, registros);
-  return itens.reduce((soma, item) => soma + lerDinheiro(item.value), 0);
+  return somarDinheiro(itens.map(item => item.value));
 }
 
 /** Largura útil da folha A4 com as margens do documento, em milímetros. */
@@ -877,7 +878,7 @@ export async function preencherProposta(dados, tipo) {
   const cabecalhosDaCapa = configurarCapaSemData(zip);
 
   const linhas = Array.isArray(dados.rows) ? dados.rows : [];
-  const precos = Array.isArray(dados.prices) ? dados.prices : [];
+  const precos = precosComDescontos(Array.isArray(dados.prices) ? dados.prices : [], descontosDaProposta(dados));
   const locais = tabelasDePrecoDoModelo(modelo);
 
   for (const parte of partesComMarcador(zip)) {

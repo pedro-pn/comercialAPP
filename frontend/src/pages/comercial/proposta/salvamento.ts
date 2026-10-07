@@ -2,6 +2,7 @@ import type { ScopeBlock, ScopeServiceItem } from '../../../../../shared/comerci
 import type { TechnicalServiceSelection } from '../../../../../shared/comercial/dist/technical-services.js';
 import type { PropostaEntrada } from '../../../api/comercial';
 import { itensInformativosDaProposta } from '../../../../../shared/comercial/dist/proposal-validation.js';
+import { descontosDaProposta } from '../../../../../shared/comercial/dist/proposal-pricing.js';
 
 import {
   recalcularItensDePreco,
@@ -122,6 +123,7 @@ export function dadosDaProposta(conteudo: ConteudoDaProposta): AnyRecord {
       unit: String(item.unit || '').trim() || 'VB'
     })),
     includeUnitValue: conteudo.incluirUnitario,
+    discounts: descontosDaProposta(conteudo.form),
     includeInformationalPrices: conteudo.form.includeInformationalPrices === true,
     informationalPrices: itensInformativosDaProposta(conteudo.form),
     technicalServices: conteudo.servicosTecnicos,
