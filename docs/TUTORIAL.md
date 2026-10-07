@@ -69,6 +69,11 @@ Escolha o modelo **Padrão** ou **Hidrojateamento** quando solicitado. O modelo
 define matrizes e conteúdo dos documentos. Na revisão de uma proposta com dados
 anteriores, o aplicativo reaproveita essas informações.
 
+Ao voltar do levantamento de custos, uma proposta já salva com o mesmo código e
+revisão é retomada com os dados do cliente e do consultor. Para começar com os dados
+de um negócio do Prisma, use **Negócios liberados**; os negócios precisam ter sua
+liberação enviada pelo Prisma ao ComercialAPP.
+
 | Etapa | O que fazer |
 | --- | --- |
 | **Cliente** | Informe cliente, CNPJ, contato, e-mail, local da obra e responsáveis. Com Nectar habilitado, busque a empresa e escolha o contato para criar o vínculo com o CRM. |
@@ -93,6 +98,15 @@ Ao criar uma proposta a partir de um levantamento, **Escopo** já recebe as tabe
 do dimensionamento de cada serviço, separadas por circuito e tipo de equipamento.
 Você pode editar títulos, cabeçalhos e células, incluir ou remover linhas e
 reordenar linhas, tabelas e serviços. Os ajustes ficam salvos na proposta.
+
+Ao reabrir a proposta depois de alterar o levantamento, a verba importada acompanha
+o novo preço se seus valores ainda estiverem intactos. Para atualizar preços já
+editados ou detalhados, use **Atualizar preço pelo levantamento**: a ação substitui
+os itens da tabela contratada por uma verba única. No hidrojateamento, a outra
+tabela de cenário é preservada. Confira os itens na etapa **Comercial**.
+
+Os prazos escritos na proposta descrevem as condições comerciais. Para recalcular
+custos por duração ou jornada, ajuste esses dados no levantamento vinculado.
 
 Em **Responsabilidades**, os campos **Item / escopo** e **Nota** quebram as linhas
 e aumentam de altura conforme o texto, para mostrar o conteúdo completo.

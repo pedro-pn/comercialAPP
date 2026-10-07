@@ -205,6 +205,13 @@ test('API salva, lista e reabre rascunhos incompletos de propostas e custos',
       title: 'Custos em edição', expectedUpdatedAt: completedEstimate.data.updatedAt, payload: {}
     });
     assert.equal(editedEstimate.status, 200);
+    assert.equal(editedEstimate.data.propostaVinculada.id, linkedProposal.data.id,
+      'Salvar custos deve devolver o ID da proposta existente para continuar sem duplicar');
+    const loadedEstimate = await request(`/levantamentos/${estimate.data.id}`);
+    assert.equal(loadedEstimate.data.propostaVinculada.id, linkedProposal.data.id);
+    const listedEstimates = await request('/levantamentos');
+    assert.equal(listedEstimates.data.items.find(item => item.id === estimate.data.id)
+      .propostaVinculada.id, linkedProposal.data.id);
     const savedLinkedProposal = await request(`/propostas/${linkedProposal.data.id}`, 'PUT', {
       expectedUpdatedAt: linkedProposal.data.updatedAt, costEstimateId: estimate.data.id,
       payload: { title: 'Proposta em edição', attendance: '10 dias' }
@@ -218,4 +225,21 @@ test('API salva, lista e reabre rascunhos incompletos de propostas e custos',
       proposalCode: estimate.data.proposalCode, revisionNumber: 1,
       costEstimateId: estimate.data.id, payload: {}
     })).status, 422);
+
+    const completedAgain = await request(`/levantamentos/${estimate.data.id}`, 'PUT', {
+      proposalCode: estimate.data.proposalCode, mode: 'NOVA', payload: {},
+      status: 'SALVO', title: 'Custos em edição', expectedUpdatedAt: editedEstimate.data.updatedAt
+    });
+    assert.equal(completedAgain.status, 200);
+    const revision = await request('/propostas', 'POST', {
+      proposalCode: estimate.data.proposalCode, revisionNumber: 1,
+      costEstimateId: estimate.data.id, payload: { title: 'Revisão usando os mesmos custos' }
+    });
+    assert.equal(revision.status, 201);
+    proposalIds.push(revision.data.id);
+    assert.equal((await request(`/levantamentos/${estimate.data.id}`)).data.propostaVinculada.id,
+      linkedProposal.data.id, 'Uma revisão posterior não deve tomar o lugar da proposta deste levantamento');
+    const history = await request('/levantamentos');
+    assert.equal(history.data.items.find(item => item.id === estimate.data.id).propostaVinculada.id,
+      linkedProposal.data.id);
   });

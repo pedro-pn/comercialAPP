@@ -41,6 +41,20 @@ function pageOptions(input) {
   return { page: input.page, pageSize: input.pageSize };
 }
 
+function linkedProposals(user) {
+  return {
+    where: { archivedAt: null, ...ownerFilter(user) },
+    orderBy: { updatedAt: 'desc' },
+    select: { id: true, status: true, proposalCode: true, revisionNumber: true, updatedAt: true }
+  };
+}
+
+function withLinkedProposal({ proposals = [], ...estimate }) {
+  return { ...estimate,
+    propostaVinculada: proposals.find(proposal => proposal.revisionNumber === estimate.revisionNumber) ?? null
+  };
+}
+
 export async function listCostEstimates(db, user, filters) {
   const { page, pageSize } = pageOptions(filters);
   const term = filters.busca;
@@ -60,30 +74,21 @@ export async function listCostEstimates(db, user, filters) {
       orderBy: { [filters.status === 'RASCUNHO' ? 'updatedAt' : 'createdAt']: 'desc' },
       skip: (page - 1) * pageSize,
       take: pageSize,
-      include: {
-        proposals: {
-          where: { archivedAt: null },
-          orderBy: { updatedAt: 'desc' },
-          take: 1,
-          select: { id: true, status: true, proposalCode: true, revisionNumber: true, updatedAt: true }
-        }
-      }
+      include: { proposals: linkedProposals(user) }
     })
   ]);
   return {
-    items: items.map(({ payload: _payload, versions: _versions, proposals, ...item }) => ({
-      ...item,
-      propostaVinculada: proposals[0] ?? null
-    })),
+    items: items.map(({ payload: _payload, versions: _versions, ...item }) => withLinkedProposal(item)),
     total
   };
 }
 
 export async function getCostEstimate(db, user, id) {
-  const estimate = await db.costEstimate.findUnique({ where: { id } });
+  const estimate = await db.costEstimate.findUnique({ where: { id },
+    include: { proposals: linkedProposals(user) } });
   if (!estimate) throw new HttpError(404, 'Levantamento não encontrado.');
   assertCanRead(user, estimate);
-  return estimate;
+  return withLinkedProposal(estimate);
 }
 
 async function insertCostEstimate(tx, user, data, totals) {
@@ -165,7 +170,8 @@ export async function updateCostEstimate(db, user, id, data) {
           updatedByUserId: user.id,
           updatedByLabel: user.name,
           updatedAt: new Date(Math.max(Date.now(), existing.updatedAt.getTime() + 1))
-        }
+        },
+        include: { proposals: linkedProposals(user) }
       });
       if (status === 'SALVO') {
         const last = await tx.costEstimateVersion.findFirst({
@@ -179,7 +185,7 @@ export async function updateCostEstimate(db, user, id, data) {
           });
         }
       }
-      return estimate;
+      return withLinkedProposal(estimate);
     });
   } catch (error) {
     if (protectVersion && error.code === 'P2025') {
