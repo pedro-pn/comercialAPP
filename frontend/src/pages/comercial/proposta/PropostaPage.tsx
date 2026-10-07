@@ -83,7 +83,7 @@ import {
   itemDePrecoDoLevantamento,
   localDaObraDoLevantamento,
   parametrosDaPropostaComLevantamento,
-  preencherPrecosAusentesDoLevantamento,
+  sincronizarPrecosDoLevantamento,
   preencherServicosTecnicosAusentesDoLevantamento,
   servicosImportadosDoLevantamento,
   valorDaMobilizacaoDeEquipeDoLevantamento
@@ -200,6 +200,8 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
   const [form, setForm] = useState<AnyRecord>(() =>
     formularioInicial(modelo ?? 'padrao')
   );
+  const formAtualRef = useRef(form);
+  formAtualRef.current = form;
   // O usuário escolhe modelos de texto ou importa os serviços do levantamento.
   const liberacaoId = params.get('liberacao') || '';
   const [liberacaoCarregada, setLiberacaoCarregada] = useState('');
@@ -299,6 +301,8 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     codigo,
     revisionNumber,
     propostaId,
+    aguardandoLevantamento: Boolean(levantamentoId && !propostaId &&
+      levantamentoVinculado?.id !== levantamentoId),
     params,
     setParams,
     formularioInicial,
@@ -356,21 +360,35 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
         if (!vivo) return;
         setLevantamentoVinculado(levantamento);
 
+        // Endereços antigos e retornos da tela de custos também continuam o
+        // registro salvo, antes de importar dados ou permitir um novo POST.
+        const destino = parametrosDaPropostaComLevantamento(levantamento);
+        if (!propostaId && destino.has('id')) {
+          setParams(destino, { replace: true });
+          return;
+        }
+
         const propostaPronta = !propostaId || Boolean(versaoCarregada);
         const deveAplicar =
           usarDadosDoLevantamento &&
           propostaPronta &&
           revisaoPronta &&
           modelo !== null &&
-          levantamentoAplicado.current !== levantamento.id;
+          levantamentoAplicado.current !== `${levantamento.id}:${levantamento.updatedAt}`;
         if (!deveAplicar) return;
 
-        levantamentoAplicado.current = levantamento.id;
+        levantamentoAplicado.current = `${levantamento.id}:${levantamento.updatedAt}`;
         const localDaObra = localDaObraDoLevantamento(levantamento);
         const servicosImportados = servicosImportadosDoLevantamento(levantamento);
         const mobilizacaoDaEquipe = valorDaMobilizacaoDeEquipeDoLevantamento(levantamento);
+        const importado = itemDePrecoDoLevantamento(levantamento, {
+          ...(modelo === 'hidrojateamento'
+            ? { local: formAtualRef.current.priceScenario === 'OFFSHORE' ? 'OFFSHORE' : 'ONSHORE' } : {})
+        });
+        const origemDoPreco = formAtualRef.current.levantamentoPrecoImportado;
         setForm((atual) => ({
           ...atual,
+          levantamentoPrecoImportado: { id: levantamento.id, item: importado },
           title: String(atual.title || '').trim()
             ? atual.title
             : levantamento.title || '',
@@ -381,14 +399,9 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
             ? { extraMobilization: mobilizacaoDaEquipe }
             : {})
         }));
-        setPrecos((atuais) => {
-          const importado = itemDePrecoDoLevantamento(levantamento, {
-            ...(modelo === 'hidrojateamento' ? { local: 'ONSHORE' } : {})
-          });
-          return propostaId
-            ? preencherPrecosAusentesDoLevantamento(atuais, importado)
-            : [importado];
-        });
+        setPrecos(atuais => propostaId
+          ? sincronizarPrecosDoLevantamento(atuais, importado, origemDoPreco, levantamento.id)
+          : [importado]);
         const escopoPreenchido = fillScopeFromDimensioning(escopoAtual.current, {
           items: servicosImportados.escopo,
           blocks: servicosImportados.blocos
@@ -403,7 +416,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
         );
         setRecado(
           `Levantamento ${levantamento.proposalCode} vinculado. ` +
-            'Os campos ausentes, os serviços, as tabelas do dimensionamento e o preço de venda foram carregados para a proposta.'
+            'Dados e serviços carregados. Preços detalhados ou editados são preservados; use Atualizar preço pelo levantamento para substituí-los.'
         );
       })
       .catch((error) => {
@@ -455,7 +468,10 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     statusProposta === 'RASCUNHO' &&
     revisaoPronta &&
     (!liberacaoId || modo !== 'new' || Boolean(propostaId) || liberacaoCarregada === liberacaoId) &&
-    (!levantamentoId || Boolean(levantamentoVinculado));
+    (!levantamentoId || (levantamentoVinculado?.id === levantamentoId &&
+      (!levantamentoVinculado.propostaVinculada ||
+        levantamentoVinculado.propostaVinculada.revisionNumber !== revisionNumber ||
+        levantamentoVinculado.propostaVinculada.id === propostaId)));
   const identidadeDoTrabalho = `proposta:${modo || 'inicio'}:${liberacaoId || levantamentoId || 'avulsa'}:${
     modo === 'revision' ? `${codigo}:${revisionNumber}` : 'nova'
   }`;
@@ -891,19 +907,22 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
   }
 
   function continuarPropostaDoLevantamento(levantamento: LevantamentoSalvo) {
-    const proposta = levantamento.propostaVinculada;
-    if (!proposta) return iniciarComLevantamento(levantamento);
+    iniciarComLevantamento(levantamento);
+  }
 
-    const proximos = new URLSearchParams({
-      id: proposta.id,
-      levantamento: levantamento.id,
-      proposta: proposta.proposalCode,
-      revisao: String(proposta.revisionNumber || 0),
-      modo: proposta.revisionNumber > 0 ? 'revision' : 'new',
-      etapa: proposta.status === 'FALHA_INTEGRACAO' ? 'revisao' : 'cliente',
-      usarLevantamento: '1'
+  function atualizarPrecoPeloLevantamento() {
+    if (!levantamentoVinculado || !propostaProntaParaSalvar) return;
+    const importado = itemDePrecoDoLevantamento(levantamentoVinculado, {
+      ...(modelo === 'hidrojateamento'
+        ? { local: form.priceScenario === 'OFFSHORE' ? 'OFFSHORE' as const : 'ONSHORE' as const } : {})
     });
-    setParams(proximos, { replace: true });
+    // No modelo com cenários, a substituição afeta só a tabela contratada.
+    setPrecos(atuais => modelo === 'hidrojateamento'
+      ? [...atuais.filter(item => item.local && item.local !== importado.local), importado]
+      : [importado]);
+    setForm(atual => ({ ...atual,
+      levantamentoPrecoImportado: { id: levantamentoVinculado.id, item: importado } }));
+    setRecado('Preço atualizado pelo levantamento. Confira os itens na etapa Comercial e salve a proposta.');
   }
 
   /**
@@ -1354,13 +1373,24 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
                 <span>{levantamentoVinculado.title}</span>
               </div>
               <div>
-                <small>PREÇO DE VENDA CARREGADO</small>
+                <small>PREÇO ATUAL DO LEVANTAMENTO</small>
                 <strong>
                   {formatarValorDoLevantamento(
                     levantamentoVinculado.salePrice
                   ) || 'A revisar'}
                 </strong>
                 <span>O vínculo será preservado ao salvar a proposta.</span>
+                {propostaProntaParaSalvar && (
+                  <>
+                    <button type="button" className="com-btn com-btn-fantasma"
+                      disabled={salvando || ocupadoLocal || saindo || mudandoEtapa ||
+                        Boolean(rascunho.oferta) || Boolean(conflitoDeEdicao)}
+                      onClick={atualizarPrecoPeloLevantamento}>
+                      Atualizar preço pelo levantamento
+                    </button>
+                    <span>Substitui os itens da tabela contratada por uma verba única com este valor.</span>
+                  </>
+                )}
               </div>
             </section>
           )}

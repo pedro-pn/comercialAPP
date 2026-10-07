@@ -43,6 +43,7 @@ export function usePropostaRevision({
   codigo,
   revisionNumber,
   propostaId,
+  aguardandoLevantamento = false,
   params,
   setParams,
   formularioInicial,
@@ -62,6 +63,7 @@ export function usePropostaRevision({
   codigo: string;
   revisionNumber: number;
   propostaId: string;
+  aguardandoLevantamento?: boolean;
   params: URLSearchParams;
   setParams: SetParams;
   formularioInicial: (modelo?: ModeloProposta) => AnyRecord;
@@ -176,7 +178,7 @@ export function usePropostaRevision({
   );
 
   useEffect(() => {
-    if (modo !== 'revision' || propostaId || params.get('legado') === '1' ||
+    if (aguardandoLevantamento || modo !== 'revision' || propostaId || params.get('legado') === '1' ||
         !codigo || codigo === '—') return;
     const chave = `${codigo}:${revisionNumber}`;
     if (revisaoCarregada.current === chave) return;
@@ -195,7 +197,7 @@ export function usePropostaRevision({
     return () => {
       vivo = false;
     };
-  }, [aplicarResposta, codigo, modo, propostaId, revisionNumber, setRecado]);
+  }, [aguardandoLevantamento, aplicarResposta, codigo, modo, propostaId, revisionNumber, setRecado]);
 
   const carregarRevisao = useCallback(
     async (procurado: string): Promise<boolean> => {
@@ -212,10 +214,12 @@ export function usePropostaRevision({
   );
 
   const revisaoPronta =
-    modo !== 'revision' ||
-    Boolean(propostaId) ||
-    (params.get('legado') === '1' && Boolean(codigo && revisionNumber > 0)) ||
-    chaveDaRevisaoPronta === `${codigo}:${revisionNumber}`;
+    !aguardandoLevantamento && (
+      modo !== 'revision' ||
+      Boolean(propostaId) ||
+      (params.get('legado') === '1' && Boolean(codigo && revisionNumber > 0)) ||
+      chaveDaRevisaoPronta === `${codigo}:${revisionNumber}`
+    );
 
   return {
     aplicarSnapshot,

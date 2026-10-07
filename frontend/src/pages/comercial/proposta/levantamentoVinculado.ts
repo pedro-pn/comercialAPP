@@ -177,7 +177,7 @@ export function preencherServicosTecnicosAusentesDoLevantamento(
  * vincular apenas o id sem aplicar título, local da obra e preço de venda.
  */
 export function parametrosDaPropostaComLevantamento(
-  levantamento: Pick<LevantamentoSalvo, 'id' | 'proposalCode' | 'revisionNumber'>
+  levantamento: Pick<LevantamentoSalvo, 'id' | 'proposalCode' | 'revisionNumber' | 'propostaVinculada'>
 ): URLSearchParams {
   const parametros = new URLSearchParams();
   parametros.set('levantamento', levantamento.id);
@@ -186,6 +186,11 @@ export function parametrosDaPropostaComLevantamento(
   parametros.set('revisao', String(levantamento.revisionNumber || 0));
   parametros.set('etapa', 'cliente');
   parametros.set('usarLevantamento', '1');
+  const proposta = levantamento.propostaVinculada;
+  if (proposta && proposta.revisionNumber === levantamento.revisionNumber) {
+    parametros.set('id', proposta.id);
+    if (proposta.status === 'FALHA_INTEGRACAO') parametros.set('etapa', 'revisao');
+  }
   return parametros;
 }
 
@@ -313,4 +318,22 @@ export function preencherPrecosAusentesDoLevantamento(
       ...(importado.local && !item.local ? { local: importado.local } : {})
     };
   }));
+}
+
+/** Atualiza automaticamente apenas a verba que ainda conserva o preço importado. */
+export function sincronizarPrecosDoLevantamento(
+  precos: ItemDePreco[], importado: ItemDePreco, origem: unknown, levantamentoId: string
+): ItemDePreco[] {
+  const anterior = origem && typeof origem === 'object'
+    ? origem as { id?: string; item?: ItemDePreco } : null;
+  const doCenario = importado.local ? precos.filter(item => item.local === importado.local) : precos;
+  const atual = doCenario[0];
+  const itemAnterior = anterior?.item;
+  if (doCenario.length === 1 && anterior?.id === levantamentoId && itemAnterior &&
+      atual.quantity === itemAnterior.quantity && atual.unitValue === itemAnterior.unitValue &&
+      atual.value === itemAnterior.value && atual.local === itemAnterior.local) {
+    return precos.map(item => item === atual
+      ? { ...item, unitValue: importado.unitValue, value: importado.value } : item);
+  }
+  return preencherPrecosAusentesDoLevantamento(precos, importado);
 }
