@@ -242,4 +242,68 @@ test('API salva, lista e reabre rascunhos incompletos de propostas e custos',
     const history = await request('/levantamentos');
     assert.equal(history.data.items.find(item => item.id === estimate.data.id).propostaVinculada.id,
       linkedProposal.data.id);
+
+    for (const { revisionNumber, previousCosts } of [
+      { revisionNumber: 0, previousCosts: false },
+      { revisionNumber: 1, previousCosts: false },
+      { revisionNumber: 1, previousCosts: true }
+    ]) {
+      await t.test(`retoma revisão ${revisionNumber} com ${previousCosts ? 'custos da revisão anterior' : 'custos ainda não vinculados'}`, async () => {
+        const proposalCode = await nextNumber();
+        let existing;
+        for (let revision = 0; revision <= revisionNumber; revision++) {
+          existing = await request('/propostas', 'POST', {
+            proposalCode, revisionNumber: revision,
+            payload: { title: 'Proposta anterior', attendance: '5 dias' }
+          });
+          assert.equal(existing.status, 201);
+          proposalIds.push(existing.data.id);
+        }
+        assert.equal(existing.data.costEstimateId, null);
+
+        if (previousCosts) {
+          const previousEstimate = await request('/levantamentos', 'POST', {
+            proposalCode, revisionNumber: 0, mode: 'NOVA',
+            title: 'Custos anteriores', status: 'SALVO', payload: {}
+          });
+          assert.equal(previousEstimate.status, 201);
+          estimateIds.push(previousEstimate.data.id);
+          existing = await request(`/propostas/${existing.data.id}`, 'PUT', {
+            proposalCode, revisionNumber, costEstimateId: previousEstimate.data.id,
+            expectedUpdatedAt: existing.data.updatedAt
+          });
+          assert.equal(existing.status, 200);
+        }
+
+        const costs = await request('/levantamentos', 'POST', {
+          proposalCode, revisionNumber, mode: revisionNumber ? 'REVISAO' : 'NOVA',
+          title: 'Custos ajustados', status: 'SALVO', payload: {}
+        });
+        assert.equal(costs.status, 201);
+        estimateIds.push(costs.data.id);
+        assert.equal(costs.data.propostaVinculada?.id, existing.data.id);
+        assert.equal((await request(`/levantamentos/${costs.data.id}`)).data.propostaVinculada?.id,
+          existing.data.id);
+        assert.equal((await request('/levantamentos')).data.items
+          .find(item => item.id === costs.data.id).propostaVinculada?.id, existing.data.id);
+
+        const savedCosts = await request(`/levantamentos/${costs.data.id}`, 'PUT', {
+          proposalCode, revisionNumber, mode: revisionNumber ? 'REVISAO' : 'NOVA',
+          title: 'Custos concluídos', status: 'SALVO', payload: {},
+          expectedUpdatedAt: costs.data.updatedAt
+        });
+        assert.equal(savedCosts.status, 200);
+        assert.equal(savedCosts.data.propostaVinculada?.id, existing.data.id);
+        const savedProposal = await request(`/propostas/${existing.data.id}`, 'PUT', {
+          proposalCode, revisionNumber,
+          costEstimateId: costs.data.id, expectedUpdatedAt: existing.data.updatedAt,
+          payload: { ...existing.data.payload, attendance: '10 dias' }
+        });
+        assert.equal(savedProposal.status, 200, JSON.stringify(savedProposal.data));
+        assert.equal(savedProposal.data.id, existing.data.id);
+        assert.equal(savedProposal.data.costEstimateId, costs.data.id);
+        assert.equal(savedProposal.data.payload.attendance, '10 dias');
+        assert.equal(await db.proposal.count({ where: { proposalCode, revisionNumber } }), 1);
+      });
+    }
   });

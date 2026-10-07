@@ -604,7 +604,9 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
           (salvo === 'padrao' || salvo === 'hidrojateamento')
             ? { modelo: salvo }
             : {}),
-          levantamento: proposta.costEstimateId || '',
+          levantamento: usarDadosDoLevantamento && levantamentoId &&
+            proposta.proposalCode === codigo && proposta.revisionNumber === revisionNumber
+              ? levantamentoId : proposta.costEstimateId || '',
           modo: proposta.revisionNumber > 0 ? 'revision' : 'new',
           proposta: proposta.proposalCode,
           revisao: String(proposta.revisionNumber)
