@@ -1,8 +1,9 @@
-import { Router, raw } from 'express';
+import { Router, raw, json } from 'express';
 import { z } from 'zod';
 import { makeComercialSchemas } from '../../../shared/schemas/comercial.js';
 import { requireAdmin, requireEstimator, requireManager } from './access.js';
 import { createConsultant, listConsultants, removeConsultant, updateConsultant } from './consultants.js';
+import { importLegacyRevision, previewLegacyImport } from './legacy-import-service.js';
 import {
   archiveCostEstimate, createCostEstimate, getCostEstimate,
   listCostEstimates, startCostEstimate, updateCostEstimate
@@ -102,6 +103,15 @@ export function createCommercialRouter(db, { crm = createNectarClient() } = {}) 
     const { proposalCode, revisionNumber } = legacyRevisionSchema.parse(request.body);
     const registered = await registerLegacyRevision(db, request.authUser, proposalCode, revisionNumber);
     response.status(registered.alreadyRegistered ? 200 : 201).json(registered);
+  });
+
+  const legacyFilesBody = json({ limit: '28mb' });
+  router.post('/propostas/legado/lec/previa', requireEstimator, legacyFilesBody, async (request, response) => {
+    response.set('Cache-Control', 'no-store').json(await previewLegacyImport(request.body));
+  });
+  router.post('/propostas/legado/lec/importar', requireEstimator, legacyFilesBody, async (request, response) => {
+    const imported = await importLegacyRevision(db, request.authUser, request.body);
+    response.set('Cache-Control', 'no-store').status(imported.alreadyImported ? 200 : 201).json(imported);
   });
 
   router.get('/consultores', requireEstimator, async (_request, response) => {

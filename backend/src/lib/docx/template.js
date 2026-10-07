@@ -116,7 +116,9 @@ export function preserveWordTextLineBreaks(element) {
     lines.forEach((line, index) => {
       if (index > 0) parent.insertBefore(doc.createElement('w:br'), node);
       const textNode = doc.createElement('w:t');
-      if (/^\s|\s$/.test(line)) textNode.setAttribute('xml:space', 'preserve');
+      if (/^\s|\s$/.test(line)) textNode.setAttributeNS(
+        'http://www.w3.org/XML/1998/namespace', 'xml:space', 'preserve'
+      );
       textNode.appendChild(doc.createTextNode(line));
       parent.insertBefore(textNode, node);
     });

@@ -573,6 +573,19 @@
   margin-bottom: 0;
 }
 
+.com-root .com-lec-importacao { margin-top: 24px; text-align: left; }
+.com-root .com-lec-arquivos, .com-root .com-lec-diferencas fieldset { border: 1px solid #d9e1e9; border-radius: 10px; padding: 16px; margin: 12px 0; }
+.com-root .com-lec-arquivos { display: grid; gap: 16px; }
+.com-root .com-lec-resumo { display: grid; gap: 8px; padding: 16px; margin: 16px 0; border-radius: 10px; background: #f0f5f9; }
+.com-root .com-lec-escolha { display: flex; align-items: flex-start; gap: 10px; margin: 12px 0; cursor: pointer; }
+.com-root .com-lec-escolha input { width: auto; margin-top: 4px; }
+.com-root .com-lec-escolha > span { display: grid; gap: 6px; min-width: 0; }
+.com-root .com-lec-texto { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; max-height: 180px; overflow: auto; }
+.com-root .com-lec-avisos, .com-root .com-lec-manual { margin: 16px 0; text-align: left; }
+.com-root .com-lec-origem { text-align: left; overflow-wrap: anywhere; }
+.com-root .com-lec-origem p { margin: 8px 0; }
+.com-root .com-lec-importacao summary, .com-root .com-lec-origem summary, .com-root .com-lec-manual > summary { cursor: pointer; }
+
 .com-root .com-legado-confirmacao {
   display: flex;
   align-items: flex-start;

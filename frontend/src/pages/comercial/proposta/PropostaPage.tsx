@@ -106,6 +106,7 @@ import {
 } from '../navegacao';
 import { useAutosaveServidor } from '../useAutosaveServidor';
 import { parametrosDasPendenciasDoLevantamento } from './prepararLevantamento';
+import { LegacyImportNotice } from '../components/LegacyImportNotice';
 
 /**
  * Montagem da proposta — container das 7 etapas (`PROP-CTL-001..010`, `PROP-H-001..003`).
@@ -1336,6 +1337,11 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
           onNova={iniciarNovaProposta}
           onRevisao={carregarRevisao}
           onLegada={iniciarRevisaoLegada}
+          onLecImportado={levantamento => {
+            const destino = new URLSearchParams({ modo: 'revision', base: levantamento.proposalCode,
+              revisao: String(levantamento.revisionNumber), id: levantamento.id, secao: 'premises' });
+            navigate(`${moduleRoutePath('comercial', 'custos')}?${destino}`);
+          }}
           onFechar={() => navigate(moduleRoutePath('comercial', 'index'))}
         />
       )}
@@ -1355,6 +1361,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
 
       <section className="com-workspace">
         <div ref={formularioRef} className="com-form-panel">
+          <LegacyImportNotice value={form.legacyImport} />
           {params.get('legado') === '1' && (
             <p className="com-recado" role="status">
               Esta é a primeira revisão deste número no Comercial. Preencha os dados da proposta

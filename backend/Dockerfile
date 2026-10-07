@@ -1,7 +1,7 @@
 FROM node:22-bookworm-slim
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends openssl ca-certificates libreoffice-writer python3-uno fonts-liberation \
+  && apt-get install -y --no-install-recommends openssl ca-certificates libreoffice-writer python3-uno fonts-liberation poppler-utils \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

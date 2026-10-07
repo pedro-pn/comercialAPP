@@ -156,6 +156,16 @@ export function LogisticaSection({ levantamento }: { levantamento: Levantamento 
     }));
   }
 
+  function confirmarEquipe(campo: string, valor: boolean) {
+    setDraft(atual => ({
+      ...atual,
+      scopeConfirmations: {
+        ...((atual.scopeConfirmations as AnyRecord) || {}),
+        [campo]: valor
+      }
+    }));
+  }
+
   function acrescentarDestino() {
     setDraft(atual => {
       const atuais = registros(atual.logisticsDestinations);
@@ -235,6 +245,33 @@ export function LogisticaSection({ levantamento }: { levantamento: Levantamento 
             </span>
           </label>
         )}
+
+        {!semLogistica && confirmacoes.noLabor !== true && <>
+          {(confirmacoes.mobilizationCrewAlreadyOnSite === true
+            || errosPorCampo.has('scopeConfirmations.mobilizationCrewAlreadyOnSite')) &&
+          <ConfirmacaoEscopo
+            confirmado={confirmacoes.mobilizationCrewAlreadyOnSite === true}
+            tituloPendente="Equipe sem transporte de ida"
+            tituloConfirmado="Presença da equipe confirmada"
+            descricaoPendente="Preencha o transporte da equipe abaixo ou confirme que os colaboradores sem transporte já estarão na obra."
+            descricaoConfirmada="Os colaboradores sem transporte informado já estarão na obra. O frete dos equipamentos continua incluído."
+            rotulo="Confirmo que os colaboradores sem transporte de ida já estarão na obra"
+            error={erroDe('scopeConfirmations.mobilizationCrewAlreadyOnSite')}
+            onChange={valor => confirmarEquipe('mobilizationCrewAlreadyOnSite', valor)}
+          />}
+          {(confirmacoes.demobilizationCrewAlreadyOnSite === true
+            || errosPorCampo.has('scopeConfirmations.demobilizationCrewAlreadyOnSite')) &&
+          <ConfirmacaoEscopo
+            confirmado={confirmacoes.demobilizationCrewAlreadyOnSite === true}
+            tituloPendente="Equipe sem transporte de retorno"
+            tituloConfirmado="Dispensa do retorno da equipe confirmada"
+            descricaoPendente="Preencha o retorno da equipe abaixo ou confirme que os colaboradores sem transporte não precisarão ser desmobilizados."
+            descricaoConfirmada="Os colaboradores sem transporte informado não precisarão ser desmobilizados. O retorno dos equipamentos continua incluído."
+            rotulo="Confirmo que os colaboradores sem transporte de retorno não precisarão ser desmobilizados"
+            error={erroDe('scopeConfirmations.demobilizationCrewAlreadyOnSite')}
+            onChange={valor => confirmarEquipe('demobilizationCrewAlreadyOnSite', valor)}
+          />}
+        </>}
 
         {!semLogistica && errosVisiveis && destinoSemNome && (
           <AvisoPendencia>Todo destino precisa de um nome.</AvisoPendencia>

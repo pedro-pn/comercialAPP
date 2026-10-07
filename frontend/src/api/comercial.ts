@@ -493,6 +493,65 @@ export async function registrarRevisaoLegada(proposalCode: string, revisionNumbe
   return data;
 }
 
+export interface ArquivoLegado {
+  fileName: string;
+  base64: string;
+}
+
+export interface ArquivosLegados {
+  lec: ArquivoLegado;
+  pdf?: ArquivoLegado;
+}
+
+export interface PreviaImportacaoLegada {
+  proposalCode: string;
+  sourceRevisionNumber: number;
+  suggestedRevisionNumber: number;
+  clientName: string;
+  title: string;
+  site: string;
+  sourceSalePrice: number;
+  sourceTotalCost: number;
+  importedTotalCost: number;
+  laborAssignments: number;
+  materials: number;
+  products: number;
+  filters: number;
+  logistics: number;
+  scopeItems: number;
+  pdfFileName: string;
+  warnings: string[];
+  conflicts: Array<{ field: string; label: string; lecValue: string; pdfValue: string }>;
+}
+
+export async function prepararArquivoLegado(file: File): Promise<ArquivoLegado> {
+  if (file.size > 10 * 1024 * 1024) throw new Error('Cada arquivo deve ter até 10 MB.');
+  if (!file.size) throw new Error('O arquivo está vazio.');
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Não foi possível ler o arquivo.'));
+    reader.onload = () => resolve({ fileName: file.name, base64: String(reader.result).split(',')[1] });
+    reader.readAsDataURL(file);
+  });
+}
+
+export async function obterPreviaImportacaoLegada(files: ArquivosLegados) {
+  const { data } = await apiClient.post<PreviaImportacaoLegada>('/comercial/propostas/legado/lec/previa', files);
+  return data;
+}
+
+export async function importarRevisaoDoLec(files: ArquivosLegados, options: {
+  proposalCode: string;
+  revisionNumber: number;
+  modelo: 'padrao' | 'hidrojateamento';
+  resolutions: Record<string, 'lec' | 'pdf'>;
+}) {
+  const { data } = await apiClient.post<{ estimate: LevantamentoSalvo; alreadyImported: boolean }>(
+    '/comercial/propostas/legado/lec/importar', { ...files, ...options }
+  );
+  return data;
+}
+
 export async function listarPropostas(
   filtros: {
     busca?: string;

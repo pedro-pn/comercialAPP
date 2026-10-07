@@ -61,6 +61,7 @@ export function createApp({ authService, commercialDb, crm, appOrigin, additiona
     // Anexos podem ser arquivos JSON; o parser global não deve consumir o binário.
     if (request.method === 'POST' && (
       request.path === '/api/comercial/escopo/fotos' ||
+      /^\/api\/comercial\/propostas\/legado\/lec\/(previa|importar)$/.test(request.path) ||
       /^\/api\/comercial\/propostas\/[^/]+\/anexos$/.test(request.path)
     )) return next();
     return jsonBody(request, response, next);

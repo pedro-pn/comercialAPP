@@ -273,7 +273,7 @@ export function LogisticaItem({
         />
       </div>
 
-      {modo === 'external_freight' && (
+      {(modo === 'external_freight' || modo === 'legacy') && (
         <div className="com-form-grid">
           <NumberField
             label="Quantidade"
