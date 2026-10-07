@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 import { ComercialChrome } from '../components/ComercialChrome';
 
 export function PropostaDocumentosPage({ codigo, cliente, titulo, recado,
-  documentos, busy, onEditar }: {
+  documentos, busy, onEditar, onAbrirLevantamento }: {
   codigo: string;
   cliente: string;
   titulo: string;
@@ -11,6 +11,7 @@ export function PropostaDocumentosPage({ codigo, cliente, titulo, recado,
   documentos: ReactNode;
   busy: boolean;
   onEditar: () => Promise<boolean>;
+  onAbrirLevantamento?: () => void;
 }) {
   const navigate = useNavigate();
 
@@ -22,6 +23,8 @@ export function PropostaDocumentosPage({ codigo, cliente, titulo, recado,
     acoes={<>
       <button type="button" className="com-btn com-btn-fantasma"
         onClick={() => navigate('/historico')}>Voltar ao histórico</button>
+      {onAbrirLevantamento && <button type="button" className="com-btn com-btn-fantasma" disabled={busy}
+        onClick={onAbrirLevantamento}>Abrir levantamento</button>}
       <button type="button" className="com-btn com-btn-primario" disabled={busy}
         onClick={() => void onEditar()}>{busy ? 'Abrindo...' : 'Editar proposta'}</button>
     </>}

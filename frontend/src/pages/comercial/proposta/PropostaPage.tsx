@@ -1072,6 +1072,18 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     if (await prepararSaida()) navigate(moduleRoutePath('comercial', 'index'));
   }
 
+  async function abrirLevantamentoVinculado() {
+    if (!levantamentoVinculado || !await prepararSaida()) return;
+    const destino = new URLSearchParams({
+      modo: levantamentoVinculado.revisionNumber > 0 ? 'revision' : 'new',
+      base: levantamentoVinculado.proposalCode,
+      revisao: String(levantamentoVinculado.revisionNumber || 0),
+      id: levantamentoVinculado.id,
+      secao: levantamentoVinculado.status === 'SALVO' ? 'summary' : 'premises'
+    });
+    navigate(`${moduleRoutePath('comercial', 'custos')}?${destino}`);
+  }
+
   /**
    * Baixa o PDF gerado no servidor — o documento de verdade, não a impressão da
    * tela.
@@ -1193,6 +1205,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
       recado={recado}
       busy={ocupadoLocal || finalizandoLocal || preparandoEdicao}
       onEditar={iniciarEdicaoDaFinalizada}
+      onAbrirLevantamento={levantamentoVinculado ? () => void abrirLevantamentoVinculado() : undefined}
       documentos={<FinalizacaoLocalPanel
         proposalId={propostaId} status={statusProposta}
         save={salvarParaDocumentos} validate={validarParaEmissaoLocal}
@@ -1389,6 +1402,12 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
                   ) || 'A revisar'}
                 </strong>
                 <span>O vínculo será preservado ao salvar a proposta.</span>
+                <button type="button" className="com-btn com-btn-fantasma"
+                  disabled={salvando || ocupadoLocal || saindo || mudandoEtapa || finalizacao.finalizando ||
+                    Boolean(rascunho.oferta) || Boolean(conflitoDeEdicao)}
+                  onClick={() => void abrirLevantamentoVinculado()}>
+                  Abrir levantamento
+                </button>
                 {propostaProntaParaSalvar && (
                   <>
                     <button type="button" className="com-btn com-btn-fantasma"
