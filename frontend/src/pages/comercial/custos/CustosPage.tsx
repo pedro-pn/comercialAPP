@@ -35,6 +35,7 @@ import { TutorialDoModulo } from '../TutorialDoModulo';
 import { ROTEIRO_DOS_CUSTOS } from '../roteiroDoTutorial';
 import { BotaoFecharDialogo } from '../components/FecharDialogo';
 import { MarcaDeOpcao } from '../components/MarcaDeOpcao';
+import { LegacyImportNotice } from '../components/LegacyImportNotice';
 import {
   focarPrimeiroCampoInvalido,
   parametrosDoLevantamentoAposAvanco,
@@ -972,6 +973,7 @@ export function CustosPage({ somenteLevantamento = false }: { somenteLevantament
           </nav>
 
           {renderAcoesDoLevantamento('topo')}
+          <LegacyImportNotice value={draft.legacyImport} />
           <PendenciasDaSecao levantamento={levantamento} secao={secao} />
 
           <fieldset className="com-custos-campos" disabled={saindo || !trabalhoProntoParaSalvar || Boolean(rascunho.oferta)}>

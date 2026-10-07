@@ -100,6 +100,18 @@ podem configurar o primeiro número em **Acessos e numeração**, confirmando an
 que ele não aparece no CRM ou no legado. A sequência pula números legados já
 registrados no aplicativo. Uma primeira revisão legada pode ser registrada por
 `POST /api/comercial/propostas/legado/revisao`, com o número e a revisão conferidos.
+
+O fluxo com arquivos usa `POST /api/comercial/propostas/legado/lec/previa` para
+analisar sem gravar, e `POST /api/comercial/propostas/legado/lec/importar` para
+criar a reserva, o levantamento e a proposta em uma transação. Os corpos JSON
+contêm `lec: {fileName, base64}` e `pdf: {fileName, base64}` opcional. A importação
+acrescenta `proposalCode`, `revisionNumber`, `modelo` e `resolutions`, que associa
+cada campo divergente a `lec` ou `pdf`. Cada arquivo aceita até 10 MB. A revisão
+de destino deve ser maior que a revisão presente nos arquivos. O servidor relê
+os arquivos no momento da gravação e exige uma escolha para todas as diferenças.
+Ambos os registros nascem em rascunho; os custos precisam ser concluídos antes do
+salvamento normal da proposta. Uma repetição com os mesmos arquivos e opções
+retorna os registros existentes sem sobrescrever edições.
 No levantamento, endereços e distâncias podem ser informados manualmente ou
 usados com Google Maps quando configurado; a sede é definida em **Configurações**.
 A montagem de propostas aceita rascunhos com ou sem levantamento vinculado. A migração

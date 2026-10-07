@@ -157,6 +157,35 @@ registro como rascunho, sem criar uma revisão. Edite o conteúdo e finalize
 novamente para emitir os documentos atualizados. Os arquivos anteriores e os
 vínculos continuam salvos; arquivos já enviados às integrações mantêm a versão enviada.
 
+## Revisar uma proposta feita no LEC
+
+Em **Propostas**, escolha **Revisar proposta legada** e selecione a planilha LEC
+1.2/1.3 em `.xlsm` ou `.xlsx`. Se os textos e o escopo foram completados no Word,
+inclua também a proposta original em PDF. Os dois arquivos devem corresponder ao
+mesmo número e à mesma revisão de origem, com até 10 MB cada. O PDF precisa ter
+texto selecionável; imagens e assinaturas não são importadas.
+
+Confira a prévia, informe uma revisão maior que a revisão de origem e escolha o
+modelo. Se houver diferenças, escolha **Usar PDF** ou **Usar LEC** para cada campo;
+o PDF vem selecionado por representar a proposta emitida. Confira também as
+pendências indicadas na prévia antes de importar.
+
+Clique em **Importar e revisar levantamento de custos**. A importação cria dois
+rascunhos vinculados: levantamento e proposta. Revise Premissas, Mão de obra,
+Materiais e insumos, Logística e Resumo e QQP. Despesas e fretes são importados
+pelos valores salvos; produtos químicos mantêm a quantidade original em modo
+manual. Dados ou confirmações ausentes permanecem pendentes para preenchimento.
+O preço original fica como valor global; para formar um novo preço, altere essa
+opção em **Resumo e QQP**. O custo do app é recalculado e eventuais diferenças
+com o LEC são apresentadas para conferência.
+
+Conclua os custos e abra a proposta para revisar Cliente, Escopo,
+Responsabilidades, Prazos, Técnica e Comercial. Confira os documentos e finalize
+normalmente. Os rascunhos permanecem disponíveis no histórico após sair ou
+recarregar. Uma repetição da mesma importação retoma os registros sem substituir
+edições. Números já usados por outras propostas são recusados; nesses casos, use
+o histórico e **Revisar proposta**.
+
 ## Enviar e acompanhar as integrações
 
 Os painéis da revisão mostram a disponibilidade e o estado de cada integração.

@@ -455,11 +455,25 @@ export type CommercialSettings = {
   presentationAdjustments: ProposalPresentationAdjustment[];
 };
 
+export type LegacyImportInfo = {
+  fileName: string;
+  fileHash: string;
+  pdfFileName: string;
+  sourceRevisionNumber: number;
+  sourceDate: string;
+  sourceEstimator: string;
+  sourceSeller: string;
+  sourceTotalCost: number;
+  sourceSalePrice: number;
+  warnings: string[];
+};
+
 export type CostEstimatePayloadV2 = {
   schemaVersion: 2;
   logisticsStructureVersion: 0 | 1;
   title: string;
   proposalCode?: string;
+  legacyImport?: LegacyImportInfo;
   /** Data-base ISO usada pela tela para apresentar os offsets das fases como datas. */
   scheduleStartDate?: string;
   assumptions: CostEstimateAssumptions;
@@ -2434,6 +2448,21 @@ export function normalizeCostEstimatePayload(value: unknown): CostEstimatePayloa
       : 0,
     title: textValue(source.title, "Levantamento de custos Filtrovali"),
     proposalCode: textValue(source.proposalCode) || undefined,
+    ...(source.legacyImport && typeof source.legacyImport === 'object' ? {
+      legacyImport: {
+        fileName: textValue(objectValue(source.legacyImport).fileName).slice(0, 255),
+        fileHash: textValue(objectValue(source.legacyImport).fileHash).slice(0, 64),
+        pdfFileName: textValue(objectValue(source.legacyImport).pdfFileName).slice(0, 255),
+        sourceRevisionNumber: nonNegative(objectValue(source.legacyImport).sourceRevisionNumber),
+        sourceDate: textValue(objectValue(source.legacyImport).sourceDate).slice(0, 10),
+        sourceEstimator: textValue(objectValue(source.legacyImport).sourceEstimator).slice(0, 200),
+        sourceSeller: textValue(objectValue(source.legacyImport).sourceSeller).slice(0, 200),
+        sourceTotalCost: nonNegative(objectValue(source.legacyImport).sourceTotalCost),
+        sourceSalePrice: nonNegative(objectValue(source.legacyImport).sourceSalePrice),
+        warnings: arrayValue(objectValue(source.legacyImport).warnings)
+          .slice(0, 100).map(item => textValue(item).slice(0, 600)),
+      }
+    } : {}),
     scheduleStartDate: isoDateValue(source.scheduleStartDate),
     assumptions,
     laborContexts: contexts,

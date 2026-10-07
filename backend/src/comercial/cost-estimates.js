@@ -121,6 +121,12 @@ async function insertCostEstimate(tx, user, data, totals) {
   return (await withLinkedProposals(tx, user, [estimate]))[0];
 }
 
+/** Used by the atomic legacy import, whose linked proposal is also created in this transaction. */
+export function insertImportedCostEstimate(tx, user, data) {
+  return insertCostEstimate(tx, user, { ...data, mode: 'REVISAO', status: 'RASCUNHO' },
+    totalsFromPayload(data.payload));
+}
+
 /** Todo número de um novo levantamento já nasce vinculado a um rascunho. */
 export async function startCostEstimate(db, user, data) {
   const totals = totalsFromPayload(data.payload);

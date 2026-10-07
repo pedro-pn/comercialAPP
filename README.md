@@ -115,6 +115,10 @@ hidrojateamento; passagem de PIG e pré-engenharia.
   mediante diálogo de confirmação. A reserva registra o autor, consome o número
   e evita reutilização, inclusive de números legados registrados no aplicativo.
 - Revisões com reaproveitamento dos dados anteriores e do vínculo com o CRM.
+- Importação de revisões legadas pelo LEC 1.2/1.3 em Excel (`.xlsm`/`.xlsx`), com
+  PDF opcional para complementar escopo, responsabilidades e condições. A prévia
+  apresenta diferenças entre os arquivos; a importação cria custos e proposta
+  vinculados em rascunho, disponíveis para revisão e edição em todas as etapas.
 - Histórico com busca, paginação, reabertura dos registros, download dos
   documentos emitidos e situação das integrações.
 - API para arquivar e desarquivar levantamentos e propostas, preservando os
@@ -182,7 +186,8 @@ Para homologação isolada, siga [Staging](docs/STAGING.md).
 ### Sem Docker
 
 Requisitos: **Node.js 22 compatível com as dependências**, npm, **PostgreSQL 16**
-e LibreOffice (`soffice` no `PATH`) para emitir PDFs. As versões de referência
+e LibreOffice (`soffice` no `PATH`) para emitir PDFs. A leitura de propostas legadas
+em PDF exige Poppler (`pdftotext` no `PATH`, ou `PDFTOTEXT_BIN`). As versões de referência
 estão nas imagens Docker e no CI.
 
 1. Crie um banco PostgreSQL exclusivo para o aplicativo e um usuário próprio.

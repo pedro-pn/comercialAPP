@@ -13,6 +13,7 @@ import { MarcaDeOpcao } from '../components/MarcaDeOpcao';
 import { formatarValorDoLevantamento } from './levantamentoVinculado';
 import { prepararLevantamentoParaProposta } from './prepararLevantamento';
 import { RascunhosEmAndamento } from '../components/RascunhosEmAndamento';
+import { ImportarLecForm } from './ImportarLecForm';
 
 /** Entrada da proposta: nova ou revisão de um número existente (PROP-CTL-001..005). */
 export function PropostaModeDialog({
@@ -24,6 +25,7 @@ export function PropostaModeDialog({
   onNova,
   onRevisao,
   onLegada,
+  onLecImportado,
   onFechar
 }: {
   recado: string;
@@ -37,6 +39,7 @@ export function PropostaModeDialog({
   onNova: () => void;
   onRevisao: (codigo: string) => Promise<boolean>;
   onLegada: (codigo: string, revisao: number) => Promise<boolean>;
+  onLecImportado: (levantamento: LevantamentoSalvo) => void;
   /** Fechar sem escolher volta ao menu do módulo. */
   onFechar: () => void;
 }) {
@@ -52,6 +55,7 @@ export function PropostaModeDialog({
   const [levantamentos, setLevantamentos] = useState<LevantamentoSalvo[]>([]);
   const [erroDosLevantamentos, setErroDosLevantamentos] = useState('');
   const [levantamentoEmAbertura, setLevantamentoEmAbertura] = useState('');
+  const [importandoLec, setImportandoLec] = useState(false);
 
   async function escolherLevantamento(item: LevantamentoSalvo) {
     if (levantamentoEmAbertura) return;
@@ -129,7 +133,7 @@ export function PropostaModeDialog({
       aria-labelledby="com-proposta-modo-titulo"
     >
       <section className="com-painel com-modo-card">
-        <BotaoFecharDialogo fechar={onFechar} />
+        <BotaoFecharDialogo fechar={() => { if (!importandoLec) onFechar(); }} />
         <img className="com-modo-logo" src={LOGO_URL} alt="Filtrovali" />
         <span className="com-eyebrow">PROPOSTA TÉCNICA E COMERCIAL</span>
         <h1 id="com-proposta-modo-titulo">Como deseja começar?</h1>
@@ -141,7 +145,7 @@ export function PropostaModeDialog({
         <div className="com-modo-opcoes com-modo-quatro">
           <button
             type="button"
-            disabled={Boolean(levantamentoEmAbertura)}
+            disabled={importandoLec || Boolean(levantamentoEmAbertura)}
             onClick={() => void abrirLevantamentos()}
           >
             <MarcaDeOpcao tipo="ok" />
@@ -152,7 +156,7 @@ export function PropostaModeDialog({
           </button>
           <button
             type="button"
-            disabled={Boolean(levantamentoEmAbertura)}
+            disabled={importandoLec || Boolean(levantamentoEmAbertura)}
             onClick={() => {
               setMostrarLevantamentos(false);
               setMostrarLegada(false);
@@ -167,7 +171,7 @@ export function PropostaModeDialog({
           </button>
           <button
             type="button"
-            disabled={Boolean(levantamentoEmAbertura)}
+            disabled={importandoLec || Boolean(levantamentoEmAbertura)}
             onClick={() => {
               setMostrarLevantamentos(false);
               setMostrarLegada(false);
@@ -180,7 +184,7 @@ export function PropostaModeDialog({
           </button>
           <button
             type="button"
-            disabled={Boolean(levantamentoEmAbertura)}
+            disabled={importandoLec || Boolean(levantamentoEmAbertura)}
             onClick={() => {
               setMostrarLevantamentos(false);
               setMostrarRevisao(false);
@@ -189,11 +193,11 @@ export function PropostaModeDialog({
           >
             <MarcaDeOpcao tipo="revisao" />
             <strong>Revisar proposta legada</strong>
-            <span>Informe o número antigo e a revisão que será criada neste app.</span>
+            <span>Importe o LEC e a proposta em PDF para revisar custos e documentos.</span>
           </button>
         </div>
 
-        <RascunhosEmAndamento tipo="proposta" onAbrir={item => onRascunho(item.id)} />
+        <RascunhosEmAndamento tipo="proposta" onAbrir={item => { if (!importandoLec) onRascunho(item.id); }} />
 
         {mostrarLevantamentos && (
           <section className="com-levantamentos-entrada" aria-live="polite">
@@ -320,6 +324,10 @@ export function PropostaModeDialog({
         )}
 
         {mostrarLegada && (
+          <>
+          <ImportarLecForm onImportado={onLecImportado} onOcupado={setImportandoLec} />
+          <details className="com-lec-manual">
+          <summary>Preencher uma revisão legada manualmente, sem arquivos</summary>
           <div className="com-revisao-entrada">
             <div className="field-group">
               <label htmlFor="com-proposta-legada-numero">Número da proposta legada</label>
@@ -358,7 +366,7 @@ export function PropostaModeDialog({
             <button
               type="button"
               className="com-btn com-btn-fantasma"
-              disabled={carregando || !codigoLegado || Number(codigoLegado) > 2_147_483_646 ||
+              disabled={importandoLec || carregando || !codigoLegado || Number(codigoLegado) > 2_147_483_646 ||
                 !confirmouLegado ||
                 !Number.isInteger(Number(revisaoLegada)) || Number(revisaoLegada) < 1 ||
                 Number(revisaoLegada) > 2_147_483_646}
@@ -367,6 +375,8 @@ export function PropostaModeDialog({
               {carregando ? 'Registrando...' : 'Criar revisão legada'}
             </button>
           </div>
+          </details>
+          </>
         )}
 
         {recado && <p className="com-recado">{recado}</p>}
