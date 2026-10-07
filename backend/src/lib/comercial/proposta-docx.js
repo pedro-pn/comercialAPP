@@ -320,13 +320,12 @@ const escapar = valor =>
     .replace(/>/g, '&gt;');
 
 /** Uma tabela do escopo com colunas proporcionais ao conteúdo. */
-function xmlDeTabela(bloco) {
-  const larguraTotal = 9000;
+function xmlDeTabela(bloco, { larguraTotal = 9000, proporcoes } = {}) {
   const maiorPalavra = texto => Math.max(0, ...String(texto ?? '').split(/\s+/u)
     .map(palavra => palavra.length));
   // Cabeçalhos e palavras dos dados precisam caber sem dividir suas letras.
   // Limitar o peso dos dados evita que um identificador longo comprima as demais colunas.
-  const pesos = bloco.columns.map((titulo, indice) => Math.max(7, maiorPalavra(titulo) + 1,
+  const pesos = proporcoes ?? bloco.columns.map((titulo, indice) => Math.max(7, maiorPalavra(titulo) + 1,
     ...bloco.rows.map(linha => Math.min(16, maiorPalavra(linha[indice])))));
   const soma = pesos.reduce((total, peso) => total + peso, 0);
   const larguras = pesos.map(peso => Math.floor(larguraTotal * peso / soma));
@@ -459,6 +458,23 @@ function tituloDoCorpo(doc, trecho) {
   );
 }
 
+/** A seção é definida pela próxima quebra ou pelas propriedades no fim do corpo. */
+function larguraUtilDaSecao(ancora) {
+  for (let no = ancora; no; no = no.nextSibling) {
+    if (no.nodeType !== 1) continue;
+    const secao = no.nodeName === 'w:sectPr' ? no : no.getElementsByTagName('w:sectPr').item(0);
+    if (!secao) continue;
+    const pagina = secao.getElementsByTagName('w:pgSz').item(0);
+    const margens = secao.getElementsByTagName('w:pgMar').item(0);
+    const largura = Number(pagina?.getAttribute('w:w'))
+      - Number(margens?.getAttribute('w:left'))
+      - Number(margens?.getAttribute('w:right'))
+      - Number(margens?.getAttribute('w:gutter'));
+    if (largura > 0) return largura;
+  }
+  return 9000;
+}
+
 /** A tabela informativa fica no item 7 e nunca participa dos totais de preços. */
 function inserirPrecosInformativos(doc, dados) {
   if (dados.includeInformationalPrices !== true) return;
@@ -474,6 +490,9 @@ function inserirPrecosInformativos(doc, dados) {
   const tabela = new DOMParser().parseFromString(xmlDeTabela({
     columns: CABECALHO_PRECOS_INFORMATIVOS,
     rows: itens.map(item => [item.description, item.quantity, item.unitValue, item.value])
+  }, {
+    larguraTotal: larguraUtilDaSecao(ancora),
+    proporcoes: [48, 10, 21, 21]
   }), 'text/xml').documentElement;
   preserveWordTextLineBreaks(tabela);
   inserir(tabela);

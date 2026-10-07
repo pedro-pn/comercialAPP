@@ -123,6 +123,26 @@ for (const modelo of ['padrao', 'hidrojateamento']) {
       assert.ok(informativa, 'A tabela opcional deve aparecer separada');
       assert.ok(principal);
       assert.notEqual(informativa, principal);
+      const section = doc.getElementsByTagName('w:sectPr').item(0);
+      const pageSize = section.getElementsByTagName('w:pgSz').item(0);
+      const margins = section.getElementsByTagName('w:pgMar').item(0);
+      const bodyWidth = Number(pageSize.getAttribute('w:w'))
+        - Number(margins.getAttribute('w:left')) - Number(margins.getAttribute('w:right'));
+      const tableProperties = informativa.getElementsByTagName('w:tblPr').item(0);
+      const tableWidth = tableProperties.getElementsByTagName('w:tblW').item(0);
+      assert.equal(tableWidth.getAttribute('w:type'), 'dxa');
+      assert.equal(Number(tableWidth.getAttribute('w:w')), bodyWidth,
+        'A tabela deve ocupar toda a área entre as margens do modelo');
+      assert.equal(tableProperties.getElementsByTagName('w:jc').item(0).getAttribute('w:val'), 'left');
+      const grid = [...informativa.getElementsByTagName('w:gridCol')]
+        .map(column => Number(column.getAttribute('w:w')));
+      assert.equal(grid.reduce((sum, width) => sum + width, 0), bodyWidth);
+      assert.ok(grid[0] > grid[1] * 3, 'A descrição deve ter mais espaço que a quantidade');
+      assert.ok(Math.abs(grid[2] - grid[3]) <= 3, 'Os valores devem ter colunas de mesma largura');
+      for (const row of [...informativa.getElementsByTagName('w:tr')]) {
+        const cellWidths = [...row.getElementsByTagName('w:tcW')].map(cell => Number(cell.getAttribute('w:w')));
+        assert.deepEqual(cellWidths, grid, 'Cabeçalho e dados devem respeitar as mesmas colunas');
+      }
       assert.match(texto(informativa), /VALOR UNIT\./);
       assert.match(texto(informativa), /2,5/);
       assert.match(texto(informativa), /R\$\s*301,25/);
