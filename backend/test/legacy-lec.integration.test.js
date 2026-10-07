@@ -68,6 +68,7 @@ test('upload legado cria custos e proposta atomicamente, respeita autoria e reto
   assert.equal((await request('importar', input, 'viewer')).status, 403);
   // A failed proposal insert rolls back the estimate and the reservation too.
   const badDb = { proposal: db.proposal, costEstimate: db.costEstimate, user: db.user, salesConsultant: db.salesConsultant,
+    proposalNumberReservation: db.proposalNumberReservation,
     $transaction: action => db.$transaction(tx => action({ ...tx,
       proposal: { ...tx.proposal, create: async () => { throw new Error('Simulated failure'); } }
     })) };
