@@ -2,6 +2,8 @@ import { Area, Field } from '../../components/Field';
 import { AvisoPendencia } from '../../custos/ConfirmacaoEscopo';
 import {
   tabelasDePrecoDoModelo,
+  TITULO_PRECOS_INFORMATIVOS,
+  NOTA_PRECOS_INFORMATIVOS,
   type LocalOperacao,
   type ModeloProposta,
   totalStandbyEquipe
@@ -9,6 +11,7 @@ import {
 // O MESMO leitor de moeda do servidor e do gerador do documento. Um leitor
 // próprio aqui mostraria ao vendedor um total que o CRM não confirma.
 import { lerDinheiro, moeda, somarDinheiro } from '../../../../../../shared/comercial/dist/dinheiro.js';
+import { itensInformativosDaProposta } from '../../../../../../shared/comercial/dist/proposal-validation.js';
 import {
   CAMPOS_STANDBY,
   formatarDinheiro,
@@ -75,6 +78,17 @@ export function ComercialStep({
   const cenarioEscolhido =
     locais?.find(local => local === cenarioInformado) ?? PADRAO_DE_CENARIO;
   const completos = precos.filter(itemDePrecoCompleto).length;
+  const informativos = itensInformativosDaProposta(form);
+  const incluirInformativos = form.includeInformationalPrices === true;
+
+  function atualizarInformativos(atualizar: (atual: ItemDePreco[]) => ItemDePreco[]) {
+    editar({ informationalPrices: atualizar(informativos) });
+  }
+
+  function editarInformativo(indice: number, campo: keyof ItemDePreco, valor: string) {
+    atualizarInformativos(atual => atual.map((item, i) => i === indice
+      ? recalcularItemDePreco({ ...item, [campo]: valor }) : item));
+  }
 
   function editarPreco(indice: number, campo: keyof ItemDePreco, valor: string) {
     onPrecos(atual =>
@@ -136,6 +150,36 @@ export function ComercialStep({
           onEscolher={valor => editar({ priceScenario: valor })}
         />
       )}
+
+      <fieldset className="com-fieldset">
+        <legend>{TITULO_PRECOS_INFORMATIVOS} (opcional)</legend>
+        <label className="com-incluir com-incluir-bloco">
+          <input
+            type="checkbox"
+            checked={incluirInformativos}
+            onChange={evento => editar({
+              includeInformationalPrices: evento.target.checked,
+              ...(evento.target.checked && !informativos.length ? {
+                informationalPrices: [{ description: '', unit: 'VB', quantity: '1', unitValue: '', value: '' }]
+              } : {})
+            })}
+          />
+          <span>
+            <strong>Incluir tabela de equipamentos e outras despesas</strong>
+            <small>{NOTA_PRECOS_INFORMATIVOS}</small>
+          </span>
+        </label>
+        {incluirInformativos && <>
+          {erroDe('informationalPrices') && <AvisoPendencia>{erroDe('informationalPrices')}</AvisoPendencia>}
+          <TabelaDePrecos
+            precos={informativos}
+            onPrecos={atualizarInformativos}
+            mostrarErros={mostrarErros}
+            editarPreco={editarInformativo}
+            informativa
+          />
+        </>}
+      </fieldset>
 
 
       {/* Item 9 do documento intercala prosa e tabela: a frase da hora extra, o
@@ -288,13 +332,15 @@ function TabelaDePrecos({
   precos,
   onPrecos,
   mostrarErros,
-  editarPreco
+  editarPreco,
+  informativa = false
 }: {
   local?: LocalOperacao;
   precos: ItemDePreco[];
   onPrecos: (atualizar: (atual: ItemDePreco[]) => ItemDePreco[]) => void;
   mostrarErros: boolean;
   editarPreco: (indice: number, campo: keyof ItemDePreco, valor: string) => void;
+  informativa?: boolean;
 }) {
   const daTabela = precos
     .map((item, indice) => ({ item, indice }))
@@ -321,7 +367,7 @@ function TabelaDePrecos({
             ])
           }
         >
-          + Adicionar item de preço
+          {informativa ? '+ Adicionar equipamento ou despesa' : '+ Adicionar item de preço'}
         </button>
       </div>
 
@@ -348,15 +394,19 @@ function TabelaDePrecos({
             <tbody>
               {daTabela.map(({ item, indice }, ordem) => {
                 const incompleto = mostrarErros && !itemDePrecoCompleto(item);
-                const rotulo = `${ordem + 1}${local ? ` de ${local}` : ''}`;
+                const rotulo = `${informativa ? 'informativo ' : ''}${ordem + 1}${local ? ` de ${local}` : ''}`;
+                const descricaoInvalida = incompleto && !item.description.trim();
+                const quantidadeInvalida = incompleto && quantidadeDoItemDePreco(item.quantity) <= 0;
+                const unitarioInvalido = incompleto && !item.unitValue.trim();
 
                 return (
                   <tr key={indice}>
                     <td>
                       <input
                         aria-label={`Descrição do item ${rotulo}`}
+                        aria-invalid={descricaoInvalida || undefined}
                         className={
-                          incompleto && !item.description.trim()
+                          descricaoInvalida
                             ? 'com-campo-invalido'
                             : undefined
                         }
@@ -371,8 +421,9 @@ function TabelaDePrecos({
                         step="0.01"
                         inputMode="decimal"
                         aria-label={`Quantidade do item ${rotulo}`}
+                        aria-invalid={quantidadeInvalida || undefined}
                         className={
-                          incompleto && quantidadeDoItemDePreco(item.quantity) <= 0
+                          quantidadeInvalida
                             ? 'com-campo-invalido'
                             : undefined
                         }
@@ -384,9 +435,10 @@ function TabelaDePrecos({
                       <input
                         inputMode="numeric"
                         aria-label={`Valor unitário do item ${rotulo}`}
+                        aria-invalid={unitarioInvalido || undefined}
                         placeholder="R$ 0,00"
                         className={
-                          incompleto && !item.unitValue.trim()
+                          unitarioInvalido
                             ? 'com-campo-invalido'
                             : undefined
                         }
@@ -421,7 +473,9 @@ function TabelaDePrecos({
           </table>
         </div>
       ) : (
-        <div className="com-vazio">Nenhum item de preço cadastrado.</div>
+        <div className="com-vazio" aria-invalid={informativa && mostrarErros || undefined}>
+          {informativa ? 'Nenhum equipamento ou despesa cadastrado.' : 'Nenhum item de preço cadastrado.'}
+        </div>
       )}
     </div>
   );

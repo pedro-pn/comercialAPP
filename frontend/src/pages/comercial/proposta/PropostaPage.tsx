@@ -160,6 +160,8 @@ function formularioInicial(modelo: ModeloProposta = 'padrao'): AnyRecord {
     standbyTeamQuantity: '1',
     standbyEquipment: '',
     extraMobilization: '',
+    includeInformationalPrices: false,
+    informationalPrices: [],
     validity: '10'
   };
 }

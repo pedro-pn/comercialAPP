@@ -20,6 +20,9 @@ import {
   SERVICOS_EXTRA_ESCOPO,
   incluirServicosExtraEscopo,
   TITULO_BLOCO_STANDBY,
+  TITULO_PRECOS_INFORMATIVOS,
+  NOTA_PRECOS_INFORMATIVOS,
+  CABECALHO_PRECOS_INFORMATIVOS,
   fraseHoraExtra,
   observacoesTecnicasDoModelo,
   paragrafosComerciais,
@@ -35,11 +38,13 @@ import {
   type ProposalVisualDefinition
 } from '../../../../../shared/comercial/dist/proposal-visuals.js';
 import type { ItemDePreco, LinhaResponsabilidade } from './etapas';
+import { itensInformativosDaProposta } from '../../../../../shared/comercial/dist/proposal-validation.js';
 import {
   folhasDaMatriz,
   paginasDoEscopo,
   paginasDasDescricoes,
   paginasTecnicas,
+  paginarLinhasDaTabela,
   tituloDoItemDeEscopo,
   type EntradaDaMatriz
 } from './previaPaginacao';
@@ -258,7 +263,14 @@ export function DocumentoPrevia({
   // A descrição de valores e o pagamento ocupam uma folha própria. Mantê-los
   // junto da jornada fazia o fim da página ser cortado na prévia fixa.
   const numeroDosValores = numeroDosPrazos + 1;
-  const numeroDoFechamentoComercial = numeroDosValores + 1;
+  const informativos = itensInformativosDaProposta(form);
+  const folhasInformativas = !tecnico && form.includeInformationalPrices === true && informativos.length
+    ? paginarLinhasDaTabela(informativos.map(item => [
+      item.description || 'Item', item.quantity || '—', item.unitValue || 'R$ -', item.value || 'R$ -'
+    ]), CABECALHO_PRECOS_INFORMATIVOS.length, { dividirConteudo: true }) : [];
+  const numeroDoPagamento = numeroDosValores + folhasInformativas.length + 1;
+  const numeroDoFechamentoComercial = folhasInformativas.length
+    ? numeroDoPagamento + 1 : numeroDosValores + 1;
   const locaisDePreco = tabelasDePrecoDoModelo(modelo);
   const numeroDoFechamentoTecnico = numeroDosPrazos + folhasTecnicas.length + 1;
 
@@ -498,6 +510,7 @@ export function DocumentoPrevia({
       </Pagina>
 
       {!tecnico && (
+        <>
         <Pagina numero={numeroDosValores} data={data}>
           <h3>7. Descrição dos valores</h3>
           {/* Hidrojateamento traz DUAS tabelas, cada uma com o seu TOTAL
@@ -546,9 +559,30 @@ export function DocumentoPrevia({
             </p>
           ))}
 
+          {!folhasInformativas.length && <>
+            <h3>8. Condições de pagamento</h3>
+            <ParagrafosComerciais texto={texto('payment', 'A definir')} capitulo={8} />
+          </>}
+        </Pagina>
+        {folhasInformativas.map((linhas, i) => (
+          <Pagina numero={numeroDosValores + i + 1} data={data} key={`informativos-${i}`}>
+            <h3>{TITULO_PRECOS_INFORMATIVOS}{i > 0 ? ' (continuação)' : ''}</h3>
+            <p className="com-doc-nota">{NOTA_PRECOS_INFORMATIVOS}</p>
+            <table className="com-doc-tabela com-doc-tabela-informativa">
+              <colgroup><col style={{ width: '48%' }} /><col style={{ width: '10%' }} />
+                <col style={{ width: '21%' }} /><col style={{ width: '21%' }} /></colgroup>
+              <thead><tr>{CABECALHO_PRECOS_INFORMATIVOS.map(coluna => <th key={coluna}>{coluna}</th>)}</tr></thead>
+              <tbody>{linhas.map((linha, indice) => (
+                <tr key={indice}>{linha.map((celula, coluna) => <td key={coluna}>{celula}</td>)}</tr>
+              ))}</tbody>
+            </table>
+          </Pagina>
+        ))}
+        {folhasInformativas.length > 0 && <Pagina numero={numeroDoPagamento} data={data}>
           <h3>8. Condições de pagamento</h3>
           <ParagrafosComerciais texto={texto('payment', 'A definir')} capitulo={8} />
-        </Pagina>
+        </Pagina>}
+        </>
       )}
 
       {folhasTecnicas.map((folha, i) => (

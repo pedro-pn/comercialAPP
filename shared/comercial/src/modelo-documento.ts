@@ -978,6 +978,10 @@ export function paragrafosDaJornada(texto: string): ParagrafoDaJornada[] {
 // Descrição de valores (item 7)
 // ---------------------------------------------------------------------------
 
+export const TITULO_PRECOS_INFORMATIVOS = "Equipamentos e outras despesas";
+export const NOTA_PRECOS_INFORMATIVOS = "Valores informativos. Estes itens não compõem o valor total da proposta.";
+export const CABECALHO_PRECOS_INFORMATIVOS = ["DESCRIÇÃO", "QTD.", "VALOR UNIT.", "VALOR TOTAL"] as const;
+
 export const CABECALHO_TABELA_PRECOS_COM_UNITARIO: readonly string[] = [
   "ITEM",
   "DESCRIÇÃO",

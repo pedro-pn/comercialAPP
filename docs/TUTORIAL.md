@@ -97,6 +97,13 @@ reordenar linhas, tabelas e serviços. Os ajustes ficam salvos na proposta.
 Em **Responsabilidades**, os campos **Item / escopo** e **Nota** quebram as linhas
 e aumentam de altura conforme o texto, para mostrar o conteúdo completo.
 
+Em **Comercial**, você pode marcar **Incluir tabela de equipamentos e outras despesas**
+para cadastrar itens com descrição, quantidade e valor unitário. O total de cada
+linha é calculado automaticamente. Essa tabela aparece apenas no documento comercial,
+como informação para o cliente, e seus valores não entram no total da proposta,
+no histórico ou no CRM. Ao desmarcar a opção, a tabela deixa de aparecer no documento;
+os itens preenchidos ficam guardados para reutilização.
+
 O documento comercial padrão apresenta o título **Proposta Comercial** e o nome
 do orçamentista antes dos dados do cliente. No modelo de hidrojateamento, o
 **Título da proposta**, informado em Escopo, aparece antes dos dados do cliente.

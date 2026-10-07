@@ -70,6 +70,8 @@ o preenchimento e conferidos novamente no servidor ao salvar.
   previstos no documento técnico.
 - Itens de preço, quantidades, valores unitários, pagamento, impostos, validade,
   stand-by e mobilização adicional.
+- Tabela opcional de equipamentos e outras despesas, com quantidade e valor,
+  exibida no documento comercial sem compor o total da proposta.
 - Prévia paginada dos documentos técnico e comercial e geração de prévia PDF.
 
 O catálogo técnico contempla flushing primário, secundário e com água;
