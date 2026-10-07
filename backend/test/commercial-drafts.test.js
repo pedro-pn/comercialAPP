@@ -7,6 +7,7 @@ import { makeComercialSchemas } from '../../shared/schemas/comercial.js';
 import { createApp } from '../src/app.js';
 import { createAuthService, tokenHash } from '../src/auth/service.js';
 import { createDatabase } from '../src/db.js';
+import { startCostEstimate } from '../src/comercial/cost-estimates.js';
 
 const schemas = makeComercialSchemas(z);
 const expectedUpdatedAt = '2026-10-06T20:00:00.000Z';
@@ -45,6 +46,15 @@ test('título do levantamento só é obrigatório na conclusão', () => {
     assert.equal(schemas.costEstimateCreate.safeParse({ ...base, status: 'SALVO', title }).success, false);
   }
   assert.equal(schemas.costEstimateUpdate.parse({ ...base, expectedUpdatedAt, title: '', status: 'RASCUNHO' }).title, '');
+});
+
+test('início do levantamento aceita campos vazios e reserva a numeração pelo servidor', () => {
+  assert.deepEqual(schemas.costEstimateStart.parse({ payload: {} }), { title: '', payload: {} });
+  assert.equal(schemas.costEstimateStart.safeParse({ title: '', payload: {} }).success, true);
+  for (const fields of [{ proposalCode: '9000' }, { revisionNumber: 1 }, { mode: 'REVISAO' },
+    { status: 'SALVO' }, { totalCost: 100 }, { title: 'x'.repeat(201) }, { payload: null }]) {
+    assert.equal(schemas.costEstimateStart.safeParse({ payload: {}, ...fields }).success, false);
+  }
 });
 
 test('API salva, lista e reabre rascunhos incompletos de propostas e custos',
@@ -86,6 +96,63 @@ test('API salva, lista e reabre rascunhos incompletos de propostas e custos',
       numbers.push(data.numero);
       return String(data.numero);
     }
+
+    const startedEstimate = await request('/levantamentos/iniciar', 'POST', {
+      title: '', payload: {}
+    });
+    assert.equal(startedEstimate.status, 201);
+    const started = startedEstimate.data;
+    estimateIds.push(started.id);
+    numbers.push(Number(started.proposalCode));
+    assert.equal(started.status, 'RASCUNHO');
+    assert.equal(started.mode, 'NOVA');
+    assert.equal(started.revisionNumber, 0);
+    assert.equal(started.title, '');
+    assert.equal(started.createdByUserId, user.id);
+    assert.equal(started.payload.schemaVersion, 2);
+    assert.ok(started.updatedAt);
+    assert.ok((await request('/levantamentos?status=RASCUNHO')).data.items.some(item => item.id === started.id));
+    assert.deepEqual((await request(`/levantamentos/${started.id}`)).data.payload, started.payload);
+    assert.ok((await db.proposalNumberReservation.findUnique({
+      where: { number: Number(started.proposalCode) }
+    })).firstUsedAt);
+    assert.equal(await db.costEstimateVersion.count({ where: { costEstimateId: started.id } }), 0);
+
+    const resumed = await request(`/levantamentos/${started.id}`, 'PUT', {
+      proposalCode: started.proposalCode, mode: 'NOVA', status: 'RASCUNHO',
+      expectedUpdatedAt: started.updatedAt, title: 'Retomado',
+      payload: { ...started.payload, title: 'Retomado' }
+    });
+    assert.equal(resumed.status, 200);
+    assert.equal(resumed.data.id, started.id);
+    assert.equal(resumed.data.proposalCode, started.proposalCode);
+    assert.equal(await db.costEstimate.count({ where: { proposalCode: started.proposalCode } }), 1);
+
+    // Falhas antes e depois de criar o registro desfazem a reserva e a sequência.
+    for (const failureStep of ['create', 'markUsed']) {
+      const before = (await request('/numeracao/status')).data;
+      const failure = new Error(`Falha simulada: ${failureStep}`);
+      const failingDb = {
+        $transaction: action => db.$transaction(tx => action({
+          proposalNumberingState: tx.proposalNumberingState,
+          proposalNumberReservation: {
+            findUnique: args => tx.proposalNumberReservation.findUnique(args),
+            create: args => tx.proposalNumberReservation.create(args),
+            updateMany: args => failureStep === 'markUsed'
+              ? Promise.reject(failure) : tx.proposalNumberReservation.updateMany(args)
+          },
+          costEstimate: {
+            create: args => failureStep === 'create'
+              ? Promise.reject(failure) : tx.costEstimate.create(args)
+          }
+        }))
+      };
+      await assert.rejects(() => startCostEstimate(failingDb, user, { title: '', payload: {} }), failure);
+      assert.deepEqual((await request('/numeracao/status')).data, before);
+      assert.equal(await db.proposalNumberReservation.findUnique({ where: { number: before.nextNumber } }), null);
+      assert.equal(await db.costEstimate.count({ where: { proposalCode: String(before.nextNumber) } }), 0);
+    }
+
     const proposal = await request('/propostas', 'POST', {
       proposalCode: await nextNumber(), email: 'contato@', payload: { attendance: '5 dias', title: 'Em andamento' }
     });

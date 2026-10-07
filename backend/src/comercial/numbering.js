@@ -76,6 +76,11 @@ export async function updateInitialNumber(db, user, initialNumber) {
 }
 
 export async function reserveNumber(db, user) {
+  return withReservedNumber(db, user, (_tx, number) => number);
+}
+
+/** Reserva o número e executa a criação do registro na mesma transação. */
+export async function withReservedNumber(db, user, action) {
   // Um número legado pode estar à frente da sequência atual. Pule reservas já
   // existentes; em uma corrida entre registro legado e reserva, repita a transação.
   for (let tentativa = 0; tentativa < 5; tentativa++) {
@@ -92,7 +97,7 @@ export async function reserveNumber(db, user) {
           await tx.proposalNumberReservation.create({
             data: { number, reservedByUserId: user.id }
           });
-          return number;
+          return action(tx, number);
         }
       });
     } catch (error) {

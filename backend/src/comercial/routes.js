@@ -5,7 +5,7 @@ import { requireAdmin, requireEstimator, requireManager } from './access.js';
 import { createConsultant, listConsultants, removeConsultant, updateConsultant } from './consultants.js';
 import {
   archiveCostEstimate, createCostEstimate, getCostEstimate,
-  listCostEstimates, updateCostEstimate
+  listCostEstimates, startCostEstimate, updateCostEstimate
 } from './cost-estimates.js';
 import { initializeNumbering, numberingStatus, registerLegacyRevision, reserveNumber,
   updateInitialNumber } from './numbering.js';
@@ -174,6 +174,11 @@ export function createCommercialRouter(db, { crm = createNectarClient() } = {}) 
   router.post('/levantamentos', requireEstimator, async (request, response) => {
     const data = schemas.costEstimateCreate.parse(request.body);
     response.status(201).json(await createCostEstimate(db, request.authUser, data));
+  });
+
+  router.post('/levantamentos/iniciar', requireEstimator, async (request, response) => {
+    const data = schemas.costEstimateStart.parse(request.body);
+    response.status(201).json(await startCostEstimate(db, request.authUser, data));
   });
 
   router.get('/levantamentos/:id', requireEstimator, async (request, response) => {
