@@ -390,13 +390,13 @@ export function CustosPage({ somenteLevantamento = false }: { somenteLevantament
   }
 
   function continuarLevantamento(levantamento: RascunhoEmAndamento) {
-    setStatusPersistido('RASCUNHO');
+    setStatusPersistido(levantamento.status === 'SALVO' ? 'SALVO' : 'RASCUNHO');
     const proximos = new URLSearchParams({
       modo: levantamento.mode === 'REVISAO' ? 'revision' : 'new',
       base: levantamento.proposalCode,
       revisao: String(levantamento.revisionNumber || 0),
       id: levantamento.id,
-      secao: 'premises'
+      secao: levantamento.status === 'SALVO' ? 'summary' : 'premises'
     });
     setParams(proximos, { replace: true });
   }
