@@ -9,6 +9,7 @@ import { requireCrmEventToken, recordCrmEvent, deliverToFiltro,
   syncNectarOpportunity, previewCrmEvent } from './comercial/crm-bridge.js';
 import { recordCrmRelease } from './comercial/crm-releases.js';
 import { crmEventSchema } from './comercial/crm-event-schema.js';
+import { createFiltroExportRouter } from './comercial/filtro-export.js';
 import { z } from 'zod';
 
 const microsoftFlowCookieName = 'comercial_microsoft_flow';
@@ -236,6 +237,8 @@ export function createApp({ authService, commercialDb, crm, appOrigin, additiona
     response.set('Cache-Control', 'no-store')
       .json(await previewCrmEvent(commercialDb, event, 'PRISMA'));
   });
+
+  if (commercialDb) app.use('/api/integrations/filtroapp', createFiltroExportRouter(commercialDb));
 
   if (commercialDb) app.use('/api/comercial', requireAuth,
     createCommercialRouter(commercialDb, crm ? { crm } : undefined));
