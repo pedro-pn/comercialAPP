@@ -1,23 +1,26 @@
 import { HttpError } from '../auth/service.js';
 import { releaseForProposal } from './crm-releases.js';
-import { lerDinheiro } from '../../../shared/comercial/dist/dinheiro.js';
+import { lerDinheiro, somarDinheiro } from '../../../shared/comercial/dist/dinheiro.js';
+import { descontosDaProposta, precosComDescontos } from '../../../shared/comercial/dist/proposal-pricing.js';
 import { assertCanRead, assertCanWrite, assertVersion, ConcurrentWriteError, ownerFilter } from './access.js';
 import { assertReservedCode, markNumberUsed } from './numbering.js';
 import { describeDocuments } from './documents.js';
 import { resolveSeller } from './consultants.js';
 
 export function calculateProposalTotal(payload) {
-  const prices = Array.isArray(payload?.prices) ? payload.prices : [];
+  const prices = precosComDescontos(Array.isArray(payload?.prices) ? payload.prices : [],
+    descontosDaProposta(payload ?? {}));
   if (!prices.length) return 0;
+  if (payload?.modelo === 'padrao') return somarDinheiro(prices.map(item => item?.value));
   const byScenario = new Map();
   for (const item of prices) {
     const scenario = item?.local || '';
-    byScenario.set(scenario, (byScenario.get(scenario) ?? 0) + lerDinheiro(item?.value));
+    byScenario.set(scenario, (byScenario.get(scenario) ?? 0) + Math.round(lerDinheiro(item?.value) * 100));
   }
-  if (byScenario.size === 1) return [...byScenario.values()][0];
+  if (byScenario.size === 1) return [...byScenario.values()][0] / 100;
   const selected = String(payload?.priceScenario || '').trim().toUpperCase();
-  if (selected && byScenario.has(selected)) return byScenario.get(selected);
-  return Math.max(...byScenario.values());
+  if (selected && byScenario.has(selected)) return byScenario.get(selected) / 100;
+  return Math.max(...byScenario.values()) / 100;
 }
 
 async function validateEstimateLink(db, user, id, proposalCode) {
@@ -168,6 +171,7 @@ export async function createProposal(db, user, data) {
       { previousSeller: previous });
   const totalValue = calculateProposalTotal(data.payload);
   if (!Number.isFinite(totalValue)) throw new HttpError(422, 'Valor da proposta inválido.');
+  if (totalValue < 0) throw new HttpError(422, 'Os descontos não podem ultrapassar o total dos itens de preço.');
   try {
     return await db.$transaction(async tx => {
       if (release) {
@@ -238,6 +242,7 @@ export async function updateProposal(db, user, id, data) {
   const payload = data.payload ?? existing.payload;
   const totalValue = calculateProposalTotal(payload);
   if (!Number.isFinite(totalValue)) throw new HttpError(422, 'Valor da proposta inválido.');
+  if (totalValue < 0) throw new HttpError(422, 'Os descontos não podem ultrapassar o total dos itens de preço.');
   try {
     return await db.proposal.update({
       where: protectVersion ? { id, updatedAt: existing.updatedAt } : { id },

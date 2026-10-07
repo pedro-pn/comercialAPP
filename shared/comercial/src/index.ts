@@ -9,3 +9,4 @@ export * from './nectar-pipelines.js';
 export * from './dinheiro.js';
 export * from './modelo-documento.js';
 export * from './proposal-validation.js';
+export * from './proposal-pricing.js';

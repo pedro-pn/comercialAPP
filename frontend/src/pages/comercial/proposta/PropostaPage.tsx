@@ -163,6 +163,7 @@ function formularioInicial(modelo: ModeloProposta = 'padrao'): AnyRecord {
     extraMobilization: '',
     includeInformationalPrices: false,
     informationalPrices: [],
+    discounts: [],
     validity: '10'
   };
 }
@@ -628,7 +629,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aplicarSnapshot, propostaId]);
 
-  const pendenciasDoFormulario = pendenciasDaProposta(form, {
+  const pendenciasDoFormulario = pendenciasDaProposta({ ...form, modelo: modelo ?? 'padrao' }, {
     itens: itensEscopo,
     responsabilidades,
     errosTecnicos,

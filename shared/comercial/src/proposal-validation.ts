@@ -2,6 +2,7 @@
 import { categoriaCanonicaResponsabilidade, EQUIPAMENTOS_E_FERRAMENTAS_PADRAO,
   type LocalOperacao } from './modelo-documento.js';
 import { lerDinheiro, moeda } from './dinheiro.js';
+import { pendenciasDosDescontos } from './proposal-pricing.js';
 import { normalizeTechnicalServiceSelections, validateTechnicalServiceSelections } from './technical-services.js';
 
 export type EtapaProposta =
@@ -286,6 +287,8 @@ export function pendenciasDaComercial(
       });
     }
   }
+
+  faltando.push(...pendenciasDosDescontos(form, precos).map(mensagem => ({ campo: 'discounts', mensagem })));
 
   const obrigatorios: Array<[string, string]> = [
     ['payment', 'Informe as condições de pagamento.'],
