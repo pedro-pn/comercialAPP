@@ -14,6 +14,37 @@ Teste real realizado em 29/09/2026 no funil **Funil de testes** com empresa,
 contato e proposta sintéticos. O segundo envio retornou o mesmo card, sem criar
 outro.
 
+## Busca de documentos pelo FiltroAPP
+
+O FiltroAPP pode consultar a proposta e a revisão exatas para anexar os PDFs no
+handover comercial do Efetivo e importar o escopo do levantamento. Essa busca
+é disparada por criação/revisão recebida do PrismaCRM ou alteração manual do
+vínculo no FiltroAPP. A proposta precisa estar `FINALIZADA`, com os PDFs
+comercial e técnico da mesma geração e correspondentes ao conteúdo atual;
+essa consulta não depende de aprovação no CRM.
+
+As rotas de serviço são:
+
+- `GET /api/integrations/filtroapp/propostas/:code/revisoes/:revision`:
+  contrato versão 1, CNPJ/vínculo, escopo, levantamento da finalização e
+  metadados dos dois PDFs (ID, geração, nome, tamanho, SHA-256).
+- `GET /api/integrations/filtroapp/propostas/:code/revisoes/:revision/documentos/:documentId`:
+  PDF autenticado, restrito à proposta/revisão informadas.
+
+Ambas exigem `Authorization: Bearer <token>` e reutilizam
+`FILTROAPP_API_TOKEN` do ambiente do ComercialAPP. No FiltroAPP, configure o
+mesmo segredo em `COMERCIALAPP_SERVICE_TOKEN` e a origem HTTPS do ComercialAPP
+em `COMERCIALAPP_API_URL`, sem caminho `/api`. O token da Central de API do
+ComercialAPP continua exclusivo dos eventos Prisma e não autentica essas rotas.
+Sem segredo, as rotas retornam 503; segredo inválido retorna 401. Proposta
+ausente retorna 404; revisão em rascunho ou PDFs atuais incompletos retorna 409.
+Cada PDF aceita até 10 MB.
+
+Publique estas rotas antes de ativar a busca no worker do FiltroAPP. O FiltroAPP
+mantém uma fila com retentativas quando a revisão ainda não estiver disponível,
+guarda cópias dos arquivos e seu histórico e preserva escopo editado manualmente.
+A consulta não altera aprovação, status de entrega ao Prisma ou orçamento.
+
 ## Aprovação e FiltroAPP
 
 O Nectar pode disparar o webhook de oportunidade **Ganhar** para
