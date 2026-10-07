@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { HttpError } from '../auth/service.js';
 import { assertCanRead, assertCanWrite, assertVersion, ConcurrentWriteError, ownerFilter } from './access.js';
-import { assertReservedCode, markNumberUsed } from './numbering.js';
+import { assertReservedCode, markNumberUsed, withReservedNumber } from './numbering.js';
 import {
   calculateEstimate, normalizeCostEstimatePayload, validateCostEstimate
 } from '../../../shared/comercial/dist/cost-model.js';
@@ -86,34 +86,49 @@ export async function getCostEstimate(db, user, id) {
   return estimate;
 }
 
+async function insertCostEstimate(tx, user, data, totals) {
+  const { normalized, totalCost, salePrice, marginPercent } = totals;
+  const estimate = await tx.costEstimate.create({
+    data: {
+      proposalCode: data.proposalCode,
+      revisionNumber: data.revisionNumber,
+      title: data.title,
+      mode: data.mode,
+      status: data.status,
+      payload: normalized,
+      totalCost,
+      salePrice,
+      marginPercent,
+      createdByUserId: user.id
+    }
+  });
+  if (data.status === 'SALVO') {
+    await tx.costEstimateVersion.create({
+      data: { costEstimateId: estimate.id, payloadHash: payloadHash(normalized), snapshot: normalized }
+    });
+  }
+  await markNumberUsed(tx, Number(data.proposalCode));
+  return estimate;
+}
+
+/** Todo número de um novo levantamento já nasce vinculado a um rascunho. */
+export async function startCostEstimate(db, user, data) {
+  const totals = totalsFromPayload(data.payload);
+  return withReservedNumber(db, user, (tx, number) => insertCostEstimate(tx, user, {
+    ...data,
+    proposalCode: String(number),
+    revisionNumber: 0,
+    mode: 'NOVA',
+    status: 'RASCUNHO'
+  }, totals));
+}
+
 export async function createCostEstimate(db, user, data) {
   await assertReservedCode(db, user, data.proposalCode, data.revisionNumber);
   assertSavedEstimateIsValid(data.status, data.payload);
-  const { normalized, totalCost, salePrice, marginPercent } = totalsFromPayload(data.payload);
+  const totals = totalsFromPayload(data.payload);
   try {
-    return await db.$transaction(async tx => {
-      const estimate = await tx.costEstimate.create({
-        data: {
-          proposalCode: data.proposalCode,
-          revisionNumber: data.revisionNumber,
-          title: data.title,
-          mode: data.mode,
-          status: data.status,
-          payload: normalized,
-          totalCost,
-          salePrice,
-          marginPercent,
-          createdByUserId: user.id
-        }
-      });
-      if (data.status === 'SALVO') {
-        await tx.costEstimateVersion.create({
-          data: { costEstimateId: estimate.id, payloadHash: payloadHash(normalized), snapshot: normalized }
-        });
-      }
-      await markNumberUsed(tx, Number(data.proposalCode));
-      return estimate;
-    });
+    return await db.$transaction(tx => insertCostEstimate(tx, user, data, totals));
   } catch (error) {
     if (error.code === 'P2002') throw new HttpError(409, 'Já existe um levantamento para este código e revisão.');
     throw error;

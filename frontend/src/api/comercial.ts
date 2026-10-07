@@ -91,6 +91,19 @@ export interface LevantamentoEntrada {
   payload: Record<string, unknown>;
 }
 
+/** Reserva o próximo número e salva o rascunho em uma única operação. */
+export async function iniciarLevantamento(entrada: Pick<LevantamentoEntrada, 'title' | 'payload'>) {
+  try {
+    const { data } = await apiClient.post<LevantamentoSalvo>(
+      '/comercial/levantamentos/iniciar',
+      entrada
+    );
+    return data;
+  } catch (error) {
+    throw traduzirErro(error);
+  }
+}
+
 /**
  * Os totais **não** são enviados: o servidor recalcula com `calculateEstimate` e grava
  * os seus. Mandar `salePrice` daqui seria oferecer ao cliente a chance de forjar

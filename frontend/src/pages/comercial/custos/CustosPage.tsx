@@ -5,10 +5,10 @@ import {
   ComercialValidationError,
   atualizarLevantamento,
   criarLevantamento,
+  iniciarLevantamento,
   mensagemDeErro,
   obterLevantamento,
-  prepararRevisaoDaProposta,
-  reservarProximoNumero
+  prepararRevisaoDaProposta
 } from '../../../api/comercial';
 import { moduleRoutePath } from '../../../modules/registry';
 import { ComercialChrome } from '../components/ComercialChrome';
@@ -388,15 +388,6 @@ export function CustosPage({ somenteLevantamento = false }: { somenteLevantament
     if (await prepararSaida()) navigate(moduleRoutePath('comercial', 'index'));
   }
 
-  function iniciarModo(novoModo: EstimateMode, numero?: string) {
-    setStatusPersistido(null);
-    const proximos = new URLSearchParams();
-    proximos.set('modo', novoModo);
-    if (numero) proximos.set('base', numero);
-    proximos.set('secao', 'premises');
-    setParams(proximos, { replace: true });
-  }
-
   function continuarLevantamento(levantamento: RascunhoEmAndamento) {
     setStatusPersistido('RASCUNHO');
     const proximos = new URLSearchParams({
@@ -409,26 +400,23 @@ export function CustosPage({ somenteLevantamento = false }: { somenteLevantament
     setParams(proximos, { replace: true });
   }
 
-  /**
-   * "Novo orçamento" **reserva o número antes de abrir a tela**, como na referência.
-   *
-   * Reservar depois pareceria mais econômico — só gasta número quem salva. Mas o
-   * código aparece no título e no rodapé desde o primeiro instante, e o orçamentista
-   * o dita ao cliente enquanto monta o levantamento. Um número que só existe no fim
-   * é um número em que não se pode confiar no meio.
-   *
-   * O preço disso é buraco na sequência quando alguém desiste. É aceitável: buraco
-   * não confunde ninguém, número repetido sim.
-   */
+  /** Abre o formulário com número e rascunho já salvos em Custos em andamento. */
   async function iniciarNova() {
+    if (reservando) return;
     setReservando(true);
-    setRecado('Reservando o próximo número...');
+    setRecado('Criando e salvando o levantamento...');
     try {
-      const numero = await reservarProximoNumero();
+      const gravado = await iniciarLevantamento({
+        title: String(draft.title || ''),
+        payload: draft
+      });
+      atualCarregado.current = gravado.id;
+      setVersaoDoRascunho(gravado.updatedAt);
+      persistidoRef.current = { id: gravado.id, updatedAt: gravado.updatedAt };
+      continuarLevantamento(gravado);
       setRecado('');
-      iniciarModo('new', String(numero));
     } catch (error) {
-      setRecado(mensagemDeErro(error, 'Não foi possível obter a numeração.'));
+      setRecado(mensagemDeErro(error, 'Não foi possível iniciar e salvar o levantamento.'));
     } finally {
       setReservando(false);
     }
@@ -809,7 +797,7 @@ export function CustosPage({ somenteLevantamento = false }: { somenteLevantament
                 <MarcaDeOpcao tipo="nova" />
                 <strong>Novo orçamento</strong>
                 <span>
-                  Reserva o próximo número e inicia um levantamento por fases.
+                  Reserva o próximo número e salva em Custos em andamento.
                 </span>
               </button>
 

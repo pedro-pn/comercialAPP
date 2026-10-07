@@ -29,6 +29,9 @@ Não configurar produção com um número de exemplo.
 ## Rascunhos
 
 - `GET/POST /api/comercial/levantamentos` e `GET/PUT` por ID.
+- `POST /api/comercial/levantamentos/iniciar`, com `title` e `payload`, reserva
+  o próximo número e cria o levantamento como rascunho na mesma transação.
+  Uma falha desfaz as duas operações.
 - `GET/POST /api/comercial/propostas` e `GET/PUT` por ID.
 - `POST .../:id/arquivar` e `POST .../:id/desarquivar`; não há exclusão.
 - `GET /api/comercial/consultores` reúne contas ativas e consultores cadastrados.
@@ -68,6 +71,8 @@ número. A oferta de recuperação precisa ser resolvida antes de editar ou salv
 
 Propostas e custos salvam rascunhos automaticamente após cada edição, com um
 pequeno intervalo para agrupar a digitação. Não há botão de salvar rascunho.
+Ao escolher **Novo orçamento**, o levantamento já fica salvo em **Custos em
+andamento**, mesmo sem preencher nenhum campo. Reabri-lo mantém o mesmo número.
 Desde a primeira gravação, os campos obrigatórios podem estar vazios: propostas
 aceitam e-mail e CNPJ incompletos e consultor ainda não selecionado; custos aceitam
 título vazio. As listas apagadas também são recuperadas vazias. O primeiro

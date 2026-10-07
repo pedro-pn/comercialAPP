@@ -256,6 +256,7 @@ export function makeComercialSchemas(z) {
     SCOPE_PHOTO_LIMITS,
 
     costEstimatePayload,
+    costEstimateStart: costEstimateCreate.pick({ title: true, payload: true }).strict(),
     costEstimateCreate: costEstimateWithTitle,
     costEstimateUpdate: costEstimateCreate
       .partial({ mode: true })

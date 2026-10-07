@@ -27,7 +27,9 @@ Propostas existentes mantêm seus números e números já reservados são pulado
 ## Levantar os custos
 
 Abra **Levantar custos**. Escolha **Novo orçamento** para iniciar um levantamento
-ou selecione um registro em **Orçamentos salvos** para continuar de onde parou.
+ou selecione um registro em **Custos em andamento** para continuar de onde parou.
+O novo levantamento recebe seu número e fica salvo automaticamente nessa lista,
+mesmo sem preencher nenhum campo.
 
 | Seção | O que preencher e conferir |
 | --- | --- |
@@ -41,7 +43,8 @@ Os totais mudam durante o preenchimento. Use o rodapé e as mensagens de pendên
 para localizar o que falta. Confirme explicitamente as opções de escopo quando
 não houver insumos ou logística, conforme solicitado pelo formulário.
 
-Salve o rascunho para continuar depois. Para concluir, resolva as pendências,
+As edições são salvas automaticamente para continuar depois. Para concluir,
+resolva as pendências,
 confira o código apresentado e clique em **Salvar e criar proposta** no resumo.
 O aplicativo salva o levantamento e abre a criação da proposta com ele vinculado,
 aproveitando o número, os preços e os serviços. Um levantamento concluído também
