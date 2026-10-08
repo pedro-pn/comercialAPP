@@ -14,7 +14,7 @@ function estimate() {
   return payload;
 }
 
-test('calendário de propostas avulsas mantém a contagem de segunda a sexta', () => {
+test('calendário conta dias de segunda a sexta a partir de uma segunda-feira', () => {
   for (let duration = 1; duration <= 60; duration++) {
     const weekdays = Array.from({ length: duration }, (_, day) => day % 7 < 5).filter(Boolean).length;
     assert.equal(businessDaysFromCalendar(duration), weekdays);
@@ -23,17 +23,17 @@ test('calendário de propostas avulsas mantém a contagem de segunda a sexta', (
   assert.equal(businessDaysFromCalendar(11), 9);
 });
 
-test('17 dias corridos menos 5 de integração calculam 6 dias para cada cargo no custo', () => {
+test('17 dias corridos menos 5 de integração calculam 8 dias para cada cargo no custo', () => {
   const payload = estimate();
   const normalized = normalizeCostEstimatePayload(payload);
-  assert.equal(normalized.laborContexts[0].workingDays, 6);
+  assert.equal(normalized.laborContexts[0].workingDays, 8);
   assert.equal(normalized.laborContexts[0].integrationDays, 5);
   const result = calculateEstimate(normalized).contextResults[0];
-  assert.equal(result.workingDays, 6);
-  assert.deepEqual(result.assignments.map(item => item.normalHours), [48, 48]);
-  assert.deepEqual(result.assignments.map(item => item.personDays), [6, 6]);
+  assert.equal(result.workingDays, 8);
+  assert.deepEqual(result.assignments.map(item => item.normalHours), [64, 64]);
+  assert.deepEqual(result.assignments.map(item => item.personDays), [8, 8]);
   const reopened = normalizeCostEstimatePayload(JSON.parse(JSON.stringify(normalized)));
-  assert.equal(reopened.laborContexts[0].workingDays, 6);
+  assert.equal(reopened.laborContexts[0].workingDays, 8);
   assert.equal(reopened.laborContexts[0].integrationDays, 5);
   assert.equal(calculateEstimate(reopened).laborCost, calculateEstimate(payload).laborCost);
 });
@@ -49,12 +49,12 @@ test('jornadas automáticas acompanham a fase e a exceção individual permanece
     }] };
   }
   const initial = calculateEstimate(payload).contextResults[0];
-  assert.deepEqual(initial.assignments.map(item => item.normalHours), [48, 72]);
+  assert.deepEqual(initial.assignments.map(item => item.normalHours), [64, 72]);
   fase.durationDays = 20;
   const normalized = normalizeCostEstimatePayload(JSON.parse(JSON.stringify(payload)));
-  assert.deepEqual(normalized.laborContexts[0].assignments.map(item => item.workSchedule.days[0].days), [7, 9]);
+  assert.deepEqual(normalized.laborContexts[0].assignments.map(item => item.workSchedule.days[0].days), [10, 9]);
   const updated = calculateEstimate(normalized).contextResults[0];
-  assert.deepEqual(updated.assignments.map(item => item.normalHours), [56, 72]);
+  assert.deepEqual(updated.assignments.map(item => item.normalHours), [80, 72]);
   normalized.laborContexts[0].assignments[1].workSchedule.days[0].days = 0;
   assert.equal(calculateEstimate(normalized).contextResults[0].assignments[1].normalHours, 0);
 });
@@ -73,22 +73,23 @@ test('valores de jornadas anteriores e períodos importados manualmente continua
 });
 
 test('integração por fase aceita somente dias inteiros contidos no período após descontar os fins de semana', () => {
-  for (const integrationDays of [-1, 1.5, 12, 14, 30, NaN, Infinity, 'inválido']) {
+  for (const integrationDays of [-1, 1.5, 14, 30, NaN, Infinity, 'inválido']) {
     const payload = estimate();
     payload.laborContexts[0].integrationDays = integrationDays;
     assert.ok(validateCostEstimate(payload).errors.some(issue => issue.path === 'laborContexts[0].integrationDays'));
   }
-  for (const integrationDays of [0, 5, 11]) {
+  for (const integrationDays of [0, 5, 11, 12, 13]) {
     const payload = estimate();
     payload.laborContexts[0].integrationDays = integrationDays;
     assert.ok(!validateCostEstimate(payload).errors.some(issue => issue.path.endsWith('.integrationDays')));
   }
 });
 
-test('dias trabalhados seguem a fórmula informada, inclusive nas fronteiras dos blocos de cinco dias', () => {
+test('dias trabalhados descontam a integração dos dias de segunda a sexta, inclusive nos fins de semana', () => {
   for (const [calendarDays, integrationDays, expected] of [
-    [1, 0, 1], [4, 0, 4], [5, 0, 3], [5, 3, 0], [7, 0, 5], [7, 2, 3],
-    [9, 0, 7], [10, 0, 6], [11, 0, 7], [17, 5, 6], [17, 11, 0], [20, 5, 7], [30, 0, 18]
+    [1, 0, 1], [4, 0, 4], [5, 0, 5], [5, 3, 2], [5, 5, 0], [6, 0, 5], [7, 0, 5], [7, 2, 3],
+    [8, 0, 6], [9, 0, 7], [10, 0, 8], [11, 0, 9], [12, 0, 10], [13, 0, 10], [14, 0, 10],
+    [15, 0, 11], [17, 5, 8], [17, 11, 2], [17, 13, 0], [20, 5, 10], [21, 5, 10], [30, 0, 22]
   ]) {
     assert.equal(workingDaysFromCalendar(calendarDays, integrationDays), expected);
     const payload = estimate();
@@ -97,6 +98,12 @@ test('dias trabalhados seguem a fórmula informada, inclusive nas fronteiras dos
     assert.equal(normalized.laborContexts[0].workingDays, expected);
     assert.deepEqual(calculateEstimate(normalized).contextResults[0].assignments.map(item => item.personDays),
       [expected, expected]);
+  }
+  for (let calendarDays = 1; calendarDays <= 60; calendarDays++) {
+    const weekdays = Array.from({ length: calendarDays }, (_, day) => day % 7 < 5).filter(Boolean).length;
+    for (let integrationDays = 0; integrationDays <= weekdays; integrationDays++) {
+      assert.equal(workingDaysFromCalendar(calendarDays, integrationDays), weekdays - integrationDays);
+    }
   }
 });
 
@@ -120,7 +127,7 @@ test('alterar somente a integração desconta dias, horas e custos sem descontar
   payload.laborContexts[0].integrationDays = 0;
   const original = calculateEstimate(payload);
   let previousLaborCost = original.laborCost;
-  for (const [integrationDays, expectedDays, expectedHours] of [[0, 11, 88], [2, 9, 72], [5, 6, 48], [11, 0, 0]]) {
+  for (const [integrationDays, expectedDays, expectedHours] of [[0, 13, 104], [2, 11, 88], [5, 8, 64], [11, 2, 16], [13, 0, 0]]) {
     payload.laborContexts[0].integrationDays = integrationDays;
     const reopened = normalizeCostEstimatePayload(JSON.parse(JSON.stringify(payload)));
     const result = calculateEstimate(reopened);
@@ -135,7 +142,7 @@ test('alterar somente a integração desconta dias, horas e custos sem descontar
 
 test('integração maior que o período disponível gera erro e não produz dias nem custos de mão de obra negativos', () => {
   const payload = estimate();
-  payload.laborContexts[0].integrationDays = 12;
+  payload.laborContexts[0].integrationDays = 14;
   assert.ok(validateCostEstimate(payload).errors.some(issue => issue.path === 'laborContexts[0].integrationDays'));
   const result = calculateEstimate(payload);
   assert.equal(result.contextResults[0].workingDays, 0);

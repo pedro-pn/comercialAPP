@@ -89,7 +89,7 @@ export function PrazosStep({
                 : 'Informe somente os dias corridos. O total é ajustado ao alterar a integração.'
               : campo === 'execution'
                 ? integracaoDoLevantamento
-                  ? 'Dias corridos menos integração, descontando 2 dias a cada 5 dias corridos, conforme o levantamento.'
+                  ? 'Dias de segunda a sexta, considerando início na segunda-feira, menos os dias de integração, conforme o levantamento.'
                   : 'Inclui os dias de integração. Calculado de segunda a sexta, considerando início na segunda-feira.'
                 : campo === 'integration'
                   ? integracaoDoLevantamento

@@ -87,7 +87,8 @@ test('servidor recalcula e persiste dias e custos descontando a integração, em
       const saved = await updateCostEstimate(db, user, stored.id,
         { payload: edited, expectedUpdatedAt: stored.updatedAt.toISOString() });
       const phase = saved.payload.laborContexts[0];
-      const expected = phase.durationDays - phase.integrationDays - Math.trunc(phase.durationDays / 5) * 2;
+      const weekdays = Array.from({ length: phase.durationDays }, (_, day) => day % 7 < 5).filter(Boolean).length;
+      const expected = weekdays - phase.integrationDays;
       assert.equal(phase.workingDays, expected);
       assert.equal(phase.assignments[0].workSchedule.days[0].days, expected);
       const result = calculateEstimate(saved.payload);
@@ -95,7 +96,7 @@ test('servidor recalcula e persiste dias e custos descontando a integração, em
       assert.equal(saved.totalCost, result.totalCost);
       if ('integrationDays' in patch) assert.ok(saved.totalCost < previousCost);
     }
-    assert.equal(stored.payload.laborContexts[0].workingDays, 6);
+    assert.equal(stored.payload.laborContexts[0].workingDays, 8);
   }
 });
 

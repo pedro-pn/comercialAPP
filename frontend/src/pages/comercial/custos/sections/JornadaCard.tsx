@@ -162,7 +162,7 @@ export function JornadaCard({
                     value={dia.days}
                     hint={dia.daysMode === 'automatic'
                       ? dia.dayType === 'weekday'
-                        ? 'Dias corridos menos integração, descontando 2 dias a cada 5 dias corridos. Você pode ajustar este cargo individualmente.'
+                        ? 'Dias de segunda a sexta, considerando início na segunda-feira, menos os dias de integração. Você pode ajustar este cargo individualmente.'
                         : 'Calculado a partir da escala da fase. Você pode ajustar este cargo individualmente.'
                       : 'Dias ajustados manualmente para este cargo ou colaborador.'}
                     min={0}
