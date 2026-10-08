@@ -93,6 +93,8 @@ test('Prisma v2: permissões, liberação, criação/revisão, multipart, reenvi
     assert.equal((await postRelease({ ...release, description: 'Outro conteúdo' })).status, 409);
     assert.equal((await postRelease({ ...release, eventId: randomUUID() })).status, 409);
     assert.equal((await request('/api/comercial/liberacoes')).data.items.some(item => item.id === releaseId), true);
+    assert.equal((await request('/api/comercial/liberacoes?cnpj=00000000000000')).data.items.some(item => item.id === releaseId), true);
+    assert.equal((await request('/api/comercial/liberacoes?cnpj=11222333000181')).data.items.some(item => item.id === releaseId), false);
     assert.equal((await request(`/api/admin/api-credentials/${releaseToken.credential.id}/preview`, {})).status, 403);
 
     // Exerce a criação pública, incluindo a validação de consultor e a reserva existente.
@@ -103,9 +105,23 @@ test('Prisma v2: permissões, liberação, criação/revisão, multipart, reenvi
       email: release.email, site: release.site, sellerConsultantId: consultant.id,
       payload: { prices: [{ value: 'R$ 1.250,00' }] } };
     assert.equal((await request('/api/comercial/propostas', { ...input, sellerUserId: user.id })).status, 400);
-    let first = await request('/api/comercial/propostas', input);
+    const { crmReleaseId: requestedReleaseId, ...existingDraft } = input;
+    let first = await request('/api/comercial/propostas', existingDraft);
     assert.equal(first.status, 201, JSON.stringify(first.data));
     first = first.data;
+    assert.equal(first.crmReleaseId, null);
+    const savedDraft = first;
+    const association = {
+      crmReleaseId: requestedReleaseId, expectedReleaseVersion: 1,
+      expectedUpdatedAt: savedDraft.updatedAt
+    };
+    const linked = await request(`/api/comercial/propostas/${first.id}/vincular-prisma`, association);
+    assert.equal(linked.status, 200, JSON.stringify(linked.data));
+    first = linked.data;
+    assert.equal(first.id, savedDraft.id);
+    assert.equal(first.proposalCode, savedDraft.proposalCode);
+    assert.deepEqual(first.payload, savedDraft.payload);
+    assert.deepEqual((await request(`/api/comercial/propostas/${first.id}/vincular-prisma`, association)).data, first);
     assert.equal(first.sellerConsultantId, consultant.id);
     assert.equal(first.crmReleaseId, releaseId);
     assert.equal(Number(first.totalValue), 1250);

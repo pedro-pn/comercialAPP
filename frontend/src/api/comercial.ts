@@ -471,6 +471,40 @@ export async function reabrirProposta(id: string, expectedUpdatedAt: string) {
   }
 }
 
+export interface LiberacaoPrisma {
+  id: string;
+  opportunityId: string;
+  version: number;
+  snapshot: {
+    legalName: string;
+    taxId: string;
+    contactName: string;
+    site: string;
+    description: string;
+  };
+}
+
+export async function listarLiberacoesPrisma(cnpj: string) {
+  const { data } = await apiClient.get<{ items: LiberacaoPrisma[] }>('/comercial/liberacoes', {
+    params: { cnpj }
+  });
+  return data.items;
+}
+
+export async function vincularPropostaAoPrisma(
+  id: string, liberacao: LiberacaoPrisma, expectedUpdatedAt: string
+) {
+  try {
+    const { data } = await apiClient.post<PropostaSalva>(
+      `/comercial/propostas/${id}/vincular-prisma`,
+      { crmReleaseId: liberacao.id, expectedReleaseVersion: liberacao.version, expectedUpdatedAt }
+    );
+    return data;
+  } catch (error) {
+    throw interpretarConflitoDeEdicao(error) || error;
+  }
+}
+
 /**
  * Carrega o ponto de partida de uma revisão sem criar registro nem consumir
  * numeração. Ausência de snapshot completo é uma resposta normal: o backend

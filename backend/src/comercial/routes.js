@@ -11,7 +11,7 @@ import {
 import { initializeNumbering, numberingStatus, registerLegacyRevision, reserveNumber,
   updateInitialNumber } from './numbering.js';
 import {
-  archiveProposal, createProposal, getProposal, listProposals,
+  archiveProposal, createProposal, getProposal, linkProposalToPrisma, listProposals,
   prepareRevision, reopenProposal, updateProposal
 } from './proposals.js';
 import { addAttachment, downloadAttachment, listAttachments, removeAttachment } from './attachments.js';
@@ -59,8 +59,10 @@ function sendFile(response, { bytes, contentType, fileName }) {
 export function createCommercialRouter(db, { crm = createNectarClient() } = {}) {
   const router = Router();
 
-  router.get('/liberacoes', requireEstimator, async (_request, response) => {
-    const items = await db.crmRelease.findMany({ where: { status: 'ACTIVE' },
+  router.get('/liberacoes', requireEstimator, async (request, response) => {
+    const { cnpj } = z.object({ cnpj: z.string().regex(/^\d{14}$/).optional() }).parse(request.query);
+    const items = await db.crmRelease.findMany({ where: { status: 'ACTIVE',
+      ...(cnpj ? { snapshot: { path: ['taxId'], equals: cnpj } } : {}) },
       orderBy: { occurredAt: 'desc' }, take: 100 });
     response.set('Cache-Control', 'no-store').json({ items });
   });
@@ -75,6 +77,15 @@ export function createCommercialRouter(db, { crm = createNectarClient() } = {}) 
     z.object({}).strict().parse(request.body ?? {});
     const proposal = await getProposal(db, request.authUser, request.params.id);
     response.json(await sendFinalizedToPrisma(db, proposal.id));
+  });
+
+  router.post('/propostas/:id/vincular-prisma', requireEstimator, async (request, response) => {
+    const data = z.object({
+      crmReleaseId: z.string().uuid(),
+      expectedReleaseVersion: z.number().int().min(1).max(2147483647),
+      expectedUpdatedAt: z.iso.datetime({ offset: true })
+    }).strict().parse(request.body);
+    response.json(await linkProposalToPrisma(db, request.authUser, request.params.id, data));
   });
 
   router.get('/status', (_request, response) => {
