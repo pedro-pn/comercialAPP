@@ -3968,6 +3968,29 @@
   cursor: pointer;
 }
 
+.com-root .com-prisma-vinculo-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(680px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  box-sizing: border-box;
+  overflow-y: auto;
+  border: 0;
+}
+
+.com-root .com-prisma-vinculo-dialog::backdrop {
+  background: rgb(10 28 18 / 55%);
+}
+
+.com-root .com-prisma-vinculo-detalhes {
+  margin: 16px 0;
+  padding: 12px 16px;
+  border: 1px solid #d6e1d9;
+  border-radius: 11px;
+  background: #f8fbf9;
+}
+
 .com-root .com-fechar-dialogo:hover {
   border-color: var(--com-acao);
   color: var(--com-acao);

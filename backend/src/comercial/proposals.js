@@ -271,6 +271,72 @@ export async function updateProposal(db, user, id, data) {
   }
 }
 
+/** Associa um rascunho existente sem substituir conteúdo, documentos ou numeração. */
+export async function linkProposalToPrisma(db, user, id, data) {
+  await getProposal(db, user, id);
+  try {
+    return await db.$transaction(async tx => {
+      await tx.$queryRaw`SELECT "id" FROM "Proposal" WHERE "id" = ${id} FOR UPDATE`;
+      const existing = await getProposal(tx, user, id);
+      assertCanWrite(user, existing);
+      if (existing.archivedAt || existing.status !== 'RASCUNHO') {
+        throw new HttpError(409, 'Reabra a proposta para edição antes de vincular ao Prisma.');
+      }
+      if (existing.crmReleaseId) {
+        if (existing.crmReleaseId === data.crmReleaseId) return existing;
+        throw new HttpError(409, 'Esta proposta já está vinculada a outro negócio do Prisma.');
+      }
+      assertVersion(existing, data.expectedUpdatedAt, false);
+      if (existing.prismaReceivedId || existing.prismaDeliveryAttempts > 0 ||
+          ['SUCESSO', 'ENVIANDO'].includes(existing.prismaDeliveryStatus) ||
+          existing.crmApprovalAt || existing.crmStatusSequence > 0 ||
+          (existing.crmApprovalStatus && existing.crmApprovalStatus !== 'PENDENTE')) {
+        throw new HttpError(409, 'A proposta já possui envio ou decisão registrada; o vínculo não pode ser alterado.');
+      }
+      await tx.$queryRaw`SELECT "id" FROM "CrmRelease" WHERE "id" = ${data.crmReleaseId} FOR SHARE`;
+      const release = await releaseForProposal(tx, data.crmReleaseId);
+      if (release.version !== data.expectedReleaseVersion) {
+        throw new HttpError(409, 'Liberação atualizada; recarregue os negócios antes de vincular.');
+      }
+      const taxId = String(existing.cnpj || '').replace(/\D/g, '');
+      if (taxId.length !== 14) {
+        throw new HttpError(422, 'Preencha o CNPJ da proposta antes de vincular ao Prisma.');
+      }
+      if (taxId !== release.snapshot.taxId) {
+        throw new HttpError(409, 'O negócio do Prisma pertence a outro CNPJ. Selecione um negócio do mesmo cliente.');
+      }
+      if (existing.crmOpportunityId && existing.crmOpportunityId !== release.opportunityId) {
+        throw new HttpError(409, 'A proposta já possui vínculo com outra oportunidade.');
+      }
+      const newer = await tx.proposal.findFirst({ where: {
+        proposalCode: existing.proposalCode, revisionNumber: { gt: existing.revisionNumber }
+      } });
+      if (newer) throw new HttpError(409, 'Vincule a revisão mais recente desta proposta.');
+      const otherLink = await tx.proposal.findFirst({ where: {
+        proposalCode: existing.proposalCode,
+        crmReleaseId: { not: null, notIn: [release.id] }
+      } });
+      if (otherLink) throw new HttpError(409, 'Outra revisão desta proposta está vinculada a outro negócio do Prisma.');
+      return await tx.proposal.update({
+        where: { id, status: 'RASCUNHO', archivedAt: null,
+          crmReleaseId: null, updatedAt: existing.updatedAt },
+        data: {
+          crmReleaseId: release.id, crmClientId: release.clientId,
+          crmOpportunityId: release.opportunityId, prismaProjectId: release.prismaProjectId,
+          updatedByUserId: user.id, updatedByLabel: user.name,
+          updatedAt: new Date(Math.max(Date.now(), existing.updatedAt.getTime() + 1))
+        }
+      });
+    });
+  } catch (error) {
+    if (error.code === 'P2025') {
+      const current = await db.proposal.findUnique({ where: { id } });
+      if (current) throw new ConcurrentWriteError(current);
+    }
+    throw error;
+  }
+}
+
 /** Reabre o mesmo registro, preservando numeração, vínculos e arquivos emitidos. */
 export async function reopenProposal(db, user, id, data) {
   const existing = await getProposal(db, user, id);

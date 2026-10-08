@@ -26,8 +26,10 @@ import {
   reabrirProposta,
   reservarProximoNumero,
   registrarRevisaoLegada,
+  vincularPropostaAoPrisma,
   ComercialConcurrentWriteError,
   type Consultor,
+  type LiberacaoPrisma,
   type LevantamentoSalvo
 } from '../../../api/comercial';
 import { useAuth } from '../../../auth/AuthContext';
@@ -70,6 +72,7 @@ import type { TipoDeDocumento } from './DocumentoPrevia';
 import { FinalizacaoPanel } from './FinalizacaoPanel';
 import { PropostaFooter } from './PropostaFooter';
 import { PropostaModeDialog } from './PropostaModeDialog';
+import { VincularPrismaDialog } from './VincularPrismaDialog';
 import { PropostaModeloDialog } from './PropostaModeloDialog';
 import { PropostaPreviewPanel } from './PropostaPreviewPanel';
 import { PropostaPdfViewer } from './PropostaPdfViewer';
@@ -265,6 +268,8 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
   const [versaoCarregada, setVersaoCarregada] = useState('');
   const [statusProposta, setStatusProposta] = useState('RASCUNHO');
   const [preparandoEdicao, setPreparandoEdicao] = useState(false);
+  const [crmReleaseId, setCrmReleaseId] = useState('');
+  const [vinculoPrismaAberto, setVinculoPrismaAberto] = useState(false);
   const [saindo, setSaindo] = useState(false);
   const [mudandoEtapa, setMudandoEtapa] = useState(false);
   const saidaEmAndamento = useRef(false);
@@ -593,6 +598,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
         aplicarSnapshot(dados, proposta.sellerConsultantId || proposta.sellerUserId || '',
           (proposta.status || 'RASCUNHO') === 'RASCUNHO');
         setVersaoCarregada(proposta.updatedAt || '');
+        setCrmReleaseId(proposta.crmReleaseId || '');
         setStatusProposta(proposta.status || 'RASCUNHO');
         finalizacao.marcarFinalizada(proposta.status === 'FINALIZADA');
         if (proposta.status === 'FALHA_INTEGRACAO') {
@@ -878,6 +884,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     setStatusProposta('RASCUNHO');
     setPendenciaFinalizacao(null);
     setVersaoCarregada('');
+    setCrmReleaseId('');
     setConflitoDeEdicao(null);
     setRecado('');
   }
@@ -908,6 +915,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
       finalizacao.reiniciarFinalizacao();
       setStatusProposta('RASCUNHO');
       setVersaoCarregada('');
+      setCrmReleaseId('');
       setRecado(`Proposta legada ${registrada.proposalCode}: preencha a revisão ${registrada.revisionNumber}. Os dados anteriores não estão neste aplicativo.`);
       setParams(new URLSearchParams({
         modo: 'revision',
@@ -1029,6 +1037,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
       propostaSalvaRef.current = { id: salva.id, updatedAt: salva.updatedAt || '',
         status: salva.status || 'RASCUNHO' };
       if (salva.updatedAt) setVersaoCarregada(salva.updatedAt);
+      setCrmReleaseId(salva.crmReleaseId || '');
       setStatusProposta(salva.status || 'RASCUNHO');
       setConflitoDeEdicao(null);
       autosave.marcarSalvo(snapshot);
@@ -1060,6 +1069,23 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     const id = await salvarAtual.current();
     if (!id) throw erroDeSalvamento.current || new Error('Não foi possível salvar a proposta.');
     return id;
+  }
+
+  function fecharVinculoPrisma() {
+    setVinculoPrismaAberto(false);
+    setOcupadoLocal(false);
+  }
+
+  async function confirmarVinculoPrisma(liberacao: LiberacaoPrisma) {
+    // O diálogo pausa o autosave; aguardar e salvar aqui conserva a versão e
+    // também as edições digitadas durante uma gravação anterior.
+    const id = await salvarParaDocumentos();
+    const proposta = await vincularPropostaAoPrisma(id, liberacao, propostaSalvaRef.current.updatedAt);
+    propostaSalvaRef.current = { id: proposta.id, updatedAt: proposta.updatedAt || '', status: proposta.status };
+    setVersaoCarregada(proposta.updatedAt || '');
+    setCrmReleaseId(proposta.crmReleaseId || '');
+    setRecado(`Proposta ${codigoExibido} vinculada ao negócio ${liberacao.snapshot.description} do Prisma.`);
+    fecharVinculoPrisma();
   }
 
   async function prepararSaida(): Promise<boolean> {
@@ -1195,6 +1221,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
       aplicarSnapshot(snapshotDaPropostaSalva(proposta), proposta.sellerConsultantId || proposta.sellerUserId || '');
       propostaSalvaRef.current = { id: proposta.id, updatedAt: proposta.updatedAt || '', status: proposta.status };
       setVersaoCarregada(proposta.updatedAt || '');
+      setCrmReleaseId(proposta.crmReleaseId || '');
       setStatusProposta(proposta.status);
       setPendenciaFinalizacao(null);
       setConflitoDeEdicao(null);
@@ -1268,16 +1295,28 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
         </>
       }
       acoes={
-        somenteRascunho ? undefined : <>
-          {/* Não abre sozinho: quem chegou nesta tela já passou pela entrada. */}
-          <TutorialDoModulo passos={ROTEIRO_DA_PROPOSTA} />
-          <button
-            type="button"
-            className="com-btn com-btn-fantasma"
-            onClick={visualizarPdf}
-          >
-            Visualizar PDF
-          </button>
+        <>
+          {modo !== null && modelo !== null && statusProposta === 'RASCUNHO' && <button
+            type="button" className="com-btn com-btn-fantasma"
+            disabled={Boolean(crmReleaseId) || !propostaId || !propostaProntaParaSalvar ||
+              salvando || ocupadoLocal || saindo || mudandoEtapa || finalizacao.finalizando ||
+              Boolean(rascunho.oferta) || Boolean(conflitoDeEdicao)}
+            title={crmReleaseId ? 'Esta proposta já está vinculada ao Prisma.' :
+              !propostaId ? 'Salve a proposta para vincular ao Prisma.' : undefined}
+            onClick={() => { setOcupadoLocal(true); setVinculoPrismaAberto(true); }}>
+            {crmReleaseId ? 'Vinculada ao Prisma' : 'Vincular ao negócio do Prisma'}
+          </button>}
+          {!somenteRascunho && <>
+            {/* Não abre sozinho: quem chegou nesta tela já passou pela entrada. */}
+            <TutorialDoModulo passos={ROTEIRO_DA_PROPOSTA} />
+            <button
+              type="button"
+              className="com-btn com-btn-fantasma"
+              onClick={visualizarPdf}
+            >
+              Visualizar PDF
+            </button>
+          </>}
         </>
       }
       heroExtra={
@@ -1338,6 +1377,10 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
         </>
       }
     >
+      {vinculoPrismaAberto && <VincularPrismaDialog
+        codigo={codigoExibido} cliente={String(form.client || '')} cnpj={String(form.cnpj || '')}
+        onVincular={confirmarVinculoPrisma} onFechar={fecharVinculoPrisma}
+      />}
       {conflitoDeEdicao && (
         <ConflitoDeEdicaoDialog
           conflito={conflitoDeEdicao}
