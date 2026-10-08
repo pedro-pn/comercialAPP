@@ -861,11 +861,27 @@ export type PrazosProposta = {
   deslocamento: string;
 };
 
+/** Remove a unidade dos prazos antigos; ela já consta no modelo da proposta. */
+export function valorNumericoDoPrazo(valor: unknown): string {
+  return String(valor ?? '').trim()
+    .replace(/^(\d+)\s+dias?(?:\s+(?:corridos?|trabalhados?))?$/i, '$1');
+}
+
+/** Integração em dias úteis; vazio ainda não acrescenta dias ao cálculo. */
+export function diasDeIntegracao(valor: unknown): number | null {
+  const texto = String(valor ?? '').trim();
+  if (!texto) return 0;
+  const dias = texto.match(/^(\d+)\s*(?:dias?)?$/i);
+  if (!dias) return null;
+  const quantidade = Number(dias[1]);
+  return Number.isSafeInteger(quantidade) ? quantidade : null;
+}
+
 export function linhasDePrazo(prazos: PrazosProposta): readonly string[] {
   return [
-    `Prazo previsto de permanência em obra (dias corridos) – ${prazos.permanencia} dia(s);`,
+    `Prazo previsto de permanência em obra (dias corridos) – ${valorNumericoDoPrazo(prazos.permanencia)} dia(s);`,
     `Prazo previsto para integração – ${prazos.integracao} dia(s);`,
-    `Prazo previsto de execução dos serviços (dias trabalhados/úteis) – ${prazos.execucao} dia(s);`,
+    `Prazo previsto de execução dos serviços (dias trabalhados/úteis) – ${valorNumericoDoPrazo(prazos.execucao)} dia(s);`,
     `Prazo de deslocamento (Mob/desmob) – ${prazos.deslocamento} dia(s).`,
   ];
 }

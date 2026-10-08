@@ -238,6 +238,17 @@ export function FaseCard({
               /* Offshore é limitado a 21 dias pelo próprio regime. */
               max={fase.workCondition === 'offshore' ? 21 : undefined}
               onChange={valor => editar({ durationDays: valor })}
+              hint="Prazo total da fase, incluindo a integração e os fins de semana."
+            />
+            <NumberField
+              label="Dias de integração"
+              error={erro('integrationDays')}
+              value={fase.integrationDays ?? 0}
+              min={0}
+              step={1}
+              placeholder="0"
+              hint="Dias úteis de integração já incluídos no prazo total desta fase."
+              onChange={valor => editar({ integrationDays: valor })}
             />
             <NumberField
               label="Jornada normal (h/dia)"

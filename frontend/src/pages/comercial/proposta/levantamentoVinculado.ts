@@ -1,5 +1,5 @@
 import type { LevantamentoSalvo } from '../../../api/comercial';
-import { calculateEstimate, normalizeCostEstimatePayload } from '../../../../../shared/comercial/dist/cost-model.js';
+import { businessDaysFromCalendar, calculateEstimate, normalizeCostEstimatePayload } from '../../../../../shared/comercial/dist/cost-model.js';
 import { dimensioningItems, dimensioningServiceAllowed } from '../../../../../shared/comercial/dist/dimensioning.js';
 import { scopeTablesFromDimensioning } from '../../../../../shared/comercial/dist/dimensioning-scope.js';
 import type { ScopeBlock, ScopeServiceItem } from '../../../../../shared/comercial/dist/scope-content.js';
@@ -226,9 +226,11 @@ export function localDaObraDoLevantamento(
 /** Período das fases ativas, sem duplicar fases que acontecem em paralelo. */
 export function prazosDoLevantamento(
   levantamento: Pick<LevantamentoComPayload, 'payload'>
-): { permanence: string; execution: string } | null {
+): { permanence: string; execution: string; integration?: string } | null {
   const payload = levantamento.payload;
-  if (!payload || payload.noLabor === true || !Array.isArray(payload.laborContexts)) return null;
+  if (!payload || payload.noLabor === true
+    || (payload.scopeConfirmations as Record<string, unknown> | undefined)?.noLabor === true
+    || !Array.isArray(payload.laborContexts)) return null;
   const periodos = payload.laborContexts.flatMap(fase => {
     if (!fase || typeof fase !== 'object') return [];
     const registro = fase as Record<string, unknown>;
@@ -237,14 +239,41 @@ export function prazosDoLevantamento(
     const inicio = Number(registro.startOffsetDays ?? 0);
     if (!Number.isSafeInteger(duracao) || duracao <= 0 || !Number.isSafeInteger(inicio) || inicio < 0
       || !Number.isSafeInteger(inicio + duracao)) return [];
-    return [{ inicio, fim: inicio + duracao }];
+    return [{ inicio, fim: inicio + duracao, integracao: registro.integrationDays }];
   });
   if (!periodos.length) return null;
-  const diasCorridos = Math.max(...periodos.map(periodo => periodo.fim))
-    - Math.min(...periodos.map(periodo => periodo.inicio));
+  const inicio = Math.min(...periodos.map(periodo => periodo.inicio));
+  const diasCorridos = Math.max(...periodos.map(periodo => periodo.fim)) - inicio;
+  const execution = prazoDeExecucao(diasCorridos);
+  let integration: string | undefined;
+  if (periodos.some(periodo => periodo.integracao !== undefined)) {
+    const integracoes = periodos.map(periodo => ({
+      inicio: businessDaysFromCalendar(periodo.inicio - inicio),
+      dias: Number(periodo.integracao ?? 0),
+      duracao: periodo.fim - periodo.inicio
+    }));
+    if (integracoes.some(periodo => !Number.isSafeInteger(periodo.dias)
+      || periodo.dias < 0 || periodo.dias > businessDaysFromCalendar(periodo.duracao))) {
+      integration = '';
+    } else {
+      // Integrações simultâneas ocupam os mesmos dias úteis da permanência.
+      const intervalos = integracoes.filter(periodo => periodo.dias > 0)
+        .map(periodo => ({ inicio: periodo.inicio,
+          fim: Math.min(periodo.inicio + periodo.dias, Number(execution)) }))
+        .sort((a, b) => a.inicio - b.inicio);
+      let dias = 0;
+      let fimAnterior = 0;
+      for (const periodo of intervalos) {
+        dias += Math.max(0, periodo.fim - Math.max(fimAnterior, periodo.inicio));
+        fimAnterior = Math.max(fimAnterior, periodo.fim);
+      }
+      integration = String(dias);
+    }
+  }
   return {
-    permanence: diasCorridos === 1 ? '1 dia corrido' : `${diasCorridos} dias corridos`,
-    execution: prazoDeExecucao(diasCorridos)
+    permanence: String(diasCorridos),
+    execution,
+    ...(integration === undefined ? {} : { integration })
   };
 }
 
@@ -254,8 +283,17 @@ export function sincronizarPrazosDoLevantamento(
 ): Record<string, unknown> {
   const prazos = prazosDoLevantamento(levantamento);
   if (!prazos) return atualizarPrazoDeExecucao(form);
-  return form.permanence === prazos.permanence && form.execution === prazos.execution
-    ? form : { ...form, ...prazos };
+  if (prazos.integration !== undefined) {
+    return form.permanence === prazos.permanence && form.execution === prazos.execution
+      && form.integration === prazos.integration && form.integrationIncludedInPermanence === true
+      && form.permanenceBase === prazos.permanence && form.integrationDaysApplied === 0
+      ? form : { ...form, ...prazos, permanenceBase: prazos.permanence,
+        integrationDaysApplied: 0, integrationIncludedInPermanence: true };
+  }
+  const atualizado = atualizarPrazoDeExecucao(form, prazos.permanence);
+  return form.permanence === atualizado.permanence && form.execution === atualizado.execution
+    && form.permanenceBase === atualizado.permanenceBase
+    && form.integrationDaysApplied === atualizado.integrationDaysApplied ? form : atualizado;
 }
 
 /** Formata o Decimal da API sem reaplicar a máscara de digitação por centavos. */

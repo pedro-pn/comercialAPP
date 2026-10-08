@@ -1,4 +1,5 @@
 import { Area, Field } from '../../components/Field';
+import { valorNumericoDoPrazo } from '../../../../../../shared/comercial/dist/modelo-documento.js';
 import { atualizarPrazoDeExecucao } from '../prazoExecucao';
 
 /**
@@ -6,8 +7,8 @@ import { atualizarPrazoDeExecucao } from '../prazoExecucao';
  *
  * Porte de `app/page.tsx:1009-1017`.
  *
- * O prazo efetivo é calculado pela permanência em dias corridos. Os demais
- * prazos continuam aceitando as condições de atendimento e mobilização.
+ * O prazo efetivo inclui a integração, ajustando os dias corridos pelos fins de
+ * semana. Os demais prazos aceitam as condições de atendimento e mobilização.
  */
 
 type AnyRecord = Record<string, unknown>;
@@ -26,7 +27,7 @@ const CAMPOS: Array<{ campo: string; label: string; placeholder: string }> = [
   {
     campo: 'permanence',
     label: 'Permanência prevista em obra',
-    placeholder: 'Ex.: 12 dias corridos'
+    placeholder: 'Ex.: 12'
   },
   {
     campo: 'execution',
@@ -46,12 +47,14 @@ export function PrazosStep({
   form,
   editar,
   erroDe,
-  permanenciaDoLevantamento = false
+  permanenciaDoLevantamento = false,
+  integracaoDoLevantamento = false
 }: {
   form: AnyRecord;
   editar: (patch: AnyRecord) => void;
   erroDe: (campo: string) => string | undefined;
   permanenciaDoLevantamento?: boolean;
+  integracaoDoLevantamento?: boolean;
 }) {
   return (
     <section className="com-painel">
@@ -59,8 +62,8 @@ export function PrazosStep({
         <div>
           <h2>Prazos e jornada</h2>
           <p>{permanenciaDoLevantamento
-            ? 'Os prazos são calculados a partir dos dias corridos do levantamento vinculado.'
-            : 'Informe os dias corridos de permanência para calcular o prazo de execução.'}</p>
+            ? 'Os prazos são importados do período e da integração do levantamento vinculado.'
+            : 'Informe a permanência e a integração para calcular os prazos.'}</p>
         </div>
         <span className="com-obrigatorios">Campos com * são obrigatórios</span>
       </div>
@@ -71,22 +74,39 @@ export function PrazosStep({
             key={campo}
             label={label}
             required
-            value={String(form[campo] ?? '')}
+            value={campo === 'permanence' || campo === 'execution'
+              ? valorNumericoDoPrazo(form[campo])
+              : String(form[campo] ?? '')}
+            inputMode={campo === 'permanence' || campo === 'execution' ? 'numeric' : undefined}
             placeholder={placeholder}
-            readOnly={campo === 'execution' || (campo === 'permanence' && permanenciaDoLevantamento)}
+            readOnly={campo === 'execution' || (campo === 'permanence' && permanenciaDoLevantamento)
+              || (campo === 'integration' && integracaoDoLevantamento)}
             hint={campo === 'permanence'
               ? permanenciaDoLevantamento
-                ? 'Importado automaticamente. Para alterar os dias corridos, edite o levantamento vinculado.'
-                : 'Informe a quantidade de dias corridos. Ex.: 12 ou 12 dias corridos.'
+                ? 'Inclui a integração e os fins de semana. Para alterar a duração dos serviços, edite o levantamento vinculado.'
+                : 'Informe somente os dias corridos. O total é ajustado ao alterar a integração.'
               : campo === 'execution'
-                ? 'Calculado de segunda a sexta, considerando início na segunda-feira.'
+                ? 'Inclui os dias de integração. Calculado de segunda a sexta, considerando início na segunda-feira.'
+                : campo === 'integration'
+                  ? integracaoDoLevantamento
+                    ? 'Importado automaticamente. Para alterar a integração, edite as fases de mão de obra do levantamento vinculado.'
+                    : 'Os dias de integração são somados aos dias trabalhados e ajustam a permanência pelos fins de semana.'
                 : undefined}
-            error={campo === 'permanence' && erroDe('execution')
+            error={campo === 'permanence' && erroDe('execution') && !erroDe('integration')
               ? erroDe(campo) || 'Informe a quantidade de dias corridos para calcular o prazo de execução.'
               : campo === 'execution' ? undefined : erroDe(campo)}
-            onChange={valor => editar(campo === 'permanence'
-              ? atualizarPrazoDeExecucao({ permanence: valor })
-              : { [campo]: valor })}
+            onChange={valor => {
+              if (campo === 'permanence' || campo === 'integration') {
+                const prazos = atualizarPrazoDeExecucao({ ...form, [campo]: valor });
+                editar({
+                  [campo]: valor,
+                  permanence: prazos.permanence,
+                  execution: prazos.execution,
+                  permanenceBase: prazos.permanenceBase,
+                  integrationDaysApplied: prazos.integrationDaysApplied
+                });
+              } else editar({ [campo]: valor });
+            }}
           />
         ))}
       </div>

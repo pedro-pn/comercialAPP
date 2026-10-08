@@ -1,5 +1,5 @@
 /** Regras de preenchimento usadas pela tela e pela finalização no servidor. */
-import { categoriaCanonicaResponsabilidade, EQUIPAMENTOS_E_FERRAMENTAS_PADRAO,
+import { categoriaCanonicaResponsabilidade, diasDeIntegracao, EQUIPAMENTOS_E_FERRAMENTAS_PADRAO,
   type LocalOperacao } from './modelo-documento.js';
 import { lerDinheiro, moeda } from './dinheiro.js';
 import { pendenciasDosDescontos } from './proposal-pricing.js';
@@ -179,9 +179,14 @@ export function pendenciasDosPrazos(form: Formulario): PendenciaEtapa[] {
     ['workday', 'Descreva a jornada de trabalho.']
   ];
 
-  return obrigatorios
-    .filter(([campo]) => !texto(form, campo))
-    .map(([campo, mensagem]) => ({ campo, mensagem }));
+  const pendencias: PendenciaEtapa[] = [];
+  for (const [campo, mensagem] of obrigatorios) {
+    if (!texto(form, campo)) pendencias.push({ campo, mensagem });
+    else if (campo === 'integration' && diasDeIntegracao(form.integration) === null) {
+      pendencias.push({ campo, mensagem: 'Informe uma quantidade inteira de dias de integração, igual ou maior que zero.' });
+    }
+  }
+  return pendencias;
 }
 
 export type ItemDePreco = {

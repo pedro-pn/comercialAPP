@@ -56,6 +56,18 @@ test('a API permite finalizar com o conteúdo obrigatório completo e os documen
   assert.equal(valid.updates(), 1);
 });
 
+test('a integração aceita zero ou dias inteiros e recusa valores que não podem entrar no cálculo', async () => {
+  for (const integration of ['-1', '1.5', 'conforme liberação', '9007199254740992']) {
+    const invalid = scenario(propostaCompleta({ integration }));
+    await assert.rejects(invalid.finalize(), { status: 422 });
+    assert.equal(invalid.updates(), 0);
+  }
+  for (const integration of [0, '0', '5', '5 dias', '1 dia']) {
+    const valid = scenario(propostaCompleta({ integration }));
+    assert.equal((await valid.finalize()).status, 'FINALIZADA');
+  }
+});
+
 test('a API valida a tabela informativa somente quando está incluída', async () => {
   for (const informationalPrices of [[], [null], [{ description: 'Bomba', quantity: '0', unitValue: 'R$ 100,00' }],
     [{ description: 'Bomba', quantity: '1', unitValue: '' }],

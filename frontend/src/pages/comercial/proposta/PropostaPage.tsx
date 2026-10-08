@@ -1569,7 +1569,9 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
           ) : etapa === 'prazos' ? (
             <PrazosStep form={form} editar={editar} erroDe={erroDe}
               permanenciaDoLevantamento={statusProposta === 'RASCUNHO' &&
-                Boolean(prazosDoLevantamento(levantamentoVinculado || {}))} />
+                Boolean(prazosDoLevantamento(levantamentoVinculado || {}))}
+              integracaoDoLevantamento={statusProposta === 'RASCUNHO' &&
+                prazosDoLevantamento(levantamentoVinculado || {})?.integration !== undefined} />
           ) : etapa === 'tecnica' ? (
             <TecnicaStep
               selecoes={servicosTecnicos}

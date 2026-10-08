@@ -3,6 +3,7 @@ import type { TechnicalServiceSelection } from '../../../../../shared/comercial/
 import type { PropostaEntrada } from '../../../api/comercial';
 import { itensInformativosDaProposta } from '../../../../../shared/comercial/dist/proposal-validation.js';
 import { descontosDaProposta } from '../../../../../shared/comercial/dist/proposal-pricing.js';
+import { valorNumericoDoPrazo } from '../../../../../shared/comercial/dist/modelo-documento.js';
 
 import {
   recalcularItensDePreco,
@@ -98,6 +99,8 @@ export function dadosDaProposta(conteudo: ConteudoDaProposta): AnyRecord {
 
   return {
     ...conteudo.form,
+    permanence: valorNumericoDoPrazo(conteudo.form.permanence),
+    execution: valorNumericoDoPrazo(conteudo.form.execution),
     sellerConsultantId: conteudo.sellerConsultantId || null,
     // O rádio nasce visualmente em ONSHORE. A escolha precisa nascer também no
     // payload: sem isso, não clicar no rádio faria a tela mostrar ONSHORE e o

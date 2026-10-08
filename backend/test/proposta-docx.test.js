@@ -106,6 +106,26 @@ function texto(no) {
 }
 
 for (const modelo of ['padrao', 'hidrojateamento']) {
+  test(`prazos ${modelo} usam a unidade do modelo uma única vez, inclusive em propostas antigas`, async () => {
+    for (const tipo of ['commercial', 'technical']) {
+      for (const prazos of [
+        { permanence: '10', execution: '8' },
+        { permanence: '10 dias corridos', execution: '8 dias trabalhados' },
+        { permanence: '1 dia corrido', execution: '1 dia trabalhado' }
+      ]) {
+        const doc = lerParte(new AdmZip(await preencherProposta({ modelo, ...prazos }, tipo)), 'word/document.xml');
+        const linhas = Array.from(doc.getElementsByTagName('w:p')).map(texto);
+        const permanencia = linhas.find(linha => linha.startsWith('Prazo previsto de permanência em obra'));
+        const execucao = linhas.find(linha => linha.startsWith('Prazo previsto de execução dos serviços'));
+        const singular = prazos.permanence.startsWith('1 dia ');
+        assert.match(permanencia, new RegExp(`– ${singular ? '1' : '10'} dia\\(s\\);`));
+        assert.match(execucao, new RegExp(`– ${singular ? '1' : '8'} dia\\(as\\)`));
+        assert.doesNotMatch(permanencia, /\d+ dias? corridos?/);
+        assert.doesNotMatch(execucao, /\d+ dias? trabalhados?/);
+      }
+    }
+  });
+
   test(`a tabela opcional ${modelo} exibe equipamentos sem alterar os totais ou o documento técnico`, async () => {
     const dados = {
       modelo,
