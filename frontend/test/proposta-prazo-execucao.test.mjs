@@ -270,12 +270,12 @@ test('integração inválida não produz um prazo calculado e pode ser corrigida
   }
 });
 
-test('a proposta importa 17 dias corridos e 6 trabalhados, descontando os 5 de integração', () => {
+test('a proposta importa 17 dias corridos e 8 trabalhados, descontando os 5 de integração', () => {
   const levantamento = { payload: { laborContexts: [{ durationDays: 17, integrationDays: 5 }] } };
   const form = sincronizarPrazosDoLevantamento({ permanence: '10', execution: '8', integration: '99' }, levantamento);
   assert.equal(form.permanence, '17');
   assert.equal(form.integration, '5');
-  assert.equal(form.execution, '6');
+  assert.equal(form.execution, '8');
   assert.equal(sincronizarPrazosDoLevantamento(form, levantamento), form);
   assert.equal(atualizarPrazoDeExecucao(form), form);
   const saved = dadosDaProposta({ form, codigo: '1001', modelo: 'padrao', orcamentista: 'Teste',
@@ -284,7 +284,7 @@ test('a proposta importa 17 dias corridos e 6 trabalhados, descontando os 5 de i
   const reopened = atualizarPrazoDeExecucao(snapshotDaPropostaSalva({ payload: JSON.parse(JSON.stringify(saved)) }));
   assert.equal(reopened.permanence, '17');
   assert.equal(reopened.integration, '5');
-  assert.equal(reopened.execution, '6');
+  assert.equal(reopened.execution, '8');
   const markup = renderToStaticMarkup(createElement(PrazosStep, { form: reopened, editar() {}, erroDe() {},
     permanenciaDoLevantamento: true, integracaoDoLevantamento: true }));
   const id = markup.match(/<label for="([^"]+)">Prazo previsto para integração/)[1];
@@ -295,7 +295,7 @@ test('a proposta importa 17 dias corridos e 6 trabalhados, descontando os 5 de i
   const updated = sincronizarPrazosDoLevantamento(reopened, levantamento);
   assert.equal(updated.permanence, '20');
   assert.equal(updated.integration, '2');
-  assert.equal(updated.execution, '10');
+  assert.equal(updated.execution, '13');
 });
 
 test('a integração das fases é consolidada sem duplicar períodos simultâneos nem considerar fases desativadas', () => {
@@ -311,7 +311,9 @@ test('a integração das fases é consolidada sem duplicar períodos simultâneo
   assert.equal(prazo([fase(0, 17, 5), fase(17, 100, 30, false)]).integration, '5');
   assert.equal(prazo([fase(0, 17, 0)]).integration, '0');
   assert.equal(prazo([fase(0, 17, 11)]).integration, '11');
-  assert.equal(prazo([fase(0, 17, 11)]).execution, '0');
+  assert.equal(prazo([fase(0, 17, 11)]).execution, '2');
+  assert.equal(prazo([fase(0, 17, 13)]).integration, '13');
+  assert.equal(prazo([fase(0, 17, 13)]).execution, '0');
   assert.equal(prazo([fase(0, 17, 14)]).integration, '');
   assert.equal(prazo([fase(0, 17, 14)]).execution, '');
   assert.equal(prazo([fase(0, 17, -1)]).integration, '');
@@ -320,7 +322,7 @@ test('a integração das fases é consolidada sem duplicar períodos simultâneo
     laborContexts: [fase(0, 17, 5)] } }), null);
 });
 
-test('rascunhos da PR anterior passam à nova fórmula e atualizam os prazos em qualquer ordem', () => {
+test('rascunhos das PRs anteriores passam à nova fórmula e atualizam os prazos em qualquer ordem', () => {
   for (const patches of [
     [{ durationDays: 17 }, { integrationDays: 5 }],
     [{ integrationDays: 5 }, { durationDays: 17 }]
@@ -332,7 +334,8 @@ test('rascunhos da PR anterior passam à nova fórmula e atualizam os prazos em 
     for (const patch of [...patches, { integrationDays: 0 }, { integrationDays: 5 }]) {
       Object.assign(fase, patch);
       form = sincronizarPrazosDoLevantamento(form, levantamento);
-      const expected = fase.durationDays - fase.integrationDays - Math.trunc(fase.durationDays / 5) * 2;
+      const weekdays = Array.from({ length: fase.durationDays }, (_, day) => day % 7 < 5).filter(Boolean).length;
+      const expected = weekdays - fase.integrationDays;
       assert.equal(form.execution, String(expected));
       assert.equal(form.executionFromEstimate, true);
       assert.equal(form.integrationIncludedInPermanence, true);
@@ -342,6 +345,18 @@ test('rascunhos da PR anterior passam à nova fórmula e atualizam os prazos em 
       assert.equal(atualizarPrazoDeExecucao(reopened).execution, String(expected));
       form = reopened;
     }
-    assert.equal(form.execution, '6');
+    assert.equal(form.execution, '8');
   }
+});
+
+test('reabrir proposta salva com a fórmula anterior recalcula a execução sem alterar os dias corridos', () => {
+  const previous = { permanence: '17', execution: '6', integration: '5',
+    permanenceBase: '17', integrationDaysApplied: 0, integrationIncludedInPermanence: true,
+    executionFromEstimate: true };
+  const reopened = snapshotDaPropostaSalva({ payload: JSON.parse(JSON.stringify(previous)) });
+  const updated = atualizarPrazoDeExecucao(reopened);
+  assert.equal(updated.permanence, '17');
+  assert.equal(updated.integration, '5');
+  assert.equal(updated.execution, '8');
+  assert.equal(atualizarPrazoDeExecucao(updated), updated);
 });

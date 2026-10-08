@@ -2741,10 +2741,9 @@ export function businessDaysFromCalendar(calendarDays: number): number {
   return Math.floor(days / 7) * 5 + Math.min(days % 7, 5);
 }
 
-/** Dias corridos − integração − dois dias por bloco completo de cinco dias corridos. */
+/** Dias de segunda a sexta, com início na segunda-feira, menos os dias de integração. */
 export function workingDaysFromCalendar(calendarDays: number, integrationDays = 0): number {
-  const days = nonNegative(calendarDays);
-  return Math.max(0, days - nonNegative(integrationDays) - Math.trunc(days / 5) * 2);
+  return Math.max(0, businessDaysFromCalendar(calendarDays) - nonNegative(integrationDays));
 }
 
 /** Common offshore preset: up to 21 consecutive 12-hour days, starting on Monday. */

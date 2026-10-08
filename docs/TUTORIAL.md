@@ -44,8 +44,11 @@ para localizar o que falta. Confirme explicitamente as opções de escopo quando
 não houver insumos ou logística, conforme solicitado pelo formulário.
 
 Na mão de obra, os dias trabalhados são calculados por
-`dias corridos - dias de integração - (trunc(dias corridos / 5) * 2)`.
-Por exemplo, 17 dias corridos e 5 de integração resultam em 6 dias trabalhados.
+`5 * floor(dias corridos / 7) + min(dias corridos mod 7, 5) - dias de integração`,
+considerando início na segunda-feira. Cada semana completa tem cinco dias de trabalho,
+e os dias restantes contam até sexta-feira.
+Por exemplo, 17 dias corridos têm 13 dias de segunda a sexta; com 5 de integração,
+resultam em 8 dias trabalhados.
 Os dias de integração já estão incluídos no período total e são descontados dos dias trabalhados.
 Alterar os dias corridos ou a integração atualiza a equipe e os custos. Dias ajustados
 manualmente por cargo ou colaborador são preservados; clique em **Usar dias
