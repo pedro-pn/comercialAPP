@@ -1199,11 +1199,12 @@ export type ParagrafoComercial = {
 /** Mantém a hierarquia dos modelos Word ao aplicar os textos editáveis. */
 export function paragrafosComerciais(
   texto: string,
-  capitulo: 8 | 9 | 10
+  capitulo: 8 | 9 | 10,
+  itemInicial = capitulo === 9 ? 2 : 0
 ): ParagrafoComercial[] {
   const trechos = String(texto || '').trim().split(/(?:\r?\n\s*){2,}/u)
     .map(trecho => trecho.trim()).filter(Boolean);
-  let item = capitulo === 9 ? 2 : 0;
+  let item = itemInicial;
   let subitem = 0;
   let multa = false;
   let reequilibrio = false;

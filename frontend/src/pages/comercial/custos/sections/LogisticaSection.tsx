@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { CabecalhoRetratil } from '../../components/CabecalhoRetratil';
 import { EnderecoInput } from '../../components/EnderecoField';
 
@@ -218,17 +218,6 @@ export function LogisticaSection({ levantamento }: { levantamento: Levantamento 
           </button>
         </div>
 
-        <ConfirmacaoEscopo
-          confirmado={semLogistica}
-          tituloPendente="Revisão obrigatória da logística"
-          tituloConfirmado="Sem logística confirmado"
-          descricaoPendente="Se este serviço não tiver mobilização nem desmobilização, confirme explicitamente antes de finalizar."
-          descricaoConfirmada="Deslocamentos ficam fora deste levantamento."
-          rotulo="Confirmo que não haverá mobilização nem desmobilização"
-          error={erroDe('scopeConfirmations.noLogistics')}
-          onChange={definirSemLogistica}
-        />
-
         {!semLogistica && (
           <label className="com-logistica-conjunta">
             <input
@@ -245,33 +234,6 @@ export function LogisticaSection({ levantamento }: { levantamento: Levantamento 
             </span>
           </label>
         )}
-
-        {!semLogistica && confirmacoes.noLabor !== true && <>
-          {(confirmacoes.mobilizationCrewAlreadyOnSite === true
-            || errosPorCampo.has('scopeConfirmations.mobilizationCrewAlreadyOnSite')) &&
-          <ConfirmacaoEscopo
-            confirmado={confirmacoes.mobilizationCrewAlreadyOnSite === true}
-            tituloPendente="Equipe sem transporte de ida"
-            tituloConfirmado="Presença da equipe confirmada"
-            descricaoPendente="Preencha o transporte da equipe abaixo ou confirme que os colaboradores sem transporte já estarão na obra."
-            descricaoConfirmada="Os colaboradores sem transporte informado já estarão na obra. O frete dos equipamentos continua incluído."
-            rotulo="Confirmo que os colaboradores sem transporte de ida já estarão na obra"
-            error={erroDe('scopeConfirmations.mobilizationCrewAlreadyOnSite')}
-            onChange={valor => confirmarEquipe('mobilizationCrewAlreadyOnSite', valor)}
-          />}
-          {(confirmacoes.demobilizationCrewAlreadyOnSite === true
-            || errosPorCampo.has('scopeConfirmations.demobilizationCrewAlreadyOnSite')) &&
-          <ConfirmacaoEscopo
-            confirmado={confirmacoes.demobilizationCrewAlreadyOnSite === true}
-            tituloPendente="Equipe sem transporte de retorno"
-            tituloConfirmado="Dispensa do retorno da equipe confirmada"
-            descricaoPendente="Preencha o retorno da equipe abaixo ou confirme que os colaboradores sem transporte não precisarão ser desmobilizados."
-            descricaoConfirmada="Os colaboradores sem transporte informado não precisarão ser desmobilizados. O retorno dos equipamentos continua incluído."
-            rotulo="Confirmo que os colaboradores sem transporte de retorno não precisarão ser desmobilizados"
-            error={erroDe('scopeConfirmations.demobilizationCrewAlreadyOnSite')}
-            onChange={valor => confirmarEquipe('demobilizationCrewAlreadyOnSite', valor)}
-          />}
-        </>}
 
         {!semLogistica && errosVisiveis && destinoSemNome && (
           <AvisoPendencia>Todo destino precisa de um nome.</AvisoPendencia>
@@ -388,6 +350,14 @@ export function LogisticaSection({ levantamento }: { levantamento: Levantamento 
             )}
           </>
         )}
+        <ConfirmacaoEscopo
+          confirmado={semLogistica}
+          descricao="Marque se o serviço não exigir deslocamentos de ida ou retorno. A opção é selecionada automaticamente quando todas as fases são na sede / Itajaí."
+          descricaoConfirmada="Mobilização e desmobilização ficam fora do custo. Desmarque para incluir deslocamentos."
+          rotulo="Não haverá mobilização nem desmobilização"
+          error={erroDe('scopeConfirmations.noLogistics')}
+          onChange={definirSemLogistica}
+        />
       </section>
 
       {!semLogistica && (
@@ -402,6 +372,17 @@ export function LogisticaSection({ levantamento }: { levantamento: Levantamento 
             itens={mobilizacao}
             levantamento={levantamento}
             onAdicionar={() => acrescentarItem('mobilization')}
+            confirmacao={confirmacoes.noLabor !== true && (
+              confirmacoes.mobilizationCrewAlreadyOnSite === true
+              || errosPorCampo.has('scopeConfirmations.mobilizationCrewAlreadyOnSite')
+            ) && <ConfirmacaoEscopo
+              confirmado={confirmacoes.mobilizationCrewAlreadyOnSite === true}
+              descricao="Se os colaboradores sem transporte de ida já estiverem na obra, marque para dispensar o deslocamento deles."
+              descricaoConfirmada="A equipe sem transporte informado já estará na obra. O frete dos equipamentos continua incluído."
+              rotulo="Os colaboradores sem transporte de ida já estarão na obra"
+              error={erroDe('scopeConfirmations.mobilizationCrewAlreadyOnSite')}
+              onChange={valor => confirmarEquipe('mobilizationCrewAlreadyOnSite', valor)}
+            />}
           />
 
           <BlocoDirecao
@@ -414,6 +395,17 @@ export function LogisticaSection({ levantamento }: { levantamento: Levantamento 
             itens={desmobilizacao}
             levantamento={levantamento}
             onAdicionar={() => acrescentarItem('demobilization')}
+            confirmacao={confirmacoes.noLabor !== true && (
+              confirmacoes.demobilizationCrewAlreadyOnSite === true
+              || errosPorCampo.has('scopeConfirmations.demobilizationCrewAlreadyOnSite')
+            ) && <ConfirmacaoEscopo
+              confirmado={confirmacoes.demobilizationCrewAlreadyOnSite === true}
+              descricao="Marque se os colaboradores sem transporte de retorno permanecerem na obra."
+              descricaoConfirmada="A equipe sem transporte informado não será desmobilizada. O retorno dos equipamentos continua incluído."
+              rotulo="Os colaboradores sem transporte de retorno permanecerão na obra"
+              error={erroDe('scopeConfirmations.demobilizationCrewAlreadyOnSite')}
+              onChange={valor => confirmarEquipe('demobilizationCrewAlreadyOnSite', valor)}
+            />}
           />
 
         </>
@@ -432,13 +424,15 @@ function BlocoDirecao({
   descricao,
   itens,
   levantamento,
-  onAdicionar
+  onAdicionar,
+  confirmacao
 }: {
   titulo: string;
   descricao: string;
   itens: AnyRecord[];
   levantamento: Levantamento;
   onAdicionar: () => void;
+  confirmacao?: ReactNode;
 }) {
   const [aberto, setAberto] = useState(true);
   const corpoId = titulo === 'Mobilização'
@@ -478,6 +472,7 @@ function BlocoDirecao({
         ) : (
           <div className="com-vazio">Nenhum deslocamento nesta direção.</div>
         )}
+        {confirmacao}
       </div>
     </section>
   );

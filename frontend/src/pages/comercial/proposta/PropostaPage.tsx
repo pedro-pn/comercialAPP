@@ -2,6 +2,7 @@ import {apiClient} from '../../../api/client';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { fillScopeFromDimensioning } from '../../../../../shared/comercial/dist/dimensioning-scope.js';
+import { trabalhoSomenteNaSede } from '../../../../../shared/comercial/dist/work-location.js';
 
 import {
   normalizeTechnicalServiceSelections,
@@ -371,6 +372,11 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
         }
 
         const propostaPronta = !propostaId || Boolean(versaoCarregada);
+        if (propostaPronta && revisaoPronta && statusProposta === 'RASCUNHO') {
+          const workAtHeadquarters = trabalhoSomenteNaSede(levantamento.payload || {});
+          setForm(atual => atual.workAtHeadquarters === workAtHeadquarters
+            ? atual : { ...atual, workAtHeadquarters });
+        }
         const deveAplicar =
           usarDadosDoLevantamento &&
           propostaPronta &&
@@ -440,6 +446,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     modelo,
     propostaId,
     revisaoPronta,
+    statusProposta,
     usarDadosDoLevantamento,
     versaoCarregada
   ]);

@@ -200,8 +200,10 @@ function TituloDoSubitem({ children }: { children: string }) {
   </h3>;
 }
 
-function ParagrafosComerciais({ texto, capitulo }: { texto: string; capitulo: 8 | 9 | 10 }) {
-  return <>{paragrafosComerciais(texto, capitulo).map((item, i) =>
+function ParagrafosComerciais({ texto, capitulo, itemInicial }: {
+  texto: string; capitulo: 8 | 9 | 10; itemInicial?: number;
+}) {
+  return <>{paragrafosComerciais(texto, capitulo, itemInicial).map((item, i) =>
     <p key={i} className={`com-doc-tecnico com-doc-jornada-nivel-${item.nivel}`}>
       {item.numero && <><b>{item.numero}</b>{' '}</>}
       {item.marcador && <>{item.marcador}{' '}</>}{item.texto}
@@ -621,6 +623,7 @@ export function DocumentoPrevia({
           <Pagina numero={numeroDoFechamentoComercial} data={data}>
             <h3>9. Observações</h3>
             <p><b>9.1</b>{' '}{fraseHoraExtra(dinheiro(form.overtimeRate))}</p>
+            {form.workAtHeadquarters !== true && <>
             <TituloDoSubitem>{`9.2 ${TITULO_BLOCO_STANDBY}`}</TituloDoSubitem>
             <table className="com-doc-tabela">
               <thead>
@@ -651,10 +654,14 @@ export function DocumentoPrevia({
                 {i < 3 && <><b>{`9.2.${i + 1}`}</b>{' '}</>}{trecho}
               </p>
             )}
+            </>}
           </Pagina>
 
           <Pagina numero={numeroDoFechamentoComercial + 1} data={data}>
-            <ParagrafosComerciais texto={texto('observations', TEXTO_OBSERVACOES_GERAIS)} capitulo={9} />
+            <ParagrafosComerciais
+              texto={texto('observations', TEXTO_OBSERVACOES_GERAIS)} capitulo={9}
+              itemInicial={form.workAtHeadquarters === true ? 1 : 2}
+            />
           </Pagina>
 
           <Pagina numero={numeroDoFechamentoComercial + 2} data={data}>

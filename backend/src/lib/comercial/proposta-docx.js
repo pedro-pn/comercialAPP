@@ -752,6 +752,20 @@ function ajustarTextosEditaveis(doc, dados, tipo) {
   }
 }
 
+/** Remove o subitem 9.2 inteiro; a lista do Word renumera as observações seguintes. */
+function removerStandbyNaSede(doc) {
+  const inicio = tituloDoCorpo(doc, 'Condições de Stand by e Mobilização Adicional:');
+  const fim = tituloDoCorpo(doc, 'No caso de prorrogação da data de início');
+  if (!inicio || !fim || inicio.parentNode !== fim.parentNode) return;
+  const remover = [];
+  let atual = inicio;
+  while (atual && atual !== fim) {
+    remover.push(atual);
+    atual = atual.nextSibling;
+  }
+  if (atual === fim) remover.forEach(removeNode);
+}
+
 /**
  * As tabelas e fotos do escopo, no lugar do marcador `{{escopo_blocos}}`.
  *
@@ -889,7 +903,10 @@ export async function preencherProposta(dados, tipo) {
     const restaurarSumarios = parte === 'word/document.xml' ? separarSumarios(doc) : () => {};
 
     if (parte === 'word/document.xml') {
-      if (tipo === 'commercial') ajustarRotuloStandby(doc, dados.standbyTeamQuantity);
+      if (tipo === 'commercial') {
+        if (dados.workAtHeadquarters === true) removerStandbyNaSede(doc);
+        else ajustarRotuloStandby(doc, dados.standbyTeamQuantity);
+      }
       ajustarPrevisaoDeAtendimento(doc, dados.attendance);
       ajustarColunaDeValorUnitario(doc, dados.includeUnitValue);
       ajustarJornada(doc, String(dados.workday || '').trim(), modelo);

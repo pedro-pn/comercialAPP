@@ -138,17 +138,6 @@ export function MaoDeObraSection({ levantamento }: { levantamento: Levantamento 
         </button>
       </div>
 
-      <ConfirmacaoEscopo
-        error={erroDe('scopeConfirmations.noLabor')}
-        confirmado={semMaoDeObra}
-        tituloPendente="Revisão obrigatória da mão de obra"
-        tituloConfirmado="Sem mão de obra confirmado"
-        descricaoPendente="Se realmente não houver colaboradores neste escopo, confirme para evitar uma omissão acidental."
-        descricaoConfirmada="As fases ficam preservadas, mas não entram neste levantamento."
-        rotulo="Confirmo que não haverá mão de obra"
-        onChange={definirSemMaoDeObra}
-      />
-
       {!semMaoDeObra && (
         <>
           <div className="com-visao-geral" aria-label="Resumo geral da mão de obra">
@@ -194,6 +183,15 @@ export function MaoDeObraSection({ levantamento }: { levantamento: Levantamento 
 
         </>
       )}
+
+      <ConfirmacaoEscopo
+        error={erroDe('scopeConfirmations.noLabor')}
+        confirmado={semMaoDeObra}
+        descricao="Marque se o serviço não precisar de colaboradores. As fases preenchidas serão desconsideradas no custo."
+        descricaoConfirmada="As fases ficam preservadas, mas não entram neste levantamento."
+        rotulo="Não haverá mão de obra"
+        onChange={definirSemMaoDeObra}
+      />
 
       <div className="com-total-secao" aria-label="Custo total da aba Mão de obra">
         <strong>Custo total desta aba</strong>
