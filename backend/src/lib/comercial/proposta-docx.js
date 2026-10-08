@@ -19,7 +19,8 @@ import {
   TITULO_PRECOS_INFORMATIVOS,
   NOTA_PRECOS_INFORMATIVOS,
   textoJornada,
-  totalStandbyEquipe
+  totalStandbyEquipe,
+  valorNumericoDoPrazo
 } from '../../../../shared/comercial/dist/modelo-documento.js';
 import { scopeDescriptionParagraphs } from '../../../../shared/comercial/dist/scope-descriptions.js';
 import { itensInformativosDaProposta } from '../../../../shared/comercial/dist/proposal-validation.js';
@@ -190,9 +191,9 @@ function camposSimples(dados) {
     local_obra: dados.site || '',
     cnpj_texto: dados.cnpj || '',
     prev_atende: dados.attendance || '',
-    n_dias: dados.permanence || '',
+    n_dias: valorNumericoDoPrazo(dados.permanence),
     dias_treinamento: dados.integration || '',
-    n_dias_trabalhados: dados.execution || '',
+    n_dias_trabalhados: valorNumericoDoPrazo(dados.execution),
     dias_mob: dados.mobilization || '',
     adto: dados.advancePercent || '',
     prazo_pgto: dados.paymentTerm || '',

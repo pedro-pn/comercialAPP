@@ -55,7 +55,8 @@ export function parseLec(bytes, fileName) {
         adjustment: 0, allocationPercent: 100, shift, nightPremiumPercent: 35 }];
     });
     if (!assignments.length) continue;
-    laborContexts.push({ id: `lec-${shift}`, name, description: site, durationDays, workingDays,
+    laborContexts.push({ id: `lec-${shift}`, name, description: site, durationDays, workingDays, workingDaysMode: 'manual',
+      integrationDays: n(proposalSheet, 'J21'),
       startOffsetDays: 0, hoursPerDay: 8.8, workCondition: condition,
       workConditionConfirmed: Boolean(condition), weekdayExtra70HoursPerDay: n(laborSheet, `${column}22`),
       saturdayCount: n(laborSheet, `${column}18`), saturdayHoursPerDay: n(laborSheet, `${column}19`),
@@ -211,7 +212,7 @@ export function parseLec(bytes, fileName) {
     contact: presentText(t(proposalSheet, 'D13')), email: presentText(t(proposalSheet, 'D15')),
     department: presentText(t(proposalSheet, 'J13')), site,
     attendance: textDays('B21', 'dias'), mobilization: textDays('L21', 'dias'),
-    permanence: textDays('F21', 'dias corridos'), execution: textDays('H21', 'dias trabalhados'),
+    permanence: String(n(proposalSheet, 'F21')), execution: String(n(proposalSheet, 'H21')),
     integration: textDays('J21', 'dias'), validity: String(n(proposalSheet, 'D21')),
     payment: presentText(t(proposalSheet, 'C32')) || textoCondicoesPagamento({
       adiantamento: `${n(proposalSheet, 'H34')}%`, prazoPagamento: String(n(proposalSheet, 'H32')),

@@ -12,6 +12,7 @@ import { comDataBaseDoCronograma } from './datasDaFase';
 import { corrigirClassificacaoLogistica } from './logistica';
 import { atualizarDimensionamento } from './dimensionamento';
 import { ajustarLogisticaPelaCondicao } from './condicaoDeTrabalho';
+import { sincronizarDiasTrabalhadosDoLevantamento } from './jornadas';
 
 /**
  * Estado do levantamento de custos.
@@ -68,7 +69,7 @@ export function useLevantamento(estimatorName: string, secaoAtual = 'premises') 
     setDraftBruto(atual => {
       const proximo = typeof valor === 'function' ? valor(atual) : valor;
       return comDataBaseDoCronograma(corrigirClassificacaoLogistica(atualizarDimensionamento(
-        ajustarLogisticaPelaCondicao(atual, proximo)
+        ajustarLogisticaPelaCondicao(atual, sincronizarDiasTrabalhadosDoLevantamento(proximo))
       )));
     });
     setIssuesDoServidor(atual => (atual.length ? [] : atual));

@@ -1,3 +1,5 @@
+import { businessDaysFromCalendar } from '../../../../../shared/comercial/dist/cost-model.js';
+
 type AnyRecord = Record<string, unknown>;
 
 export type TipoDeDiaDaJornada = 'weekday' | 'saturday' | 'sunday_holiday';
@@ -5,6 +7,7 @@ export type TipoDeDiaDaJornada = 'weekday' | 'saturday' | 'sunday_holiday';
 export type DiaDaJornada = {
   dayType: TipoDeDiaDaJornada;
   days: number;
+  daysMode?: 'automatic' | 'manual';
   normalHoursPerDay: number;
   extraHoursPerDay: number;
   overtimePercent: number;
@@ -35,9 +38,8 @@ function diaVazio(dayType: TipoDeDiaDaJornada): DiaDaJornada {
 }
 
 function diasUteisDaFase(fase: AnyRecord): number {
-  if (fase.workingDays !== undefined) return numero(fase.workingDays);
-  const duracao = numero(fase.durationDays);
-  return duracao <= 5 ? duracao : Math.ceil((duracao / 7) * 5);
+  if (fase.workingDaysMode === 'manual' && fase.workingDays !== undefined) return numero(fase.workingDays);
+  return businessDaysFromCalendar(numero(fase.durationDays));
 }
 
 function jornadaPadraoDaFase(fase: AnyRecord): JornadaDaEquipe {
@@ -48,6 +50,7 @@ function jornadaPadraoDaFase(fase: AnyRecord): JornadaDaEquipe {
       {
         dayType: 'weekday',
         days: diasUteisDaFase(fase),
+        daysMode: 'automatic',
         normalHoursPerDay: numero(fase.hoursPerDay),
         extraHoursPerDay: numero(fase.weekdayExtra70HoursPerDay),
         overtimePercent: 70
@@ -55,6 +58,7 @@ function jornadaPadraoDaFase(fase: AnyRecord): JornadaDaEquipe {
       {
         dayType: 'saturday',
         days: numero(fase.saturdayCount),
+        daysMode: 'automatic',
         normalHoursPerDay: 0,
         extraHoursPerDay: numero(fase.saturdayHoursPerDay),
         overtimePercent: 70
@@ -62,6 +66,7 @@ function jornadaPadraoDaFase(fase: AnyRecord): JornadaDaEquipe {
       {
         dayType: 'sunday_holiday',
         days: numero(fase.sundayCount),
+        daysMode: 'automatic',
         normalHoursPerDay: 0,
         extraHoursPerDay: numero(fase.sundayHoursPerDay),
         overtimePercent: 100
@@ -96,7 +101,11 @@ export function jornadaDaAlocacao(
       if (!item) return diaVazio(dayType);
       return {
         dayType,
-        days: numero(item.days),
+        days: item.daysMode === 'automatic'
+          ? dayType === 'weekday' ? diasUteisDaFase(fase)
+            : numero(dayType === 'saturday' ? fase.saturdayCount : fase.sundayCount)
+          : numero(item.days),
+        ...(item.daysMode === undefined ? {} : { daysMode: item.daysMode === 'automatic' ? 'automatic' : 'manual' }),
         normalHoursPerDay: numero(item.normalHoursPerDay),
         extraHoursPerDay: numero(item.extraHoursPerDay),
         overtimePercent: numero(item.overtimePercent)
@@ -113,7 +122,8 @@ export function atualizarDiaDaJornada(
   return {
     ...jornada,
     days: jornada.days.map((item) =>
-      item.dayType === dayType ? { ...item, ...patch, dayType } : { ...item }
+      item.dayType === dayType ? { ...item, ...patch, dayType,
+        ...('days' in patch ? { daysMode: 'manual' as const } : {}) } : { ...item }
     )
   };
 }
@@ -146,4 +156,37 @@ export function resumoDaJornada(jornada: JornadaDaEquipe) {
     }),
     { dias: 0, horasNormais: 0, horasExtras: 0 }
   );
+}
+
+/** Atualiza os padrões da fase e mantém as exceções de dias por colaborador. */
+export function sincronizarDiasTrabalhadosDoLevantamento(draft: AnyRecord): AnyRecord {
+  if (!Array.isArray(draft.laborContexts)) return draft;
+  let mudou = false;
+  const laborContexts = (draft.laborContexts as AnyRecord[]).map(fase => {
+    if (!fase || typeof fase !== 'object') return fase;
+    const workingDaysMode = fase.workingDaysMode === 'manual'
+      || (draft.legacyImport && fase.workingDaysMode !== 'automatic') ? 'manual' : 'automatic';
+    const workingDays = workingDaysMode === 'automatic'
+      ? businessDaysFromCalendar(numero(fase.durationDays)) : fase.workingDays;
+    const integrationDays = fase.integrationDays ?? 0;
+    let proxima = fase.workingDaysMode === workingDaysMode && fase.workingDays === workingDays
+      && fase.integrationDays === integrationDays
+      ? fase : { ...fase, workingDaysMode, workingDays, integrationDays };
+    if (Array.isArray(fase.assignments)) {
+      let mudouEquipe = false;
+      const assignments = (fase.assignments as AnyRecord[]).map(alocacao => {
+        const salva = alocacao.workSchedule as AnyRecord | undefined;
+        if (!salva || !Array.isArray(salva.days)) return alocacao;
+        const jornada = jornadaDaAlocacao(alocacao, proxima);
+        if ((salva.days as AnyRecord[]).every(dia => dia.daysMode !== 'automatic'
+          || dia.days === jornada.days.find(item => item.dayType === dia.dayType)?.days)) return alocacao;
+        mudouEquipe = true;
+        return { ...alocacao, workSchedule: jornada };
+      });
+      if (mudouEquipe) proxima = { ...proxima, assignments };
+    }
+    if (proxima !== fase) mudou = true;
+    return proxima;
+  });
+  return mudou ? { ...draft, laborContexts } : draft;
 }

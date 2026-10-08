@@ -160,6 +160,9 @@ export function JornadaCard({
                     label="Dias trabalhados"
                     error={erro('days')}
                     value={dia.days}
+                    hint={dia.daysMode === 'automatic'
+                      ? 'Calculado a partir do período da fase. Você pode ajustar este cargo individualmente.'
+                      : undefined}
                     min={0}
                     step={1}
                     onChange={(value) =>

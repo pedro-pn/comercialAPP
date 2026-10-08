@@ -1,4 +1,5 @@
 import {
+  businessDaysFromCalendar,
   LEC_CONTEXT_EXPENSE_PRESETS,
   LEC_CONTEXT_EXPENSES,
   roleSalary
@@ -45,7 +46,9 @@ function novaFase(indice: number, inicio: number): AnyRecord {
       indice === 0 ? 'Planejamento, levantamento e preparação antes da execução.' : '',
     startOffsetDays: inicio,
     durationDays: 30,
-    workingDays: 22,
+    workingDays: businessDaysFromCalendar(30),
+    workingDaysMode: 'automatic',
+    integrationDays: 0,
     hoursPerDay: 8.8,
     workCondition: '',
     workConditionConfirmed: false,

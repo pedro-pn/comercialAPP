@@ -18,7 +18,10 @@ test('LEC carrega identificação, custos, jornadas e condições sem executar f
     assert.equal(parsed.suggestedRevisionNumber, 2);
     assert.equal(parsed.proposal.cnpj, '12345678000190');
     assert.equal(parsed.proposal.email, 'contato@example.com');
+    assert.equal(parsed.proposal.permanence, '9');
+    assert.equal(parsed.proposal.execution, '7');
     assert.equal(parsed.payload.laborContexts[0].assignments.length, 2);
+    assert.equal(parsed.payload.laborContexts[0].integrationDays, 0);
     assert.equal(parsed.payload.laborContexts[0].saturdayCount, 1);
     assert.equal(parsed.payload.laborContexts[0].weekdayExtra70HoursPerDay, 4);
     assert.equal(parsed.payload.laborContexts[0].expenses.find(item => item.id === 'lec-optional-39').unitValue, 19000);
@@ -29,6 +32,11 @@ test('LEC carrega identificação, custos, jornadas e condições sem executar f
     assert.ok(parsed.warnings.some(warning => warning.includes('serviços técnicos')));
     assert.match(parsed.proposal.payment, /35%/);
   }
+});
+
+test('LEC também importa a integração para as fases de mão de obra', () => {
+  const parsed = parseLec(lecFixture({ changes: { 'GERAR PROPOSTA': { J21: 5 } } }), 'LEC.xlsm');
+  assert.ok(parsed.payload.laborContexts.every(fase => fase.integrationDays === 5));
 });
 
 test('PDF complementa escopo, matriz, jornada e óleo, respeitando a escolha dos conflitos', () => {
