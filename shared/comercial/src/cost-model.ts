@@ -173,7 +173,7 @@ export type LaborContext = {
   durationDays: number;
   workingDays?: number;
   workingDaysMode?: "automatic" | "manual";
-  /** Dias úteis de integração já incluídos no período total da fase. */
+  /** Dias de integração incluídos no período da fase e descontados dos dias trabalhados. */
   integrationDays?: number;
   hoursPerDay: number;
   workCondition: WorkCondition | "";
@@ -1274,7 +1274,7 @@ function normalizeLaborContext(value: unknown, index: number, assumptions: CostE
     description: textValue(source.description),
     startOffsetDays: nonNegative(source.startOffsetDays),
     durationDays,
-    workingDays: source.workingDaysMode === "automatic" ? businessDaysFromCalendar(durationDays)
+    workingDays: source.workingDaysMode === "automatic" ? workingDaysFromCalendar(durationDays, nonNegative(source.integrationDays))
       : source.workingDays === undefined ? undefined : nonNegative(source.workingDays),
     ...(source.workingDaysMode === undefined ? {} : {
       workingDaysMode: enumValue(source.workingDaysMode, ["automatic", "manual"] as const, "manual"),
@@ -1314,7 +1314,7 @@ function normalizeLaborContext(value: unknown, index: number, assumptions: CostE
     return { ...assignment, workSchedule: { ...assignment.workSchedule,
       days: assignment.workSchedule.days.map(day => day.daysMode !== "automatic" ? day : {
         ...day,
-        days: day.dayType === "weekday" ? context.workingDays ?? businessDaysFromCalendar(durationDays)
+        days: day.dayType === "weekday" ? context.workingDays ?? workingDaysFromCalendar(durationDays, context.integrationDays)
           : day.dayType === "saturday" ? context.saturdayCount : context.sundayCount,
       }),
     } };
@@ -2065,7 +2065,7 @@ export function createDefaultCostEstimatePayload(): CostEstimatePayloadV2 {
       description: "",
       startOffsetDays: 0,
       durationDays: 30,
-      workingDays: businessDaysFromCalendar(30),
+      workingDays: workingDaysFromCalendar(30),
       workingDaysMode: "automatic",
       integrationDays: 0,
       hoursPerDay: DEFAULT_HOURS_PER_DAY,
@@ -2739,6 +2739,12 @@ export function lecBusinessDays(calendarDays: number): number {
 export function businessDaysFromCalendar(calendarDays: number): number {
   const days = Math.floor(nonNegative(calendarDays));
   return Math.floor(days / 7) * 5 + Math.min(days % 7, 5);
+}
+
+/** Dias corridos − integração − dois dias por bloco completo de cinco dias corridos. */
+export function workingDaysFromCalendar(calendarDays: number, integrationDays = 0): number {
+  const days = nonNegative(calendarDays);
+  return Math.max(0, days - nonNegative(integrationDays) - Math.trunc(days / 5) * 2);
 }
 
 /** Common offshore preset: up to 21 consecutive 12-hour days, starting on Monday. */
@@ -4335,8 +4341,8 @@ export function validateCostEstimate(value: CostEstimatePayloadV2 | unknown): Co
       add("error", `${path}.durationDays`, "Informe uma quantidade inteira de dias corridos.");
     }
     if (context.integrationDays !== undefined && (!Number.isSafeInteger(context.integrationDays)
-      || context.integrationDays < 0 || context.integrationDays > businessDaysFromCalendar(context.durationDays))) {
-      add("error", `${path}.integrationDays`, "Informe dias inteiros de integração, entre zero e os dias úteis da fase.");
+      || context.integrationDays < 0 || context.integrationDays > workingDaysFromCalendar(context.durationDays))) {
+      add("error", `${path}.integrationDays`, "Informe dias inteiros de integração, entre zero e os dias disponíveis da fase após descontar os fins de semana.");
     }
     if (context.workCondition === "offshore" && context.durationDays > 21) {
       add("error", `${path}.durationDays`, "A escala offshore pode ter no máximo 21 dias consecutivos.");

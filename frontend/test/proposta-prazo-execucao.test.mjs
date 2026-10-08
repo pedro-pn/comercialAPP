@@ -270,12 +270,12 @@ test('integração inválida não produz um prazo calculado e pode ser corrigida
   }
 });
 
-test('a proposta importa 17 dias corridos, 5 de integração e 13 trabalhados sem somar a integração novamente', () => {
+test('a proposta importa 17 dias corridos e 6 trabalhados, descontando os 5 de integração', () => {
   const levantamento = { payload: { laborContexts: [{ durationDays: 17, integrationDays: 5 }] } };
   const form = sincronizarPrazosDoLevantamento({ permanence: '10', execution: '8', integration: '99' }, levantamento);
   assert.equal(form.permanence, '17');
   assert.equal(form.integration, '5');
-  assert.equal(form.execution, '13');
+  assert.equal(form.execution, '6');
   assert.equal(sincronizarPrazosDoLevantamento(form, levantamento), form);
   assert.equal(atualizarPrazoDeExecucao(form), form);
   const saved = dadosDaProposta({ form, codigo: '1001', modelo: 'padrao', orcamentista: 'Teste',
@@ -284,7 +284,7 @@ test('a proposta importa 17 dias corridos, 5 de integração e 13 trabalhados se
   const reopened = atualizarPrazoDeExecucao(snapshotDaPropostaSalva({ payload: JSON.parse(JSON.stringify(saved)) }));
   assert.equal(reopened.permanence, '17');
   assert.equal(reopened.integration, '5');
-  assert.equal(reopened.execution, '13');
+  assert.equal(reopened.execution, '6');
   const markup = renderToStaticMarkup(createElement(PrazosStep, { form: reopened, editar() {}, erroDe() {},
     permanenciaDoLevantamento: true, integracaoDoLevantamento: true }));
   const id = markup.match(/<label for="([^"]+)">Prazo previsto para integração/)[1];
@@ -295,7 +295,7 @@ test('a proposta importa 17 dias corridos, 5 de integração e 13 trabalhados se
   const updated = sincronizarPrazosDoLevantamento(reopened, levantamento);
   assert.equal(updated.permanence, '20');
   assert.equal(updated.integration, '2');
-  assert.equal(updated.execution, '15');
+  assert.equal(updated.execution, '10');
 });
 
 test('a integração das fases é consolidada sem duplicar períodos simultâneos nem considerar fases desativadas', () => {
@@ -304,12 +304,44 @@ test('a integração das fases é consolidada sem duplicar períodos simultâneo
   });
   const prazo = laborContexts => prazosDoLevantamento({ payload: { laborContexts } });
   assert.equal(prazo([fase(0, 10, 3), fase(0, 17, 5)]).integration, '5');
-  assert.equal(prazo([fase(0, 5, 5), fase(1, 5, 5)]).integration, '5');
+  assert.equal(prazo([fase(0, 5, 3), fase(0, 5, 3)]).integration, '3');
+  assert.equal(prazo([fase(0, 5, 3), fase(1, 5, 3)]).integration, '4');
   assert.equal(prazo([fase(0, 10, 5), fase(10, 7, 2)]).integration, '7');
   assert.equal(prazo([fase(10, 10, 5), fase(20, 7, 2)]).integration, '7');
   assert.equal(prazo([fase(0, 17, 5), fase(17, 100, 30, false)]).integration, '5');
   assert.equal(prazo([fase(0, 17, 0)]).integration, '0');
+  assert.equal(prazo([fase(0, 17, 11)]).integration, '11');
+  assert.equal(prazo([fase(0, 17, 11)]).execution, '0');
   assert.equal(prazo([fase(0, 17, 14)]).integration, '');
+  assert.equal(prazo([fase(0, 17, 14)]).execution, '');
+  assert.equal(prazo([fase(0, 17, -1)]).integration, '');
+  assert.equal(prazo([fase(0, 17, -1)]).execution, '');
   assert.equal(prazosDoLevantamento({ payload: { scopeConfirmations: { noLabor: true },
     laborContexts: [fase(0, 17, 5)] } }), null);
+});
+
+test('rascunhos da PR anterior passam à nova fórmula e atualizam os prazos em qualquer ordem', () => {
+  for (const patches of [
+    [{ durationDays: 17 }, { integrationDays: 5 }],
+    [{ integrationDays: 5 }, { durationDays: 17 }]
+  ]) {
+    const fase = { durationDays: 7, integrationDays: 0 };
+    const levantamento = { payload: { laborContexts: [fase] } };
+    let form = { permanence: '7', execution: '5', integration: '0',
+      permanenceBase: '7', integrationDaysApplied: 0, integrationIncludedInPermanence: true };
+    for (const patch of [...patches, { integrationDays: 0 }, { integrationDays: 5 }]) {
+      Object.assign(fase, patch);
+      form = sincronizarPrazosDoLevantamento(form, levantamento);
+      const expected = fase.durationDays - fase.integrationDays - Math.trunc(fase.durationDays / 5) * 2;
+      assert.equal(form.execution, String(expected));
+      assert.equal(form.executionFromEstimate, true);
+      assert.equal(form.integrationIncludedInPermanence, true);
+      assert.equal(atualizarPrazoDeExecucao(form), form);
+      assert.equal(sincronizarPrazosDoLevantamento(form, levantamento), form);
+      const reopened = snapshotDaPropostaSalva({ payload: JSON.parse(JSON.stringify(form)) });
+      assert.equal(atualizarPrazoDeExecucao(reopened).execution, String(expected));
+      form = reopened;
+    }
+    assert.equal(form.execution, '6');
+  }
 });

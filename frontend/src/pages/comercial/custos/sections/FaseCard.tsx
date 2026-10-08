@@ -247,7 +247,7 @@ export function FaseCard({
               min={0}
               step={1}
               placeholder="0"
-              hint="Dias úteis de integração já incluídos no prazo total desta fase."
+              hint="Já incluídos nos dias corridos da fase. São descontados dos dias trabalhados de cada cargo ou colaborador."
               onChange={valor => editar({ integrationDays: valor })}
             />
             <NumberField

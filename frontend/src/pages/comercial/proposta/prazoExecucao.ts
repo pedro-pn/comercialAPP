@@ -1,5 +1,5 @@
 import { diasDeIntegracao, valorNumericoDoPrazo } from '../../../../../shared/comercial/dist/modelo-documento.js';
-import { businessDaysFromCalendar } from '../../../../../shared/comercial/dist/cost-model.js';
+import { businessDaysFromCalendar, workingDaysFromCalendar } from '../../../../../shared/comercial/dist/cost-model.js';
 
 type Formulario = Record<string, unknown>;
 
@@ -27,6 +27,12 @@ export function atualizarPrazoDeExecucao(form: Formulario, permanenciaDeOrigem?:
   let permanence = valorNumericoDoPrazo(permanenciaDeOrigem ?? form.permanence);
   const prazoAtual = prazoDeExecucao(permanence);
   const integracao = diasDeIntegracao(form.integration);
+  if (form.executionFromEstimate === true) {
+    const execution = !prazoAtual || integracao === null ? ''
+      : String(workingDaysFromCalendar(Number(permanence), integracao));
+    return form.permanence === permanence && form.execution === execution
+      ? form : { ...form, permanence, execution };
+  }
   if (form.integrationIncludedInPermanence === true) {
     const execution = integracao === null ? '' : prazoAtual;
     return form.permanence === permanence && form.execution === execution

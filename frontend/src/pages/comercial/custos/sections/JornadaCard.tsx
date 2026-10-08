@@ -161,8 +161,10 @@ export function JornadaCard({
                     error={erro('days')}
                     value={dia.days}
                     hint={dia.daysMode === 'automatic'
-                      ? 'Calculado a partir do período da fase. Você pode ajustar este cargo individualmente.'
-                      : undefined}
+                      ? dia.dayType === 'weekday'
+                        ? 'Dias corridos menos integração, descontando 2 dias a cada 5 dias corridos. Você pode ajustar este cargo individualmente.'
+                        : 'Calculado a partir da escala da fase. Você pode ajustar este cargo individualmente.'
+                      : 'Dias ajustados manualmente para este cargo ou colaborador.'}
                     min={0}
                     step={1}
                     onChange={(value) =>
@@ -210,6 +212,15 @@ export function JornadaCard({
                     }
                   />
                 </div>
+                {dia.daysMode !== 'automatic' && (
+                  <button
+                    type="button"
+                    className="com-btn com-btn-fantasma"
+                    onClick={() => editarDia(dia.dayType, { daysMode: 'automatic' })}
+                  >
+                    Usar dias calculados da fase
+                  </button>
+                )}
               </section>
             );
           })}
