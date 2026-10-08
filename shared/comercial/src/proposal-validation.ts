@@ -260,8 +260,8 @@ export function pendenciasDaTecnica(erros: string[]): PendenciaEtapa[] {
  * As pendências de **Conteúdo da proposta comercial** (`PROP-CTL-058..071`).
  *
  * Ao menos um preço precisa de descrição, quantidade e valor unitário; o total
- * é derivado desses dois últimos. Os quatro adicionais comerciais também são
- * obrigatórios porque seguem para a tabela do item 9.
+ * é derivado desses dois últimos. Os adicionais comerciais são obrigatórios
+ * quando entram no item 9; na sede, permanece apenas a hora extra do item 9.1.
  */
 export function pendenciasDaComercial(
   form: Formulario,
@@ -300,19 +300,22 @@ export function pendenciasDaComercial(
   }
 
   for (const { campo, label } of CAMPOS_STANDBY) {
+    if (form.workAtHeadquarters === true && campo !== 'overtimeRate') continue;
     if (!texto(form, campo)) {
       faltando.push({ campo, mensagem: `Informe ${label.toLocaleLowerCase('pt-BR')}.` });
     }
   }
 
-  const quantidadeStandby = texto(form, 'standbyTeamQuantity');
-  if (quantidadeStandby && (!Number.isInteger(Number(quantidadeStandby)) || Number(quantidadeStandby) <= 0)) {
-    faltando.push({
-      campo: 'standbyTeamQuantity',
-      mensagem: 'Informe uma quantidade inteira de colaboradores maior que zero.'
-    });
-  } else if (!quantidadeStandby) {
-    faltando.push({ campo: 'standbyTeamQuantity', mensagem: 'Informe a quantidade de colaboradores para o stand-by.' });
+  if (form.workAtHeadquarters !== true) {
+    const quantidadeStandby = texto(form, 'standbyTeamQuantity');
+    if (quantidadeStandby && (!Number.isInteger(Number(quantidadeStandby)) || Number(quantidadeStandby) <= 0)) {
+      faltando.push({
+        campo: 'standbyTeamQuantity',
+        mensagem: 'Informe uma quantidade inteira de colaboradores maior que zero.'
+      });
+    } else if (!quantidadeStandby) {
+      faltando.push({ campo: 'standbyTeamQuantity', mensagem: 'Informe a quantidade de colaboradores para o stand-by.' });
+    }
   }
 
   const validade = Number(texto(form, 'validity'));

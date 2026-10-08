@@ -1,11 +1,10 @@
 import { MoneyInput } from '../../components/Field';
 import {
-  hasMeaningfulInputs,
   normalizeCostEstimatePayload,
   technicalServiceRequiresChemicalProducts,
   technicalServiceRequiresFilters
 } from '../../../../../../shared/comercial/dist/cost-model.js';
-import { AvisoPendencia, ConfirmacaoEscopo } from '../ConfirmacaoEscopo';
+import { ConfirmacaoEscopo } from '../ConfirmacaoEscopo';
 import { money, number, numberValue } from '../formato';
 import type { Levantamento } from '../useLevantamento';
 import { CircuitosBloco } from './CircuitosBloco';
@@ -90,11 +89,10 @@ export function InsumosSection({ levantamento }: { levantamento: Levantamento })
 }
 
 function MateriaisBloco({ levantamento }: { levantamento: Levantamento }) {
-  const { draft, result, setDraft, updateCollection, removeCollection } = levantamento;
+  const { draft, result, setDraft, updateCollection, removeCollection, erroDe } = levantamento;
 
   const confirmacoes = (draft.scopeConfirmations as AnyRecord) || {};
   const semInsumos = confirmacoes.noInputs === true;
-  const temComposicao = hasMeaningfulInputs(draft);
   const materiais = registros(draft.materials);
   const calculados = registros(result.materialResults);
 
@@ -138,27 +136,6 @@ function MateriaisBloco({ levantamento }: { levantamento: Levantamento }) {
           + Adicionar item
         </button>
       </div>
-
-      <ConfirmacaoEscopo
-        confirmado={semInsumos}
-        tituloPendente={
-          temComposicao
-            ? 'Composição de insumos identificada'
-            : 'Revisão obrigatória dos insumos'
-        }
-        tituloConfirmado="Sem insumos confirmado"
-        descricaoPendente="Se este serviço realmente não utilizar insumos, confirme explicitamente antes de finalizar."
-        descricaoConfirmada="Materiais, produtos, filtros e efluente ficam fora deste levantamento."
-        rotulo="Confirmo que não haverá materiais ou insumos"
-        onChange={definirSemInsumos}
-      />
-
-      {!semInsumos && !temComposicao && (
-        <AvisoPendencia>
-          Adicione ao menos um material, circuito, produto manual ou filtro, ou confirme que
-          não haverá insumos.
-        </AvisoPendencia>
-      )}
 
       {materiais.length > 0 ? (
         <div className="com-table-wrap">
@@ -289,6 +266,15 @@ function MateriaisBloco({ levantamento }: { levantamento: Levantamento }) {
       ) : (
         <div className="com-vazio">Nenhum material ou insumo cadastrado.</div>
       )}
+
+      <ConfirmacaoEscopo
+        confirmado={semInsumos}
+        descricao="Marque se o serviço não utilizar materiais, produtos químicos, filtros nem descarte de efluente."
+        descricaoConfirmada="Materiais, produtos, filtros e efluente ficam fora deste levantamento."
+        rotulo="Não haverá materiais ou insumos"
+        error={erroDe('scopeConfirmations.noInputs')}
+        onChange={definirSemInsumos}
+      />
 
       <div className="com-nota-regra">
         <strong>Custo de materiais neste levantamento</strong>

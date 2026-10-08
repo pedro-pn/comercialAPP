@@ -198,12 +198,14 @@ export function ComercialStep({
           `valor_standby`, `diaria_equipamento` e `valor_desmob_extra`, que não
           existiam em campo nenhum — T071d. */}
       <fieldset className="com-fieldset">
-        <legend>Stand-by e mobilização adicional</legend>
+        <legend>{form.workAtHeadquarters === true ? 'Horas extras' : 'Stand-by e mobilização adicional'}</legend>
         <p className="com-fieldset-nota">
-          Saem na tabela do item 9 da proposta comercial.
+          {form.workAtHeadquarters === true
+            ? 'Execução na sede / Itajaí: as condições de stand-by e mobilização adicional não entram na proposta.'
+            : 'Saem na tabela do item 9 da proposta comercial.'}
         </p>
         <div className="com-form-grid">
-          {CAMPOS_STANDBY.map(({ campo, label }) => (
+          {CAMPOS_STANDBY.filter(({ campo }) => form.workAtHeadquarters !== true || campo === 'overtimeRate').map(({ campo, label }) => (
             <Field
               key={campo}
               label={label}
@@ -215,7 +217,7 @@ export function ComercialStep({
               onChange={valor => editar({ [campo]: formatarDinheiro(valor) })}
             />
           ))}
-          <Field
+          {form.workAtHeadquarters !== true && <Field
             label="Quantidade de colaboradores para stand-by"
             type="number"
             inputMode="numeric"
@@ -223,14 +225,14 @@ export function ComercialStep({
             value={String(form.standbyTeamQuantity ?? '1')}
             error={erroDe('standbyTeamQuantity')}
             onChange={valor => editar({ standbyTeamQuantity: valor })}
-          />
+          />}
         </div>
-        <p className="com-fieldset-nota">
+        {form.workAtHeadquarters !== true && <p className="com-fieldset-nota">
           Diária total da equipe: {moeda(totalStandbyEquipe(
             lerDinheiro(form.standbyTeam),
             form.standbyTeamQuantity ?? 1
           ))}
-        </p>
+        </p>}
       </fieldset>
 
       <div className="com-form-grid">

@@ -141,9 +141,7 @@ export function ResumoSection({ levantamento, somenteLevantamento = false }: {
 
         <ConfirmacaoEscopo
           confirmado={comissao.enabled === true}
-          tituloPendente={somenteLevantamento ? 'Sem representante neste levantamento' : 'Sem representante nesta proposta'}
-          tituloConfirmado="Comissão de representante incluída"
-          descricaoPendente="Marque apenas se houver representante externo — a comissão entra no cálculo do preço."
+          descricao="Marque se houver representante externo. A comissão entra no cálculo do preço."
           descricaoConfirmada="O percentual entra na formação do preço, com gross-up quando necessário."
           rotulo="Há comissão de representante"
           onChange={valor => editarComissao({ enabled: valor })}

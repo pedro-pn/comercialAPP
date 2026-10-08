@@ -16,6 +16,7 @@ import {
   recalcularItensDePreco,
   type ItemDePreco
 } from './etapas';
+import { atualizarPrazoDeExecucao, prazoDeExecucao } from './prazoExecucao';
 
 type LevantamentoComPayload = Pick<LevantamentoSalvo, 'title' | 'salePrice'> & {
   payload?: Record<string, unknown>;
@@ -220,6 +221,41 @@ export function localDaObraDoLevantamento(
     normalizados[0]?.endereco ??
     ''
   );
+}
+
+/** Período das fases ativas, sem duplicar fases que acontecem em paralelo. */
+export function prazosDoLevantamento(
+  levantamento: Pick<LevantamentoComPayload, 'payload'>
+): { permanence: string; execution: string } | null {
+  const payload = levantamento.payload;
+  if (!payload || payload.noLabor === true || !Array.isArray(payload.laborContexts)) return null;
+  const periodos = payload.laborContexts.flatMap(fase => {
+    if (!fase || typeof fase !== 'object') return [];
+    const registro = fase as Record<string, unknown>;
+    if (registro.enabled === false) return [];
+    const duracao = Number(registro.durationDays);
+    const inicio = Number(registro.startOffsetDays ?? 0);
+    if (!Number.isSafeInteger(duracao) || duracao <= 0 || !Number.isSafeInteger(inicio) || inicio < 0
+      || !Number.isSafeInteger(inicio + duracao)) return [];
+    return [{ inicio, fim: inicio + duracao }];
+  });
+  if (!periodos.length) return null;
+  const diasCorridos = Math.max(...periodos.map(periodo => periodo.fim))
+    - Math.min(...periodos.map(periodo => periodo.inicio));
+  return {
+    permanence: diasCorridos === 1 ? '1 dia corrido' : `${diasCorridos} dias corridos`,
+    execution: prazoDeExecucao(diasCorridos)
+  };
+}
+
+/** A duração do levantamento vinculado é a origem dos prazos da proposta. */
+export function sincronizarPrazosDoLevantamento(
+  form: Record<string, unknown>, levantamento: Pick<LevantamentoComPayload, 'payload'>
+): Record<string, unknown> {
+  const prazos = prazosDoLevantamento(levantamento);
+  if (!prazos) return atualizarPrazoDeExecucao(form);
+  return form.permanence === prazos.permanence && form.execution === prazos.execution
+    ? form : { ...form, ...prazos };
 }
 
 /** Formata o Decimal da API sem reaplicar a máscara de digitação por centavos. */

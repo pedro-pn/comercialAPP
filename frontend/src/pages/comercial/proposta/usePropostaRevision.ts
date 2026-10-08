@@ -27,6 +27,7 @@ import {
   type ItemDePreco,
   type LinhaResponsabilidade
 } from './etapas';
+import { atualizarPrazoDeExecucao } from './prazoExecucao';
 
 type AnyRecord = Record<string, unknown>;
 type SetParams = (params: URLSearchParams, options?: { replace?: boolean }) => void;
@@ -84,14 +85,15 @@ export function usePropostaRevision({
   const revisaoCarregada = useRef('');
 
   const aplicarSnapshot = useCallback(
-    (dados: AnyRecord, sellerUserId = '') => {
+    (dados: AnyRecord, sellerUserId = '', calcularPrazo = true) => {
       const modeloDoSnapshot: ModeloProposta =
         dados.modelo === 'hidrojateamento' ? 'hidrojateamento' : 'padrao';
-      setForm({
+      const form = {
         ...formularioInicial(modeloDoSnapshot),
         ...dados,
         seller: String(dados.seller || sellerUserId || '')
-      });
+      };
+      setForm(calcularPrazo ? atualizarPrazoDeExecucao(form) : form);
       if (Array.isArray(dados.scopeItems)) {
         setItensEscopo(dados.scopeItems as ScopeServiceItem[]);
       }

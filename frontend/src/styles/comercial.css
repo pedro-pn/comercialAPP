@@ -1580,52 +1580,42 @@
    Confirmação de escopo, avisos e visão geral de fases
    ========================================================================== */
 
-/* Âmbar enquanto ninguém decidiu, verde depois de confirmado — é aviso e
-   depois registro. Porte de `.scope-confirmation`. */
+/* Opções de escopo integradas ao formulário, sem aparência de aviso. */
 .com-root .com-confirmacao {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin: 0 0 16px;
+  margin: 16px 0;
   padding: 13px 15px;
-  border: 1px solid #e1c68e;
-  border-radius: 10px;
-  background: #fff9ec;
+  border: 1px solid var(--com-borda);
+  border-radius: 8px;
+  background: var(--com-superficie);
 }
-
-.com-root .com-confirmacao > div { display: flex; flex-direction: column; min-width: 0; }
-.com-root .com-confirmacao > div strong { color: #76561f; font-size: 12px; }
-.com-root .com-confirmacao > div span { color: #76561f; font-size: 11px; }
 
 .com-root .com-confirmacao > label {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 0 0 auto;
-  color: #76561f;
-  font-size: 10px;
+  align-items: flex-start;
+  gap: 10px;
   cursor: pointer;
   min-width: 0;
 }
 
-@media (max-width: 600px) {
-  .com-root .com-confirmacao > label {
-    flex: 1 1 100%;
-    overflow-wrap: anywhere;
-  }
-  .com-root .com-confirmacao > label b { min-width: 0; }
+.com-root .com-confirmacao input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin: 1px 0 0;
+  accent-color: var(--com-marca-forte);
 }
+
+.com-root .com-confirmacao > label > span { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.com-root .com-confirmacao strong { color: var(--com-texto); font-size: 13px; overflow-wrap: anywhere; }
+.com-root .com-confirmacao label small { color: var(--com-texto-fraco); font-size: 12px; line-height: 1.5; }
+.com-root .com-confirmacao > .field-error { display: block; margin: 6px 0 0 28px; }
 
 .com-root .com-confirmacao.is-confirmada {
   border-color: #9fc4ab;
   background: #edf7f0;
 }
 
-.com-root .com-confirmacao.is-confirmada > div strong,
-.com-root .com-confirmacao.is-confirmada > div span,
-.com-root .com-confirmacao.is-confirmada > label {
+.com-root .com-confirmacao.is-confirmada strong {
   color: var(--com-marca-forte);
 }
 

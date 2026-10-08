@@ -11,6 +11,7 @@ import {
 import { comDataBaseDoCronograma } from './datasDaFase';
 import { corrigirClassificacaoLogistica } from './logistica';
 import { atualizarDimensionamento } from './dimensionamento';
+import { ajustarLogisticaPelaCondicao } from './condicaoDeTrabalho';
 
 /**
  * Estado do levantamento de custos.
@@ -66,7 +67,9 @@ export function useLevantamento(estimatorName: string, secaoAtual = 'premises') 
   const setDraft = useCallback<typeof setDraftBruto>(valor => {
     setDraftBruto(atual => {
       const proximo = typeof valor === 'function' ? valor(atual) : valor;
-      return comDataBaseDoCronograma(corrigirClassificacaoLogistica(atualizarDimensionamento(proximo)));
+      return comDataBaseDoCronograma(corrigirClassificacaoLogistica(atualizarDimensionamento(
+        ajustarLogisticaPelaCondicao(atual, proximo)
+      )));
     });
     setIssuesDoServidor(atual => (atual.length ? [] : atual));
   }, []);
