@@ -84,7 +84,9 @@ import {
   itemDePrecoDoLevantamento,
   localDaObraDoLevantamento,
   parametrosDaPropostaComLevantamento,
+  prazosDoLevantamento,
   sincronizarPrecosDoLevantamento,
+  sincronizarPrazosDoLevantamento,
   preencherServicosTecnicosAusentesDoLevantamento,
   servicosImportadosDoLevantamento,
   valorDaMobilizacaoDeEquipeDoLevantamento
@@ -250,7 +252,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
   const [podeEscolher, setPodeEscolher] = useState(false);
   const [recado, setRecado] = useState('');
   const [levantamentoVinculado, setLevantamentoVinculado] =
-    useState<LevantamentoSalvo | null>(null);
+    useState<(LevantamentoSalvo & { payload?: AnyRecord }) | null>(null);
   const [gerandoPdf, setGerandoPdf] = useState(false);
   const [previaPdf, setPreviaPdf] = useState<{
     tipo: TipoDeDocumento;
@@ -374,8 +376,11 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
         const propostaPronta = !propostaId || Boolean(versaoCarregada);
         if (propostaPronta && revisaoPronta && statusProposta === 'RASCUNHO') {
           const workAtHeadquarters = trabalhoSomenteNaSede(levantamento.payload || {});
-          setForm(atual => atual.workAtHeadquarters === workAtHeadquarters
-            ? atual : { ...atual, workAtHeadquarters });
+          setForm(atual => {
+            const comPrazos = sincronizarPrazosDoLevantamento(atual, levantamento);
+            return comPrazos.workAtHeadquarters === workAtHeadquarters
+              ? comPrazos : { ...comPrazos, workAtHeadquarters };
+          });
         }
         const deveAplicar =
           usarDadosDoLevantamento &&
@@ -585,7 +590,8 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
         // sem buscar e a proposta reaparecia vazia no F5.
         idCarregado.current = propostaId;
         const dados = snapshotDaPropostaSalva(proposta);
-        aplicarSnapshot(dados, proposta.sellerConsultantId || proposta.sellerUserId || '');
+        aplicarSnapshot(dados, proposta.sellerConsultantId || proposta.sellerUserId || '',
+          (proposta.status || 'RASCUNHO') === 'RASCUNHO');
         setVersaoCarregada(proposta.updatedAt || '');
         setStatusProposta(proposta.status || 'RASCUNHO');
         finalizacao.marcarFinalizada(proposta.status === 'FINALIZADA');
@@ -775,7 +781,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
 
   function editar(patch: AnyRecord) {
     if (statusProposta !== 'RASCUNHO') return;
-    setForm((atual) => ({ ...atual, ...patch }));
+    setForm((atual) => sincronizarPrazosDoLevantamento({ ...atual, ...patch }, levantamentoVinculado || {}));
     if (
       pendenciaFinalizacao &&
       (pendenciaFinalizacao.campo in patch ||
@@ -1463,10 +1469,10 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
                       | undefined;
                     if (!dados) return;
                     if (dados.form) {
-                      setForm({
+                      setForm(sincronizarPrazosDoLevantamento({
                         ...formularioInicial(modelo ?? 'padrao'),
                         ...dados.form
-                      });
+                      }, levantamentoVinculado || {}));
                     }
                     if (Array.isArray(dados.itensEscopo))
                       setItensEscopo(dados.itensEscopo);
@@ -1561,7 +1567,9 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
               erroDe={erroDe}
             />
           ) : etapa === 'prazos' ? (
-            <PrazosStep form={form} editar={editar} erroDe={erroDe} />
+            <PrazosStep form={form} editar={editar} erroDe={erroDe}
+              permanenciaDoLevantamento={statusProposta === 'RASCUNHO' &&
+                Boolean(prazosDoLevantamento(levantamentoVinculado || {}))} />
           ) : etapa === 'tecnica' ? (
             <TecnicaStep
               selecoes={servicosTecnicos}
