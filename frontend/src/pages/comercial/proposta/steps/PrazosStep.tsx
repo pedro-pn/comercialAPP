@@ -83,10 +83,14 @@ export function PrazosStep({
               || (campo === 'integration' && integracaoDoLevantamento)}
             hint={campo === 'permanence'
               ? permanenciaDoLevantamento
-                ? 'Inclui a integração e os fins de semana. Para alterar a duração dos serviços, edite o levantamento vinculado.'
+                ? integracaoDoLevantamento
+                  ? 'Período total em dias corridos do levantamento, incluindo a integração. Para alterar a duração dos serviços, edite o levantamento vinculado.'
+                  : 'Inclui a integração e os fins de semana. Para alterar a duração dos serviços, edite o levantamento vinculado.'
                 : 'Informe somente os dias corridos. O total é ajustado ao alterar a integração.'
               : campo === 'execution'
-                ? 'Inclui os dias de integração. Calculado de segunda a sexta, considerando início na segunda-feira.'
+                ? integracaoDoLevantamento
+                  ? 'Dias corridos menos integração, descontando 2 dias a cada 5 dias corridos, conforme o levantamento.'
+                  : 'Inclui os dias de integração. Calculado de segunda a sexta, considerando início na segunda-feira.'
                 : campo === 'integration'
                   ? integracaoDoLevantamento
                     ? 'Importado automaticamente. Para alterar a integração, edite as fases de mão de obra do levantamento vinculado.'

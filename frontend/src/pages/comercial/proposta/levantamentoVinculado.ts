@@ -1,5 +1,5 @@
 import type { LevantamentoSalvo } from '../../../api/comercial';
-import { businessDaysFromCalendar, calculateEstimate, normalizeCostEstimatePayload } from '../../../../../shared/comercial/dist/cost-model.js';
+import { businessDaysFromCalendar, workingDaysFromCalendar, calculateEstimate, normalizeCostEstimatePayload } from '../../../../../shared/comercial/dist/cost-model.js';
 import { dimensioningItems, dimensioningServiceAllowed } from '../../../../../shared/comercial/dist/dimensioning.js';
 import { scopeTablesFromDimensioning } from '../../../../../shared/comercial/dist/dimensioning-scope.js';
 import type { ScopeBlock, ScopeServiceItem } from '../../../../../shared/comercial/dist/scope-content.js';
@@ -244,7 +244,7 @@ export function prazosDoLevantamento(
   if (!periodos.length) return null;
   const inicio = Math.min(...periodos.map(periodo => periodo.inicio));
   const diasCorridos = Math.max(...periodos.map(periodo => periodo.fim)) - inicio;
-  const execution = prazoDeExecucao(diasCorridos);
+  let execution = prazoDeExecucao(diasCorridos);
   let integration: string | undefined;
   if (periodos.some(periodo => periodo.integracao !== undefined)) {
     const integracoes = periodos.map(periodo => ({
@@ -253,10 +253,12 @@ export function prazosDoLevantamento(
       duracao: periodo.fim - periodo.inicio
     }));
     if (integracoes.some(periodo => !Number.isSafeInteger(periodo.dias)
-      || periodo.dias < 0 || periodo.dias > businessDaysFromCalendar(periodo.duracao))) {
+      || periodo.dias < 0 || periodo.dias > workingDaysFromCalendar(periodo.duracao))) {
       integration = '';
+      execution = '';
     } else {
       // Integrações simultâneas ocupam os mesmos dias úteis da permanência.
+      execution = String(workingDaysFromCalendar(diasCorridos));
       const intervalos = integracoes.filter(periodo => periodo.dias > 0)
         .map(periodo => ({ inicio: periodo.inicio,
           fim: Math.min(periodo.inicio + periodo.dias, Number(execution)) }))
@@ -268,6 +270,7 @@ export function prazosDoLevantamento(
         fimAnterior = Math.max(fimAnterior, periodo.fim);
       }
       integration = String(dias);
+      execution = String(workingDaysFromCalendar(diasCorridos, dias));
     }
   }
   return {
@@ -285,14 +288,17 @@ export function sincronizarPrazosDoLevantamento(
   if (!prazos) return atualizarPrazoDeExecucao(form);
   if (prazos.integration !== undefined) {
     return form.permanence === prazos.permanence && form.execution === prazos.execution
-      && form.integration === prazos.integration && form.integrationIncludedInPermanence === true
+      && form.integration === prazos.integration && form.executionFromEstimate === true
+      && form.integrationIncludedInPermanence === true
       && form.permanenceBase === prazos.permanence && form.integrationDaysApplied === 0
       ? form : { ...form, ...prazos, permanenceBase: prazos.permanence,
-        integrationDaysApplied: 0, integrationIncludedInPermanence: true };
+        integrationDaysApplied: 0, integrationIncludedInPermanence: true, executionFromEstimate: true };
   }
-  const atualizado = atualizarPrazoDeExecucao(form, prazos.permanence);
+  const atualizado = atualizarPrazoDeExecucao({ ...form,
+    executionFromEstimate: false, integrationIncludedInPermanence: false }, prazos.permanence);
   return form.permanence === atualizado.permanence && form.execution === atualizado.execution
     && form.permanenceBase === atualizado.permanenceBase
+    && form.executionFromEstimate !== true && form.integrationIncludedInPermanence !== true
     && form.integrationDaysApplied === atualizado.integrationDaysApplied ? form : atualizado;
 }
 

@@ -43,6 +43,14 @@ Os totais mudam durante o preenchimento. Use o rodapé e as mensagens de pendên
 para localizar o que falta. Confirme explicitamente as opções de escopo quando
 não houver insumos ou logística, conforme solicitado pelo formulário.
 
+Na mão de obra, os dias trabalhados são calculados por
+`dias corridos - dias de integração - (trunc(dias corridos / 5) * 2)`.
+Por exemplo, 17 dias corridos e 5 de integração resultam em 6 dias trabalhados.
+Os dias de integração já estão incluídos no período total e são descontados dos dias trabalhados.
+Alterar os dias corridos ou a integração atualiza a equipe e os custos. Dias ajustados
+manualmente por cargo ou colaborador são preservados; clique em **Usar dias
+calculados da fase** para voltar ao cálculo automático.
+
 As edições são salvas automaticamente para continuar depois. Para concluir,
 resolva as pendências,
 confira o código apresentado e clique em **Salvar e criar proposta** no resumo.

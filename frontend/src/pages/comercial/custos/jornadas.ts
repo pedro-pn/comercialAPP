@@ -1,4 +1,4 @@
-import { businessDaysFromCalendar } from '../../../../../shared/comercial/dist/cost-model.js';
+import { workingDaysFromCalendar } from '../../../../../shared/comercial/dist/cost-model.js';
 
 type AnyRecord = Record<string, unknown>;
 
@@ -37,9 +37,9 @@ function diaVazio(dayType: TipoDeDiaDaJornada): DiaDaJornada {
   };
 }
 
-function diasUteisDaFase(fase: AnyRecord): number {
+function diasTrabalhadosDaFase(fase: AnyRecord): number {
   if (fase.workingDaysMode === 'manual' && fase.workingDays !== undefined) return numero(fase.workingDays);
-  return businessDaysFromCalendar(numero(fase.durationDays));
+  return workingDaysFromCalendar(numero(fase.durationDays), numero(fase.integrationDays));
 }
 
 function jornadaPadraoDaFase(fase: AnyRecord): JornadaDaEquipe {
@@ -49,7 +49,7 @@ function jornadaPadraoDaFase(fase: AnyRecord): JornadaDaEquipe {
     days: [
       {
         dayType: 'weekday',
-        days: diasUteisDaFase(fase),
+        days: diasTrabalhadosDaFase(fase),
         daysMode: 'automatic',
         normalHoursPerDay: numero(fase.hoursPerDay),
         extraHoursPerDay: numero(fase.weekdayExtra70HoursPerDay),
@@ -102,7 +102,7 @@ export function jornadaDaAlocacao(
       return {
         dayType,
         days: item.daysMode === 'automatic'
-          ? dayType === 'weekday' ? diasUteisDaFase(fase)
+          ? dayType === 'weekday' ? diasTrabalhadosDaFase(fase)
             : numero(dayType === 'saturday' ? fase.saturdayCount : fase.sundayCount)
           : numero(item.days),
         ...(item.daysMode === undefined ? {} : { daysMode: item.daysMode === 'automatic' ? 'automatic' : 'manual' }),
@@ -167,7 +167,7 @@ export function sincronizarDiasTrabalhadosDoLevantamento(draft: AnyRecord): AnyR
     const workingDaysMode = fase.workingDaysMode === 'manual'
       || (draft.legacyImport && fase.workingDaysMode !== 'automatic') ? 'manual' : 'automatic';
     const workingDays = workingDaysMode === 'automatic'
-      ? businessDaysFromCalendar(numero(fase.durationDays)) : fase.workingDays;
+      ? workingDaysFromCalendar(numero(fase.durationDays), numero(fase.integrationDays)) : fase.workingDays;
     const integrationDays = fase.integrationDays ?? 0;
     let proxima = fase.workingDaysMode === workingDaysMode && fase.workingDays === workingDays
       && fase.integrationDays === integrationDays

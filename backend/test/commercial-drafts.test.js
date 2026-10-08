@@ -7,7 +7,8 @@ import { makeComercialSchemas } from '../../shared/schemas/comercial.js';
 import { createApp } from '../src/app.js';
 import { createAuthService, tokenHash } from '../src/auth/service.js';
 import { createDatabase } from '../src/db.js';
-import { startCostEstimate } from '../src/comercial/cost-estimates.js';
+import { startCostEstimate, updateCostEstimate } from '../src/comercial/cost-estimates.js';
+import { calculateEstimate, createDefaultCostEstimatePayload } from '../../shared/comercial/dist/cost-model.js';
 
 const schemas = makeComercialSchemas(z);
 const expectedUpdatedAt = '2026-10-06T20:00:00.000Z';
@@ -54,6 +55,47 @@ test('início do levantamento aceita campos vazios e reserva a numeração pelo 
   for (const fields of [{ proposalCode: '9000' }, { revisionNumber: 1 }, { mode: 'REVISAO' },
     { status: 'SALVO' }, { totalCost: 100 }, { title: 'x'.repeat(201) }, { payload: null }]) {
     assert.equal(schemas.costEstimateStart.safeParse({ payload: {}, ...fields }).success, false);
+  }
+});
+
+test('servidor recalcula e persiste dias e custos descontando a integração, em qualquer ordem', async () => {
+  const user = { id: 'vendedor', name: 'Vendedor', role: 'SELLER' };
+  for (const patches of [
+    [{ durationDays: 17 }, { integrationDays: 5 }],
+    [{ integrationDays: 5 }, { durationDays: 17 }]
+  ]) {
+    const payload = createDefaultCostEstimatePayload();
+    const assignment = payload.laborContexts[0].assignments[0];
+    assignment.workSchedule = { name: 'Automática', targetType: 'role', days: [{
+      dayType: 'weekday', days: 999, daysMode: 'automatic',
+      normalHoursPerDay: 8, extraHoursPerDay: 0, overtimePercent: 70
+    }] };
+    let stored = { id: 'levantamento', proposalCode: '4630', revisionNumber: 0, mode: 'NOVA',
+      status: 'RASCUNHO', payload, createdByUserId: user.id, updatedAt: new Date(expectedUpdatedAt) };
+    const db = {
+      costEstimate: {
+        findUnique: async () => structuredClone(stored),
+        update: async ({ data }) => (stored = { ...stored, ...structuredClone(data) })
+      },
+      proposal: { findMany: async () => [] },
+      $transaction: async action => action(db)
+    };
+    for (const patch of patches) {
+      const previousCost = calculateEstimate(stored.payload).totalCost;
+      const edited = structuredClone(stored.payload);
+      Object.assign(edited.laborContexts[0], patch, { workingDays: 999 });
+      const saved = await updateCostEstimate(db, user, stored.id,
+        { payload: edited, expectedUpdatedAt: stored.updatedAt.toISOString() });
+      const phase = saved.payload.laborContexts[0];
+      const expected = phase.durationDays - phase.integrationDays - Math.trunc(phase.durationDays / 5) * 2;
+      assert.equal(phase.workingDays, expected);
+      assert.equal(phase.assignments[0].workSchedule.days[0].days, expected);
+      const result = calculateEstimate(saved.payload);
+      assert.equal(result.contextResults[0].assignments[0].normalHours, expected * 8);
+      assert.equal(saved.totalCost, result.totalCost);
+      if ('integrationDays' in patch) assert.ok(saved.totalCost < previousCost);
+    }
+    assert.equal(stored.payload.laborContexts[0].workingDays, 6);
   }
 });
 
