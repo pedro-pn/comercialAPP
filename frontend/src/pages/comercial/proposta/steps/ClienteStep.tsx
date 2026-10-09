@@ -116,7 +116,7 @@ export function ClienteStep({
           dataTutorial="cnpj"
           required
           inputMode="numeric"
-          value={valor('cnpj')}
+          value={formatarCnpj(valor('cnpj'))}
           error={erroDe('cnpj')}
           onChange={(novo) => editar({ cnpj: formatarCnpj(novo) })}
         />

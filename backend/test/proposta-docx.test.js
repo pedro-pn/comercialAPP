@@ -106,6 +106,34 @@ function texto(no) {
 }
 
 for (const modelo of ['padrao', 'hidrojateamento']) {
+  test(`valores grandes ${modelo} ficam inteiros nas células, inclusive totais e itens informativos`, async () => {
+    for (const includeUnitValue of [true, false]) {
+      const doc = lerParte(new AdmZip(await preencherProposta({
+        modelo, includeUnitValue, includeInformationalPrices: true,
+        prices: ['ONSHORE', 'OFFSHORE'].map(local => ({ local,
+          description: `Descrição extensa ${local} que pode ocupar várias linhas`, quantity: '1',
+          unitValue: 'R$ 123.456.789,90', value: 'R$ 123.456.789,90' })),
+        informationalPrices: [{ description: 'Equipamento informativo', quantity: '2',
+          unitValue: 'R$ 987.654.321,00' }]
+      }, 'commercial')), 'word/document.xml');
+      const cells = Array.from(doc.getElementsByTagName('w:tc'));
+      const monetary = cells.filter(cell => /^\s*R\$\s*[\d.,]+\s*$/u.test(texto(cell)));
+      assert.ok(monetary.length >= (includeUnitValue ? 5 : 4));
+      assert.ok(monetary.some(cell => texto(cell).includes('123.456.789,90')));
+      assert.ok(monetary.some(cell => texto(cell).includes('1.975.308.642,00')));
+      for (const cell of monetary) {
+        assert.equal(cell.getElementsByTagName('w:noWrap').item(0)?.getAttribute('w:val'), 'true');
+        assert.equal(cell.getElementsByTagName('w:tcFitText').item(0)?.getAttribute('w:val'), 'true');
+        assert.doesNotMatch(texto(cell), /[ \t\r\n]/u, 'O símbolo e o número permanecem unidos');
+        assert.equal(cell.getElementsByTagName('w:br').length, 0);
+      }
+      for (const cell of cells.filter(cell => texto(cell).startsWith('Descrição extensa'))) {
+        assert.equal(cell.getElementsByTagName('w:noWrap').length, 0, 'As descrições continuam quebrando linha');
+        assert.match(texto(cell), /Descrição extensa /);
+      }
+    }
+  });
+
   test(`prazos ${modelo} usam a unidade do modelo uma única vez, inclusive em propostas antigas`, async () => {
     for (const tipo of ['commercial', 'technical']) {
       for (const prazos of [

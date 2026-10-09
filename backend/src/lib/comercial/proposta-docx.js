@@ -561,6 +561,32 @@ function ajustarColunaDeValorUnitario(doc, incluir) {
   }
 }
 
+/** Mantém cada valor inteiro e ajusta o texto à célula nos modelos de largura fixa. */
+function impedirQuebraDeValores(doc) {
+  for (const celula of Array.from(doc.getElementsByTagName('w:tc'))) {
+    if (!/^\s*R\$\s*(?:-?\d[\d.,]*|-)?\s*$/u.test(elementText(celula))) continue;
+    let propriedades = celula.getElementsByTagName('w:tcPr').item(0);
+    if (!propriedades) {
+      propriedades = doc.createElement('w:tcPr');
+      celula.insertBefore(propriedades, celula.firstChild);
+    }
+    for (const nome of ['w:noWrap', 'w:tcFitText']) {
+      let propriedade = propriedades.getElementsByTagName(nome).item(0);
+      if (!propriedade) {
+        propriedade = doc.createElement(nome);
+        const seguinte = Array.from(propriedades.childNodes).find(no =>
+          ['w:tcMar', 'w:textDirection', 'w:vAlign', 'w:hideMark', 'w:tcPrChange'].includes(no.nodeName)
+          && (nome === 'w:noWrap' || !['w:tcMar', 'w:textDirection'].includes(no.nodeName)));
+        propriedades.insertBefore(propriedade, seguinte || null);
+      }
+      propriedade.setAttribute('w:val', 'true');
+    }
+    for (const texto of Array.from(celula.getElementsByTagName('w:t'))) {
+      texto.textContent = texto.textContent.replace(/[ \t\r\n]+/gu, '\u00a0');
+    }
+  }
+}
+
 /** A data do cabeçalho é posicionada por alinhamento, nunca por espaços. */
 function alinharDataDoCabecalho(doc) {
   for (const paragrafo of Array.from(doc.getElementsByTagName('w:p'))) {
@@ -959,6 +985,7 @@ export async function preencherProposta(dados, tipo) {
     const campos = { ...camposSimples(dados), ...totais };
     if (cabecalhosDaCapa.has(parte)) campos.data_texto = '';
     replacePlaceholders(doc.documentElement, campos);
+    if (parte === 'word/document.xml' && tipo === 'commercial') impedirQuebraDeValores(doc);
     restaurarSumarios();
 
     zip.updateFile(parte, Buffer.from(new XMLSerializer().serializeToString(doc), 'utf8'));

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { createApp } from '../src/app.js';
-import { linkProposalToPrisma } from '../src/comercial/proposals.js';
+import { createProposal, linkProposalToPrisma } from '../src/comercial/proposals.js';
 
 const author = { id: 'autor', role: 'SELLER', name: 'Vendedor' };
 const releaseId = '36a53577-b7d9-4e14-aa29-01b0f7d66ad1';
@@ -35,10 +35,13 @@ function fixture({ proposal: fields = {}, release: releaseFields = {}, newer, ot
   const db = {
     $queryRaw: async () => [],
     $transaction: async callback => callback(db),
+    proposalNumberReservation: { findUnique: async () => ({ reservedByUserId: author.id }),
+      updateMany: async () => ({ count: 1 }) },
     crmRelease: { findUnique: async ({ where }) => where.id === release.id ? release :
       alternateRelease && where.id === otherReleaseId
         ? { ...release, id: otherReleaseId, opportunityId: 'segunda-oportunidade' } : null },
     proposal: {
+      create: async ({ data }) => { writes++; proposal = { ...proposal, ...data }; return proposal; },
       findUnique: async ({ where }) => where.id === proposal.id ? proposal : null,
       findFirst: async ({ where }) => where.revisionNumber ? newer || null : otherLink || null,
       update: async ({ where, data }) => {
@@ -69,6 +72,58 @@ test('associação preserva a proposta 4638, seus valores, conteúdo, documentos
     assert.ok(result.updatedAt > original.updatedAt);
     assert.equal(f.writes(), 1);
   }
+});
+
+test('criar a proposta 4643 pela liberação completa contato e e-mail mesmo com o formulário vazio', async () => {
+  const f = fixture();
+  const payload = { contact: '', email: '', title: 'Título negociado',
+    prices: [{ value: 'R$ 12.500,00' }], payment: 'Condição negociada' };
+  const result = await createProposal(f.db, author, { proposalCode: '4643', revisionNumber: 0,
+    crmReleaseId: releaseId, clientName: f.release.snapshot.legalName, cnpj: taxId,
+    contact: '', email: '', department: null, site: 'Local negociado', payload });
+  assert.equal(result.contact, f.release.snapshot.contactName);
+  assert.equal(result.email, f.release.snapshot.email);
+  assert.equal(result.payload.contact, result.contact);
+  assert.equal(result.payload.email, result.email);
+  assert.equal(result.payload.title, payload.title);
+  assert.equal(result.payload.payment, payload.payment);
+  assert.deepEqual(result.payload.prices, payload.prices);
+  assert.equal(result.site, 'Local negociado');
+  assert.equal(result.totalValue, 12500);
+  assert.equal(result.crmReleaseId, releaseId);
+});
+
+test('criação com Prisma preserva contato e e-mail digitados ou salvos só no payload', async () => {
+  for (const somentePayload of [false, true]) {
+    const f = fixture();
+    const contact = 'Contato escolhido', email = 'escolhido@example.invalid';
+    const result = await createProposal(f.db, author, { proposalCode: '4643', revisionNumber: 0,
+      crmReleaseId: releaseId, clientName: '', cnpj: '', contact: somentePayload ? '' : contact,
+      email: somentePayload ? '' : email, site: '', payload: { contact, email } });
+    assert.equal(result.contact, contact);
+    assert.equal(result.email, email);
+    assert.equal(result.payload.contact, contact);
+    assert.equal(result.payload.email, email);
+    assert.equal(result.clientName, f.release.snapshot.legalName);
+    assert.equal(result.cnpj, taxId);
+  }
+});
+
+test('criação não mistura dados de outro CNPJ nem preenche rascunhos sem liberação', async () => {
+  const input = { proposalCode: '4643', revisionNumber: 0, clientName: '', cnpj: '', contact: '', email: '',
+    site: '', payload: { contact: '', email: '' } };
+  const f = fixture();
+  await assert.rejects(createProposal(f.db, author, { ...input, crmReleaseId: releaseId, cnpj: '99888777000166' }), { status: 409 });
+  await assert.rejects(createProposal(f.db, author, { ...input, crmReleaseId: releaseId, cnpj: '   ',
+    payload: { ...input.payload, cnpj: '99888777000166' } }), { status: 409 });
+  assert.equal(f.writes(), 0);
+  const result = await createProposal(f.db, author, input);
+  assert.equal(result.contact, '');
+  assert.equal(result.email, '');
+  assert.deepEqual(result.payload, input.payload);
+  const revoked = fixture({ release: { status: 'REVOKED' } });
+  await assert.rejects(createProposal(revoked.db, author, { ...input, crmReleaseId: releaseId }), { status: 409 });
+  assert.equal(revoked.writes(), 0);
 });
 
 test('associação respeita autoria, estado, envio e decisões da proposta', async () => {

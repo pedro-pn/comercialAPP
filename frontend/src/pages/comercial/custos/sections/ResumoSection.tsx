@@ -74,6 +74,8 @@ export function ResumoSection({ levantamento, somenteLevantamento = false }: {
   }
 
   const lucro = numberValue(result.profitValue);
+  const custoIntegracao = ((result.contextResults || []) as AnyRecord[])
+    .reduce((total, fase) => total + numberValue(fase.integrationCost), 0);
 
   return (
     <>
@@ -188,6 +190,9 @@ export function ResumoSection({ levantamento, somenteLevantamento = false }: {
 
         <div className="com-resumo-grade">
           <Dado label="Mão de obra" valor={money(numberValue(result.laborCost))} />
+          {custoIntegracao > 0 && (
+            <Dado label="Integração (incluída na mão de obra)" valor={money(custoIntegracao)} />
+          )}
           <Dado
             label="Materiais e insumos"
             valor={money(custoTotalMateriaisEInsumos(result))}

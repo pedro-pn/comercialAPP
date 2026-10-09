@@ -39,7 +39,7 @@ function diaVazio(dayType: TipoDeDiaDaJornada): DiaDaJornada {
 
 function diasTrabalhadosDaFase(fase: AnyRecord): number {
   if (fase.workingDaysMode === 'manual' && fase.workingDays !== undefined) return numero(fase.workingDays);
-  return workingDaysFromCalendar(numero(fase.durationDays), numero(fase.integrationDays));
+  return workingDaysFromCalendar(numero(fase.durationDays));
 }
 
 function jornadaPadraoDaFase(fase: AnyRecord): JornadaDaEquipe {
@@ -167,7 +167,7 @@ export function sincronizarDiasTrabalhadosDoLevantamento(draft: AnyRecord): AnyR
     const workingDaysMode = fase.workingDaysMode === 'manual'
       || (draft.legacyImport && fase.workingDaysMode !== 'automatic') ? 'manual' : 'automatic';
     const workingDays = workingDaysMode === 'automatic'
-      ? workingDaysFromCalendar(numero(fase.durationDays), numero(fase.integrationDays)) : fase.workingDays;
+      ? workingDaysFromCalendar(numero(fase.durationDays)) : fase.workingDays;
     const integrationDays = fase.integrationDays ?? 0;
     let proxima = fase.workingDaysMode === workingDaysMode && fase.workingDays === workingDays
       && fase.integrationDays === integrationDays

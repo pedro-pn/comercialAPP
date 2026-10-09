@@ -40,7 +40,7 @@ test('prévia comercial mostra o desconto e o total líquido; a técnica permane
   const markup = renderToStaticMarkup(createElement(DocumentoPrevia, props));
   assert.match(markup, /Desconto: Desconto negociado/);
   assert.match(markup, /-R\$ 150,50/);
-  assert.match(markup, /Total geral:<\/b> R\$ 849,50/);
+  assert.match(markup, /Total geral:<\/b> <span class="com-doc-valor">R\$ 849,50<\/span>/);
   assert.doesNotMatch(renderToStaticMarkup(createElement(DocumentoPrevia, { ...props, tipo: 'technical' })),
     /Desconto negociado|849,50/);
 });

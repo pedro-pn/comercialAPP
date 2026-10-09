@@ -51,7 +51,7 @@ test('a prévia comercial exibe a tabela e o total contratado permanece isolado'
   assert.match(markup, /Equipamentos e outras despesas/);
   assert.match(markup, /Locação de bomba/);
   assert.match(markup, /301,25/);
-  assert.match(markup, /Total geral:<\/b> R\$ 1\.000,00/);
+  assert.match(markup, /Total geral:<\/b> <span class="com-doc-valor">R\$ 1\.000,00<\/span>/);
   assert.match(markup, /VALOR UNIT\./, 'A tabela informativa sempre mostra o valor unitário');
   for (const patch of [{ tipo: 'technical' }, { form: { ...form, includeInformationalPrices: false } }]) {
     const omitted = renderToStaticMarkup(createElement(DocumentoPrevia, { ...props, ...patch }));

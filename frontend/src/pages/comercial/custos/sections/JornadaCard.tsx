@@ -80,6 +80,12 @@ export function JornadaCard({
       </summary>
 
       <div className="com-jornada-corpo">
+          {numberValue(calculado.integrationCost) > 0 && (
+            <p className="com-ajuda-campo">
+              Integração: {number(numberValue(fase.integrationDays))} dia(s) ·{' '}
+              {money(numberValue(calculado.integrationCost))}, incluídos no custo desta equipe.
+            </p>
+          )}
         <div className="com-form-grid">
           <Field
             label="Nome do cenário"
@@ -162,7 +168,7 @@ export function JornadaCard({
                     value={dia.days}
                     hint={dia.daysMode === 'automatic'
                       ? dia.dayType === 'weekday'
-                        ? 'Dias de segunda a sexta, considerando início na segunda-feira, menos os dias de integração. Você pode ajustar este cargo individualmente.'
+                        ? 'Dias de segunda a sexta, considerando início na segunda-feira. A integração acrescenta somente custo. Você pode ajustar este cargo individualmente.'
                         : 'Calculado a partir da escala da fase. Você pode ajustar este cargo individualmente.'
                       : 'Dias ajustados manualmente para este cargo ou colaborador.'}
                     min={0}

@@ -7,8 +7,8 @@ import { atualizarPrazoDeExecucao } from '../prazoExecucao';
  *
  * Porte de `app/page.tsx:1009-1017`.
  *
- * O prazo efetivo inclui a integração, ajustando os dias corridos pelos fins de
- * semana. Os demais prazos aceitam as condições de atendimento e mobilização.
+ * O prazo efetivo conta os dias úteis da permanência. A integração acrescenta
+ * custo no levantamento sem alterar os prazos de execução ou permanência.
  */
 
 type AnyRecord = Record<string, unknown>;
@@ -63,7 +63,7 @@ export function PrazosStep({
           <h2>Prazos e jornada</h2>
           <p>{permanenciaDoLevantamento
             ? 'Os prazos são importados do período e da integração do levantamento vinculado.'
-            : 'Informe a permanência e a integração para calcular os prazos.'}</p>
+            : 'Informe a permanência para calcular o prazo de execução.'}</p>
         </div>
         <span className="com-obrigatorios">Campos com * são obrigatórios</span>
       </div>
@@ -83,18 +83,14 @@ export function PrazosStep({
               || (campo === 'integration' && integracaoDoLevantamento)}
             hint={campo === 'permanence'
               ? permanenciaDoLevantamento
-                ? integracaoDoLevantamento
-                  ? 'Período total em dias corridos do levantamento, incluindo a integração. Para alterar a duração dos serviços, edite o levantamento vinculado.'
-                  : 'Inclui a integração e os fins de semana. Para alterar a duração dos serviços, edite o levantamento vinculado.'
-                : 'Informe somente os dias corridos. O total é ajustado ao alterar a integração.'
+                ? 'Período em dias corridos do levantamento. Para alterar a duração dos serviços, edite o levantamento vinculado.'
+                : 'Informe os dias corridos da permanência. A integração não altera este prazo.'
               : campo === 'execution'
-                ? integracaoDoLevantamento
-                  ? 'Dias de segunda a sexta, considerando início na segunda-feira, menos os dias de integração, conforme o levantamento.'
-                  : 'Inclui os dias de integração. Calculado de segunda a sexta, considerando início na segunda-feira.'
+                ? 'Dias de segunda a sexta, considerando início na segunda-feira. A integração não altera este prazo.'
                 : campo === 'integration'
                   ? integracaoDoLevantamento
                     ? 'Importado automaticamente. Para alterar a integração, edite as fases de mão de obra do levantamento vinculado.'
-                    : 'Os dias de integração são somados aos dias trabalhados e ajustam a permanência pelos fins de semana.'
+                    : 'Informe os dias de integração. O custo da equipe é definido nas fases de mão de obra do levantamento.'
                 : undefined}
             error={campo === 'permanence' && erroDe('execution') && !erroDe('integration')
               ? erroDe(campo) || 'Informe a quantidade de dias corridos para calcular o prazo de execução.'

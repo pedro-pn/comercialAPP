@@ -1043,6 +1043,9 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
       propostaSalvaRef.current = { id: salva.id, updatedAt: salva.updatedAt || '',
         status: salva.status || 'RASCUNHO' };
       if (salva.updatedAt) setVersaoCarregada(salva.updatedAt);
+      if (salva.crmReleaseId) {
+        setForm(atual => aplicarClienteDaProposta(atual, salva));
+      }
       setCrmReleaseId(salva.crmReleaseId || '');
       setStatusProposta(salva.status || 'RASCUNHO');
       setConflitoDeEdicao(null);
@@ -1090,7 +1093,7 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     propostaSalvaRef.current = { id: proposta.id, updatedAt: proposta.updatedAt || '', status: proposta.status };
     setVersaoCarregada(proposta.updatedAt || '');
     // Aplica todos os dados do cliente retornados pelo vínculo antes do autosave.
-    setForm(atual => aplicarClienteDaProposta(atual, proposta));
+    setForm(atual => aplicarClienteDaProposta(atual, proposta, liberacao.snapshot));
     setCrmReleaseId(proposta.crmReleaseId || '');
     setRecado(`Proposta ${codigoExibido} vinculada ao negócio ${liberacao.snapshot.description} do Prisma.`);
     fecharVinculoPrisma();

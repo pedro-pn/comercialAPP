@@ -208,7 +208,7 @@ test('reabrir e salvar o rascunho associado mantém a identificação preenchida
     itensEscopo: [], blocos: [], categorias: [], responsabilidades: [],
     precos: proposta.payload.prices, incluirUnitario: true, servicosTecnicos: [], complementoRelatorios: '' }, 'levantamento');
   assert.equal(entrada.clientName, release.snapshot.legalName);
-  assert.equal(entrada.cnpj, release.snapshot.taxId);
+  assert.equal(entrada.cnpj, '11.222.333/0001-81');
   assert.equal(entrada.payload.client, entrada.clientName);
   assert.equal(entrada.payload.cnpj, entrada.cnpj);
   assert.equal(entrada.payload.title, proposta.payload.title);
