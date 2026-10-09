@@ -52,10 +52,14 @@ integração mantém os 17 dias corridos e reduz os dias trabalhados para 8.
 O custo de mão de obra inclui os 8 dias de execução e os 5 dias de integração.
 Com uma diária de equipe de R$ 1.000, são R$ 8.000 de execução e R$ 5.000 de
 integração, totalizando R$ 13.000.
-A integração usa as horas normais e a tarifa de cada cargo, respeitando quantidade,
-alocação, turno e condição de trabalho. Não amplia a permanência nem gera horas extras
-ou despesas de permanência adicionais. Seu custo aparece separado na equipe e no QQP.
-Alterar os dias corridos ou a integração atualiza os dias automáticos da equipe e os custos. Dias ajustados
+A integração preserva a cobrança da jornada contratada e das despesas do período
+completo, respeitando cargo, quantidade, alocação, turno e condição de trabalho.
+Deslocamento hotel ↔ obra e despesas por pessoa, veículo ou mês incluem os dias
+de integração. Os horários de execução continuam descontando a integração;
+a divisão não reduz o orçamento nem o preço de venda. O valor reservado para
+esses dias aparece separado na equipe e no QQP.
+Alterar somente a integração atualiza os dias e horários automáticos sem alterar
+o valor total. Alterar a duração, equipe, jornada ou despesas recalcula o orçamento. Dias ajustados
 manualmente por cargo ou colaborador são preservados; clique em **Usar dias
 calculados da fase** para voltar ao cálculo automático.
 

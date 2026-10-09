@@ -86,7 +86,7 @@ test('a jornada da fase apresenta a integração junto aos dias corridos e aos c
   const input = markup.match(new RegExp(`<input id="${worked}"[^>]*>`))[0];
   assert.match(input, /value="8"/);
   assert.doesNotMatch(input, /readonly|disabled/i);
-  assert.match(markup, /integração.*cobrados pela jornada normal/);
+  assert.match(markup, /cobrança da jornada e das despesas considera o período completo/);
   assert.match(markup, /São descontados dos dias trabalhados/);
 });
 
@@ -155,4 +155,36 @@ test('dias manuais podem voltar ao cálculo da fase que desconta a integração'
   const semIntegracao = sincronizarDiasTrabalhadosDoLevantamento({ ...updated,
     laborContexts: [{ ...updated.laborContexts[0], integrationDays: 0 }] });
   assert.equal(semIntegracao.laborContexts[0].assignments[0].workSchedule.days[0].days, 13);
+});
+
+test('editar a integração no formulário mantém o total com despesas de viagem e jornada com extras', () => {
+  let draft = estimate();
+  const phase = draft.laborContexts[0];
+  Object.assign(phase, { integrationDays: 0, workCondition: 'travel', workConditionConfirmed: true,
+    vehicleType: 'sedan', weekdayExtra70HoursPerDay: 2,
+    expenses: [{ id: 'combustivel', code: 'hotel_site_commute', name: 'Deslocamento hotel ↔ obra',
+      basis: 'per_vehicle_staffed_day', quantity: 1, unitValue: 50, included: true }] });
+  draft = sincronizarDiasTrabalhadosDoLevantamento(draft);
+  const original = calculateEstimate(draft);
+  let integrationField;
+  function Probe() {
+    const tree = FaseCard({ fase: draft.laborContexts[0], indice: 0, total: 1,
+      levantamento: { draft, resultadoDaFase: () => calculateEstimate(draft).contextResults[0],
+        erroDe() {}, erroSe() {}, updateCollection: (_collection, id, patch) => {
+          draft = sincronizarDiasTrabalhadosDoLevantamento({ ...draft,
+            laborContexts: draft.laborContexts.map(fase => fase.id === id ? { ...fase, ...patch } : fase) });
+        } } });
+    integrationField = elements(tree).find(node => node.props.label === 'Dias de integração');
+    return tree;
+  }
+  for (const integrationDays of [5, 13, 2, 0]) {
+    renderToStaticMarkup(createElement(Probe));
+    integrationField.props.onChange(integrationDays);
+    const result = calculateEstimate(draft);
+    assert.equal(result.contextResults[0].workingDays, 13 - integrationDays);
+    assert.equal(result.totalCost, original.totalCost);
+    assert.equal(result.salePrice, original.salePrice);
+    draft = normalizeCostEstimatePayload(JSON.parse(JSON.stringify(draft)));
+    assert.equal(calculateEstimate(draft).totalCost, original.totalCost);
+  }
 });

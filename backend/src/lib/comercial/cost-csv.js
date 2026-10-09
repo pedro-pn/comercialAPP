@@ -196,7 +196,10 @@ function linhasEsquema2(payload, result, estimate) {
       numero(context.saturdayCount) +
       numero(context.sundayCount);
     const kmPorDia = numero(context.hotelSiteDistanceKmPerDay ?? 50);
-    const kmTotal = veiculos * diasComEfetivo * kmPorDia;
+    const expenseResults = records(contextResult.expenses);
+    const deslocamento = expenseResults.find(item => item.code === 'hotel_site_commute'
+      && item.basis === 'per_vehicle_staffed_day');
+    const kmTotal = numero(deslocamento?.basisQuantity ?? veiculos * diasComEfetivo) * kmPorDia;
 
     const linhaVeiculo = [
       context.name,
@@ -216,7 +219,6 @@ function linhasEsquema2(payload, result, estimate) {
     while (linhaVeiculo.length < 33) linhaVeiculo.push('');
     linhas.push(linhaVeiculo);
 
-    const expenseResults = records(contextResult.expenses);
     for (const expense of records(context.expenses)) {
       const calculado =
         expenseResults.find(item => String(item.id || '') === String(expense.id || '')) || {};

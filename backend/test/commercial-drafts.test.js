@@ -65,10 +65,16 @@ test('servidor desconta a integração dos dias trabalhados e cobra a jornada no
     [{ integrationDays: 5 }, { durationDays: 17 }]
   ]) {
     const payload = createDefaultCostEstimatePayload();
+    Object.assign(payload.laborContexts[0], { workCondition: 'travel', workConditionConfirmed: true,
+      vehicleType: 'sedan', expenses: [{ id: 'combustivel', code: 'hotel_site_commute',
+        name: 'Deslocamento hotel ↔ obra', basis: 'per_vehicle_staffed_day',
+        quantity: 1, unitValue: 50, included: true }] });
+    payload.indirectCosts = [{ id: 'despesa-global', name: 'Despesa por dia de presença',
+      basis: 'per_person_workday', quantity: 1, unitValue: 10, included: true }];
     const assignment = payload.laborContexts[0].assignments[0];
     assignment.workSchedule = { name: 'Automática', targetType: 'role', days: [{
       dayType: 'weekday', days: 999, daysMode: 'automatic',
-      normalHoursPerDay: 8, extraHoursPerDay: 0, overtimePercent: 70
+      normalHoursPerDay: 8, extraHoursPerDay: 2, overtimePercent: 70
     }] };
     let stored = { id: 'levantamento', proposalCode: '4630', revisionNumber: 0, mode: 'NOVA',
       status: 'RASCUNHO', payload, createdByUserId: user.id, updatedAt: new Date(expectedUpdatedAt) };
@@ -82,6 +88,7 @@ test('servidor desconta a integração dos dias trabalhados e cobra a jornada no
     };
     for (const patch of patches) {
       const previousCost = calculateEstimate(stored.payload).totalCost;
+      const previousSalePrice = calculateEstimate(stored.payload).salePrice;
       const edited = structuredClone(stored.payload);
       Object.assign(edited.laborContexts[0], patch, { workingDays: 999 });
       const saved = await updateCostEstimate(db, user, stored.id,
@@ -94,7 +101,10 @@ test('servidor desconta a integração dos dias trabalhados e cobra a jornada no
       const result = calculateEstimate(saved.payload);
       assert.equal(result.contextResults[0].assignments[0].normalHours, expected * 8);
       assert.equal(saved.totalCost, result.totalCost);
-      if ('integrationDays' in patch) assert.ok(Math.abs(saved.totalCost - previousCost) <= 0.01);
+      if ('integrationDays' in patch) {
+        assert.equal(saved.totalCost, previousCost);
+        assert.equal(saved.salePrice, previousSalePrice);
+      }
     }
     assert.equal(stored.payload.laborContexts[0].workingDays, 8);
   }

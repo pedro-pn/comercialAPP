@@ -247,7 +247,7 @@ export function FaseCard({
               min={0}
               step={1}
               placeholder="0"
-              hint="São descontados dos dias trabalhados e cobrados pela jornada normal da equipe. Os dias corridos permanecem iguais."
+              hint="São descontados dos dias trabalhados. A cobrança da jornada e das despesas considera o período completo, incluindo a integração, e mantém o valor total."
               onChange={valor => editar({ integrationDays: valor })}
             />
             <NumberField
