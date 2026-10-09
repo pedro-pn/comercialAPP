@@ -173,7 +173,7 @@ export type LaborContext = {
   durationDays: number;
   workingDays?: number;
   workingDaysMode?: "automatic" | "manual";
-  /** Diárias adicionais de mão de obra, sem alterar a duração ou os dias de execução. */
+  /** Dias incluídos na permanência, descontados da execução e cobrados pela jornada normal. */
   integrationDays?: number;
   hoursPerDay: number;
   workCondition: WorkCondition | "";
@@ -1278,7 +1278,7 @@ function normalizeLaborContext(value: unknown, index: number, assumptions: CostE
     description: textValue(source.description),
     startOffsetDays: nonNegative(source.startOffsetDays),
     durationDays,
-    workingDays: source.workingDaysMode === "automatic" ? workingDaysFromCalendar(durationDays)
+    workingDays: source.workingDaysMode === "automatic" ? workingDaysFromCalendar(durationDays, nonNegative(source.integrationDays))
       : source.workingDays === undefined ? undefined : nonNegative(source.workingDays),
     ...(source.workingDaysMode === undefined ? {} : {
       workingDaysMode: enumValue(source.workingDaysMode, ["automatic", "manual"] as const, "manual"),
@@ -1318,7 +1318,7 @@ function normalizeLaborContext(value: unknown, index: number, assumptions: CostE
     return { ...assignment, workSchedule: { ...assignment.workSchedule,
       days: assignment.workSchedule.days.map(day => day.daysMode !== "automatic" ? day : {
         ...day,
-        days: day.dayType === "weekday" ? context.workingDays ?? workingDaysFromCalendar(durationDays)
+        days: day.dayType === "weekday" ? context.workingDays ?? workingDaysFromCalendar(durationDays, context.integrationDays)
           : day.dayType === "saturday" ? context.saturdayCount : context.sundayCount,
       }),
     } };
@@ -2745,9 +2745,9 @@ export function businessDaysFromCalendar(calendarDays: number): number {
   return Math.floor(days / 7) * 5 + Math.min(days % 7, 5);
 }
 
-/** Dias de execução de segunda a sexta; a integração acrescenta somente custo. */
-export function workingDaysFromCalendar(calendarDays: number): number {
-  return businessDaysFromCalendar(calendarDays);
+/** Dias de segunda a sexta, com início na segunda-feira, menos os dias de integração. */
+export function workingDaysFromCalendar(calendarDays: number, integrationDays = 0): number {
+  return Math.max(0, businessDaysFromCalendar(calendarDays) - nonNegative(integrationDays));
 }
 
 /** Common offshore preset: up to 21 consecutive 12-hour days, starting on Monday. */
@@ -2786,6 +2786,8 @@ function calculateContext(context: LaborContext, assumptions: CostEstimateAssump
   const assignments = context.assignments.map<LaborAssignmentResult>((assignment) => {
     const allocatedQuantity = assignment.quantity * assignment.allocationPercent / 100;
     const scheduleDays = assignment.workSchedule?.days;
+    const automaticExecution = context.workingDaysMode === "automatic"
+      && (!scheduleDays || scheduleDays.find(day => day.dayType === "weekday")?.daysMode === "automatic");
     const scheduledActiveDays = scheduleDays?.reduce(
       (sum, day) => sum + (day.normalHoursPerDay > 0 || day.extraHoursPerDay > 0 ? day.days : 0),
       0,
@@ -2856,7 +2858,6 @@ function calculateContext(context: LaborContext, assumptions: CostEstimateAssump
         assignment.nightPremiumPercent ?? LEC_NIGHT_PREMIUM_PERCENT,
       );
       const rates = breakdown;
-      const normalCost = roundMoney(normalHours * rates.normalHourlyCost);
       const extra70Cost = roundMoney(extra70Hours * rates.extra70HourlyCost);
       const extra100Cost = roundMoney(extra100Hours * rates.extra100HourlyCost);
       const customExtraCost = roundMoney(scheduleDays?.reduce((sum, day) => {
@@ -2868,6 +2869,10 @@ function calculateContext(context: LaborContext, assumptions: CostEstimateAssump
         scheduleDays?.find(day => day.dayType === "weekday")?.normalHoursPerDay ?? context.hoursPerDay
       );
       const integrationCost = roundMoney(integrationHours * rates.normalHourlyCost);
+      // A divisão dos dias automáticos preserva os centavos da jornada completa.
+      const normalCost = automaticExecution
+        ? roundMoney(roundMoney((normalHours + integrationHours) * rates.normalHourlyCost) - integrationCost)
+        : roundMoney(normalHours * rates.normalHourlyCost);
       const baseLaborCost = normalCost + extra70Cost + extra100Cost + customExtraCost + integrationCost;
       return {
         ...assignment,
@@ -2902,20 +2907,25 @@ function calculateContext(context: LaborContext, assumptions: CostEstimateAssump
 
     const shiftPremium = assignment.shift === "night" ? percentRate(assignment.nightPremiumPercent ?? 35) : 0;
     const effectiveMonthlySalary = (assignment.monthlySalary + assignment.adjustment) * (1 + shiftPremium);
-    const rate = assignment.burdenRateOverride ?? burdenRate(months);
+    const rate = assignment.burdenRateOverride
+      ?? burdenRate((workingDays + integrationDays) / assumptions.workdaysPerMonth);
     const executionBaseCost = employeeMonths * effectiveMonthlySalary;
     const executionBurdenCost = executionBaseCost * rate;
     const executionCost = executionBaseCost + executionBurdenCost;
     const integrationBaseCost = allocatedQuantity * integrationDays
       / assumptions.workdaysPerMonth * effectiveMonthlySalary;
-    const integrationCost = roundMoney(integrationBaseCost * (1 + rate));
     const integrationHours = allocatedQuantity * integrationDays * (
       scheduleDays?.find(day => day.dayType === "weekday")?.normalHoursPerDay ?? context.hoursPerDay
     );
-    // Soma a parcela arredondada sem mudar os centavos da execução já calculada.
-    const baseLaborCost = roundMoney(executionBaseCost) + roundMoney(integrationBaseCost);
-    const burdenCost = roundMoney(executionBurdenCost) + integrationCost - roundMoney(integrationBaseCost);
-    const total = roundMoney(executionCost) + integrationCost;
+    // Mantém os centavos da jornada completa ao separar execução e integração.
+    const chargedBaseCost = allocatedQuantity * ((activeDays + integrationDays) / assumptions.workdaysPerMonth)
+      * effectiveMonthlySalary;
+    const baseLaborCost = roundMoney(chargedBaseCost);
+    const burdenCost = roundMoney(chargedBaseCost * rate);
+    const total = integrationDays > 0 ? roundMoney(baseLaborCost + burdenCost) : roundMoney(executionCost);
+    const integrationCost = integrationDays > 0 && executionBaseCost === 0
+      ? total : roundMoney(integrationBaseCost * (1 + rate));
+    const normalCost = integrationDays > 0 ? roundMoney(total - integrationCost) : roundMoney(executionCost);
     const normalHourlyCost = laborHours > 0 ? roundMeasure(executionCost / laborHours) : 0;
     const monthlyLoadedCost = roundMoney(effectiveMonthlySalary * (1 + rate));
     return {
@@ -2934,7 +2944,7 @@ function calculateContext(context: LaborContext, assumptions: CostEstimateAssump
       extra100HourlyCost: 0,
       dailyNormalCost: roundMoney(normalHourlyCost * context.hoursPerDay),
       monthlyLoadedCost,
-      normalCost: roundMoney(executionCost),
+      normalCost,
       ...(integrationDays > 0 ? { integrationHours: roundMeasure(integrationHours), integrationCost } : {}),
       extra70Cost: 0,
       extra100Cost: 0,
@@ -4374,8 +4384,8 @@ export function validateCostEstimate(value: CostEstimatePayloadV2 | unknown): Co
       add("error", `${path}.durationDays`, "Informe uma quantidade inteira de dias corridos.");
     }
     if (context.integrationDays !== undefined && (!Number.isSafeInteger(context.integrationDays)
-      || context.integrationDays < 0)) {
-      add("error", `${path}.integrationDays`, "Informe uma quantidade inteira de dias de integração, igual ou maior que zero.");
+      || context.integrationDays < 0 || context.integrationDays > businessDaysFromCalendar(context.durationDays))) {
+      add("error", `${path}.integrationDays`, "Informe dias inteiros de integração, entre zero e os dias disponíveis da fase após descontar os fins de semana.");
     }
     if (context.workCondition === "offshore" && context.durationDays > 21) {
       add("error", `${path}.durationDays`, "A escala offshore pode ter no máximo 21 dias consecutivos.");

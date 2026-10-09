@@ -5,7 +5,7 @@ import {
   createDefaultCostEstimatePayload, normalizeCostEstimatePayload, LEGACY_LABOR_PRICING_MODEL
 } from '../../shared/comercial/dist/cost-model.js';
 
-test('planilha separa a integração e reconcilia R$ 18.000 sem alterar os dias da fase', () => {
+test('planilha separa 8 dias de execução e 5 de integração e reconcilia R$ 13.000', () => {
   const payload = createDefaultCostEstimatePayload();
   payload.assumptions.laborPricingModel = LEGACY_LABOR_PRICING_MODEL;
   payload.assumptions.workdaysPerMonth = 22;
@@ -17,12 +17,12 @@ test('planilha separa a integração e reconcilia R$ 18.000 sem alterar os dias 
   const header = lines.find(line => line[0] === 'CONTEXTO');
   const row = lines.find(line => line[header.indexOf('CARGO')] === 'Equipe sintética');
   assert.equal(row[header.indexOf('DURAÇÃO (DIAS)')], 17);
-  assert.equal(row[header.indexOf('DIAS ÚTEIS TRABALHADOS')], 13);
+  assert.equal(row[header.indexOf('DIAS ÚTEIS TRABALHADOS')], 8);
   assert.equal(row[header.indexOf('DIAS DE INTEGRAÇÃO')], 5);
-  assert.equal(row[header.indexOf('HH NORMAL')], 104);
-  assert.equal(row[header.indexOf('CUSTO NORMAL')], 13000);
+  assert.equal(row[header.indexOf('HH NORMAL')], 64);
+  assert.equal(row[header.indexOf('CUSTO NORMAL')], 8000);
   assert.equal(row[header.indexOf('HH INTEGRAÇÃO')], 40);
   assert.equal(row[header.indexOf('CUSTO INTEGRAÇÃO')], 5000);
-  assert.equal(row[header.indexOf('CUSTO TOTAL')], 18000);
-  assert.equal(lines.find(line => line[0] === 'CUSTO MÃO DE OBRA')[1], 18000);
+  assert.equal(row[header.indexOf('CUSTO TOTAL')], 13000);
+  assert.equal(lines.find(line => line[0] === 'CUSTO MÃO DE OBRA')[1], 13000);
 });
