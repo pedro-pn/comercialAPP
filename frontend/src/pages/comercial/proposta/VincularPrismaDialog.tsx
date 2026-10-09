@@ -70,6 +70,7 @@ export function VincularPrismaDialog({ codigo, cliente, cnpj, onVincular, onFech
       {' '}O número, a revisão e o conteúdo da proposta serão mantidos.
     </p>
     <p>As edições pendentes serão salvas antes de confirmar o vínculo.</p>
+    <p>Os campos vazios de cliente, CNPJ, contato, e-mail, departamento e local serão preenchidos com os dados do Prisma.</p>
     {cnpjVazio && <p>{!cliente.trim() ? 'O nome do cliente e o CNPJ serão preenchidos'
       : 'O CNPJ será preenchido'} com os dados do negócio selecionado. Confira o cliente antes de confirmar.</p>}
     {!podeConsultar && <p role="alert">Complete ou corrija o CNPJ na etapa Cliente antes de vincular ao Prisma.</p>}
@@ -92,6 +93,8 @@ export function VincularPrismaDialog({ codigo, cliente, cnpj, onVincular, onFech
       <p><strong>Local:</strong> {negocio.snapshot.site}</p>
       <p><strong>Serviço:</strong> {negocio.snapshot.description}</p>
       <p><strong>Contato:</strong> {negocio.snapshot.contactName}</p>
+      <p><strong>E-mail:</strong> {negocio.snapshot.email}</p>
+      {negocio.snapshot.department && <p><strong>Departamento:</strong> {negocio.snapshot.department}</p>}
     </div>}
     {erro && <p className="com-recado com-recado-erro" role="alert">{erro}</p>}
     <div className="com-conflito-acoes">

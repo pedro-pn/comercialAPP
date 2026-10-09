@@ -60,8 +60,8 @@ type PropostaPersistidaParaFormulario = {
  * busca e histórico. Registros antigos podem não tê-los duplicados dentro de
  * `payload`; aplicar apenas o JSON fazia a proposta aparecer vazia no F5 mesmo
  * com Cliente, CNPJ e contato corretamente persistidos nas colunas canônicas.
- * Quando cliente e CNPJ estão vazios nas colunas, conserva a identificação
- * que já existe no snapshot, evitando que ela desapareça ao reabrir.
+ * Quando os dados do cliente estão vazios nas colunas, conserva os valores
+ * que já existem no snapshot, evitando que desapareçam ao reabrir.
  */
 export function snapshotDaPropostaSalva(
   proposta: PropostaPersistidaParaFormulario
@@ -76,10 +76,10 @@ export function snapshotDaPropostaSalva(
     standbyTeamQuantity: payload.standbyTeamQuantity ?? '1',
     client: proposta.clientName?.trim() || payload.client || '',
     cnpj: proposta.cnpj?.trim() || payload.cnpj || '',
-    contact: proposta.contact ?? payload.contact ?? '',
-    email: proposta.email ?? payload.email ?? '',
-    site: proposta.site ?? payload.site ?? '',
-    department: proposta.department ?? payload.department ?? '',
+    contact: proposta.contact?.trim() || payload.contact || '',
+    email: proposta.email?.trim() || payload.email || '',
+    site: proposta.site?.trim() || payload.site || '',
+    department: proposta.department?.trim() || payload.department || '',
     seller: proposta.sellerConsultantId ?? proposta.sellerUserId ?? payload.seller ?? '',
     sellerName: proposta.sellerName ?? payload.sellerName ?? '',
     sellerConsultantId: 'sellerConsultantId' in proposta

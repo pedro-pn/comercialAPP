@@ -379,6 +379,7 @@ export interface PropostaSalva {
   cnpj?: string;
   contact?: string;
   email?: string;
+  department?: string | null;
   site?: string;
   sellerName?: string;
   estimatorName?: string;
@@ -480,9 +481,16 @@ export interface LiberacaoPrisma {
     legalName: string;
     taxId: string;
     contactName: string;
+    email: string;
+    department: string;
     site: string;
     description: string;
   };
+}
+
+export async function obterLiberacaoPrisma(id: string) {
+  const { data } = await apiClient.get<LiberacaoPrisma>(`/comercial/liberacoes/${encodeURIComponent(id)}`);
+  return data;
 }
 
 export async function listarLiberacoesPrisma(cnpj?: string) {

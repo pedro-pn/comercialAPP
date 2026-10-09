@@ -83,7 +83,7 @@ test('Prisma v2: permissões, liberação, criação/revisão, multipart, reenvi
       releaseStatus: 'ACTIVE', clientId: `client-${releaseId}`, opportunityId: `deal-${releaseId}`,
       prismaProjectId: null, contactId: 'synthetic-contact', legalName: 'Cliente sintético',
       taxId: '00000000000000', contactName: 'Contato sintético', email: 'qa@example.invalid',
-      department: '', site: 'Local de teste', description: 'Serviço sintético',
+      department: 'Engenharia', site: 'Local de teste', description: 'Serviço sintético',
       occurredAt: new Date().toISOString() };
     const postRelease = input => request('/api/integrations/crm/releases', input, releaseToken.token);
     assert.equal((await request('/api/integrations/crm/releases', release, eventToken.token)).status, 401);
@@ -107,7 +107,8 @@ test('Prisma v2: permissões, liberação, criação/revisão, multipart, reenvi
     assert.equal((await request('/api/comercial/propostas', { ...input, sellerUserId: user.id })).status, 400);
     const { crmReleaseId: requestedReleaseId, ...existingDraft } = input;
     let first = await request('/api/comercial/propostas', { ...existingDraft, clientName: '', cnpj: '',
-      payload: { ...existingDraft.payload, client: '', cnpj: '' } });
+      contact: '', email: '', site: '', department: null,
+      payload: { ...existingDraft.payload, client: '', cnpj: '', contact: '', email: '', site: '', department: '' } });
     assert.equal(first.status, 201, JSON.stringify(first.data));
     first = first.data;
     assert.equal(first.crmReleaseId, null);
@@ -123,7 +124,14 @@ test('Prisma v2: permissões, liberação, criação/revisão, multipart, reenvi
     assert.equal(first.proposalCode, savedDraft.proposalCode);
     assert.equal(first.clientName, release.legalName);
     assert.equal(first.cnpj, release.taxId);
-    assert.deepEqual(first.payload, { ...savedDraft.payload, client: release.legalName, cnpj: release.taxId });
+    assert.equal(first.contact, release.contactName);
+    assert.equal(first.email, release.email);
+    assert.equal(first.department, release.department);
+    assert.equal(first.site, release.site);
+    assert.deepEqual(first.payload, { ...savedDraft.payload, client: release.legalName, cnpj: release.taxId,
+      contact: release.contactName, email: release.email, department: release.department,
+      site: release.site, title: release.description });
+    assert.deepEqual((await request(`/api/comercial/propostas/${first.id}`)).data, first);
     assert.deepEqual((await request(`/api/comercial/propostas/${first.id}/vincular-prisma`, association)).data, first);
     assert.equal(first.sellerConsultantId, consultant.id);
     assert.equal(first.crmReleaseId, releaseId);
@@ -131,6 +139,9 @@ test('Prisma v2: permissões, liberação, criação/revisão, multipart, reenvi
     await db.proposal.update({ where: { id: first.id }, data: { status: 'FINALIZADA', finalizedAt: new Date() } });
     const prepared = await request(`/api/comercial/propostas/${number}/revisao`);
     assert.equal(prepared.data.crmReleaseId, releaseId);
+    assert.equal(prepared.data.snapshot.contact, release.contactName);
+    assert.equal(prepared.data.snapshot.email, release.email);
+    assert.equal(prepared.data.snapshot.department, release.department);
     const secondResult = await request('/api/comercial/propostas', { ...input, crmReleaseId: undefined, revisionNumber: 1 });
     assert.equal(secondResult.status, 201, JSON.stringify(secondResult.data));
     const second = secondResult.data;
