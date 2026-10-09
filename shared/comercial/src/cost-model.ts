@@ -173,7 +173,7 @@ export type LaborContext = {
   durationDays: number;
   workingDays?: number;
   workingDaysMode?: "automatic" | "manual";
-  /** Dias incluídos na permanência, descontados da execução e cobrados pela jornada normal. */
+  /** Dias incluídos na permanência e descontados da execução, preservando o orçamento do período. */
   integrationDays?: number;
   hoursPerDay: number;
   workCondition: WorkCondition | "";
@@ -518,7 +518,7 @@ export type LaborAssignmentResult = LaborAssignment & {
   dailyNormalCost: number;
   monthlyLoadedCost: number;
   normalCost: number;
-  /** Custo e horas normais da integração, separados da jornada de execução. */
+  /** Horas normais da integração e valor reservado da jornada contratada para esses dias. */
   integrationHours?: number;
   integrationCost?: number;
   extra70Cost: number;
@@ -2773,7 +2773,28 @@ function payloadUsesUnionOvertime(assumptions: CostEstimateAssumptions): boolean
   return assumptions.overtimePolicy === "union_monthly_30_v1";
 }
 
-function calculateContext(context: LaborContext, assumptions: CostEstimateAssumptions): LaborContextResult {
+/** Repõe os dias automáticos apenas para calcular a cobrança do período completo. */
+function contextForFullPeriod(context: LaborContext): LaborContext {
+  const integrationDays = nonNegative(context.integrationDays);
+  if (context.workingDaysMode !== "automatic" || integrationDays === 0) return context;
+  return {
+    ...context,
+    workingDays: (context.workingDays ?? workingDaysFromCalendar(context.durationDays, integrationDays)) + integrationDays,
+    integrationDays: 0,
+    assignments: context.assignments.map(assignment => !assignment.workSchedule ? assignment : {
+      ...assignment,
+      workSchedule: {
+        ...assignment.workSchedule,
+        days: assignment.workSchedule.days.map(day => day.dayType === "weekday" && day.daysMode === "automatic"
+          ? { ...day, days: day.days + integrationDays } : day),
+      },
+    }),
+  };
+}
+
+function calculateContext(
+  context: LaborContext, assumptions: CostEstimateAssumptions, fullPeriod?: LaborContextResult,
+): LaborContextResult {
   const usesLecLabor = assumptions.laborPricingModel === LEC_LABOR_PRICING_MODEL;
   const workingDays = context.workingDays === undefined
     ? usesLecLabor
@@ -2783,7 +2804,8 @@ function calculateContext(context: LaborContext, assumptions: CostEstimateAssump
   const months = workingDays / assumptions.workdaysPerMonth;
   const integrationDays = nonNegative(context.integrationDays);
   const overtimeCalendarMonths = Math.max(1, Math.ceil(context.durationDays / 30));
-  const assignments = context.assignments.map<LaborAssignmentResult>((assignment) => {
+  const assignments = context.assignments.map<LaborAssignmentResult>((assignment, index) => {
+    const fullAssignment = fullPeriod?.assignments[index];
     const allocatedQuantity = assignment.quantity * assignment.allocationPercent / 100;
     const scheduleDays = assignment.workSchedule?.days;
     const automaticExecution = context.workingDaysMode === "automatic"
@@ -2868,11 +2890,15 @@ function calculateContext(context: LaborContext, assumptions: CostEstimateAssump
       const integrationHours = allocatedQuantity * integrationDays * (
         scheduleDays?.find(day => day.dayType === "weekday")?.normalHoursPerDay ?? context.hoursPerDay
       );
-      const integrationCost = roundMoney(integrationHours * rates.normalHourlyCost);
+      const integrationNormalCost = roundMoney(integrationHours * rates.normalHourlyCost);
       // A divisão dos dias automáticos preserva os centavos da jornada completa.
       const normalCost = automaticExecution
-        ? roundMoney(roundMoney((normalHours + integrationHours) * rates.normalHourlyCost) - integrationCost)
+        ? roundMoney((fullAssignment?.normalCost ?? roundMoney((normalHours + integrationHours) * rates.normalHourlyCost)) - integrationNormalCost)
         : roundMoney(normalHours * rates.normalHourlyCost);
+      // O horário de execução diminui, mas a jornada contratada continua reservada para a integração.
+      const integrationCost = automaticExecution && fullAssignment
+        ? roundMoney(fullAssignment.total - normalCost - extra70Cost - extra100Cost - customExtraCost)
+        : integrationNormalCost;
       const baseLaborCost = normalCost + extra70Cost + extra100Cost + customExtraCost + integrationCost;
       return {
         ...assignment,
@@ -2920,13 +2946,17 @@ function calculateContext(context: LaborContext, assumptions: CostEstimateAssump
     // Mantém os centavos da jornada completa ao separar execução e integração.
     const chargedBaseCost = allocatedQuantity * ((activeDays + integrationDays) / assumptions.workdaysPerMonth)
       * effectiveMonthlySalary;
-    const baseLaborCost = roundMoney(chargedBaseCost);
-    const burdenCost = roundMoney(chargedBaseCost * rate);
-    const total = integrationDays > 0 ? roundMoney(baseLaborCost + burdenCost) : roundMoney(executionCost);
+    const baseLaborCost = automaticExecution && fullAssignment
+      ? fullAssignment.baseLaborCost : roundMoney(chargedBaseCost);
+    const burdenCost = automaticExecution && fullAssignment
+      ? fullAssignment.burdenCost : roundMoney(chargedBaseCost * rate);
+    const total = automaticExecution && fullAssignment ? fullAssignment.total
+      : integrationDays > 0 ? roundMoney(baseLaborCost + burdenCost) : roundMoney(executionCost);
     const integrationCost = integrationDays > 0 && executionBaseCost === 0
       ? total : roundMoney(integrationBaseCost * (1 + rate));
     const normalCost = integrationDays > 0 ? roundMoney(total - integrationCost) : roundMoney(executionCost);
-    const normalHourlyCost = laborHours > 0 ? roundMeasure(executionCost / laborHours) : 0;
+    const normalHourlyCost = automaticExecution && fullAssignment ? fullAssignment.normalHourlyCost
+      : laborHours > 0 ? roundMeasure(executionCost / laborHours) : 0;
     const monthlyLoadedCost = roundMoney(effectiveMonthlySalary * (1 + rate));
     return {
       ...assignment,
@@ -2989,7 +3019,7 @@ function calculateContext(context: LaborContext, assumptions: CostEstimateAssump
     : usesLecLabor
       ? workingDays + context.saturdayCount + context.sundayCount
       : workingDays;
-  const expenses = context.expenses.filter((item) => item.included).map<ContextExpenseResult>((expense) => {
+  const expenses = context.expenses.filter((item) => item.included).map<ContextExpenseResult>((expense, index) => {
     const quantity = expense.quantity;
     let basisQuantity = 1;
     if (expense.basis === "per_person") basisQuantity = headcount;
@@ -3012,9 +3042,11 @@ function calculateContext(context: LaborContext, assumptions: CostEstimateAssump
     }
     if (expense.basis === "per_context_day") basisQuantity = workingDays;
     if (expense.basis === "per_context_month") basisQuantity = months;
+    const fullExpense = fullPeriod?.expenses[index];
+    if (fullExpense) basisQuantity = fullExpense.basisQuantity;
     const total = expense.basis === "percent_labor"
       ? laborCost * percentRate(expense.unitValue) * quantity
-      : basisQuantity * expense.unitValue * quantity;
+      : fullExpense?.total ?? basisQuantity * expense.unitValue * quantity;
     return { ...expense, basisQuantity: roundMeasure(basisQuantity), total: roundMoney(total) };
   });
   const expenseCost = expenses.reduce((sum, item) => sum + item.total, 0);
@@ -3954,14 +3986,20 @@ function calculateEstimateCore(input: CostEstimatePayloadV2): CostEstimateResult
   const contexts = payload.scopeConfirmations.noLabor
     ? []
     : payload.laborContexts.filter((context) => context.enabled);
-  const contextResults = contexts.map((context) => calculateContext(context, payload.assumptions));
+  const fullPeriods = contexts.map(context => {
+    const fullContext = contextForFullPeriod(context);
+    return fullContext === context ? undefined : calculateContext(fullContext, payload.assumptions);
+  });
+  const contextResults = contexts.map((context, index) => calculateContext(context, payload.assumptions, fullPeriods[index]));
+  const costContexts = contextResults.map((context, index) => fullPeriods[index] ?? context);
   const payrollCost = contextResults.reduce((sum, context) => sum + context.laborCost, 0);
   const contextExpenseCost = contextResults.reduce((sum, context) => sum + context.expenseCost, 0);
   const totalPersonDays = contextResults.reduce((sum, context) => sum + context.personDays, 0);
+  const costPersonDays = costContexts.reduce((sum, context) => sum + context.personDays, 0);
   const peakHeadcount = calculatePeakHeadcount(contextResults);
   const laborCost = payrollCost;
   const indirectResults = payload.indirectCosts.filter((item) => item.included)
-    .map((item) => calculateIndirectCost(item, contextResults, laborCost, peakHeadcount));
+    .map((item) => calculateIndirectCost(item, costContexts, laborCost, peakHeadcount));
   const globalIndirectCost = indirectResults.reduce((sum, item) => sum + item.total, 0);
   const indirectCost = contextExpenseCost + globalIndirectCost;
   const materialResults = payload.scopeConfirmations.noInputs
@@ -4005,9 +4043,9 @@ function calculateEstimateCore(input: CostEstimatePayloadV2): CostEstimateResult
       && !isCrewTransportWaived(item, payload.scopeConfirmations))
       .map((item) => calculateLogisticsItem(
         item,
-        contextResults,
+        costContexts,
         peakHeadcount,
-        totalPersonDays,
+        costPersonDays,
         payload.assumptions,
       ));
   const mobilizationCost = logisticsResults.filter((item) => item.direction === "mobilization")

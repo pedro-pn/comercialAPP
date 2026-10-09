@@ -26,3 +26,21 @@ test('planilha separa 8 dias de execução e 5 de integração e reconcilia R$ 1
   assert.equal(row[header.indexOf('CUSTO TOTAL')], 13000);
   assert.equal(lines.find(line => line[0] === 'CUSTO MÃO DE OBRA')[1], 13000);
 });
+
+test('planilha inclui a integração no combustível e no trajeto total mantendo dias trabalhados descontados', () => {
+  const payload = createDefaultCostEstimatePayload();
+  Object.assign(payload.laborContexts[0], { durationDays: 70, integrationDays: 5,
+    workCondition: 'travel', vehicleType: 'sedan', vehicleCountMode: 'manual', vehicleCount: 3,
+    hotelSiteDistanceKmPerDay: 50, expenses: [{ id: 'combustivel', code: 'hotel_site_commute',
+      name: 'Deslocamento hotel ↔ obra (combustível)', basis: 'per_vehicle_staffed_day',
+      quantity: 1, unitValue: 50, included: true }] });
+  const lines = linhasDaPlanilha({ payload: normalizeCostEstimatePayload(payload) });
+  const header = lines.find(line => line[0] === 'CONTEXTO');
+  const row = lines.find(line => line[header.indexOf('CARGO')] === 'COORDENADOR');
+  assert.equal(row[header.indexOf('DIAS ÚTEIS TRABALHADOS')], 45);
+  const expense = lines.find(line => String(line[11]).startsWith('DESPESA: Deslocamento hotel'));
+  assert.equal(expense[17], 'BASE CALC.: 150');
+  assert.equal(expense[27], 7500);
+  const vehicle = lines.find(line => String(line[1]).startsWith('VEÍCULO:'));
+  assert.match(vehicle[11], /7500 KM TOTAL/);
+});
