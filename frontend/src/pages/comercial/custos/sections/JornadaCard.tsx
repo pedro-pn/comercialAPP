@@ -168,7 +168,7 @@ export function JornadaCard({
                     value={dia.days}
                     hint={dia.daysMode === 'automatic'
                       ? dia.dayType === 'weekday'
-                        ? 'Dias de segunda a sexta, considerando início na segunda-feira. A integração acrescenta somente custo. Você pode ajustar este cargo individualmente.'
+                        ? 'Dias de segunda a sexta, considerando início na segunda-feira, menos a integração. A integração é cobrada pela jornada normal. Você pode ajustar este cargo individualmente.'
                         : 'Calculado a partir da escala da fase. Você pode ajustar este cargo individualmente.'
                       : 'Dias ajustados manualmente para este cargo ou colaborador.'}
                     min={0}

@@ -1,5 +1,5 @@
 import type { LevantamentoSalvo } from '../../../api/comercial';
-import { businessDaysFromCalendar, calculateEstimate, normalizeCostEstimatePayload } from '../../../../../shared/comercial/dist/cost-model.js';
+import { businessDaysFromCalendar, workingDaysFromCalendar, calculateEstimate, normalizeCostEstimatePayload } from '../../../../../shared/comercial/dist/cost-model.js';
 import { dimensioningItems, dimensioningServiceAllowed } from '../../../../../shared/comercial/dist/dimensioning.js';
 import { scopeTablesFromDimensioning } from '../../../../../shared/comercial/dist/dimensioning-scope.js';
 import type { ScopeBlock, ScopeServiceItem } from '../../../../../shared/comercial/dist/scope-content.js';
@@ -244,21 +244,23 @@ export function prazosDoLevantamento(
   if (!periodos.length) return null;
   const inicio = Math.min(...periodos.map(periodo => periodo.inicio));
   const diasCorridos = Math.max(...periodos.map(periodo => periodo.fim)) - inicio;
-  const execution = prazoDeExecucao(diasCorridos);
+  let execution = prazoDeExecucao(diasCorridos);
   let integration: string | undefined;
   if (periodos.some(periodo => periodo.integracao !== undefined)) {
     const integracoes = periodos.map(periodo => ({
       inicio: businessDaysFromCalendar(periodo.inicio - inicio),
-      dias: Number(periodo.integracao ?? 0)
+      dias: Number(periodo.integracao ?? 0),
+      duracao: periodo.fim - periodo.inicio
     }));
     if (integracoes.some(periodo => !Number.isSafeInteger(periodo.dias)
-      || periodo.dias < 0)) {
+      || periodo.dias < 0 || periodo.dias > businessDaysFromCalendar(periodo.duracao))) {
       integration = '';
+      execution = '';
     } else {
-      // Integrações simultâneas são apresentadas uma vez, sem mudar a execução.
+      // Integrações simultâneas ocupam os mesmos dias úteis da permanência.
       const intervalos = integracoes.filter(periodo => periodo.dias > 0)
         .map(periodo => ({ inicio: periodo.inicio,
-          fim: periodo.inicio + periodo.dias }))
+          fim: Math.min(periodo.inicio + periodo.dias, Number(execution)) }))
         .sort((a, b) => a.inicio - b.inicio);
       let dias = 0;
       let fimAnterior = 0;
@@ -267,6 +269,7 @@ export function prazosDoLevantamento(
         fimAnterior = Math.max(fimAnterior, periodo.fim);
       }
       integration = String(dias);
+      execution = String(workingDaysFromCalendar(diasCorridos, dias));
     }
   }
   return {

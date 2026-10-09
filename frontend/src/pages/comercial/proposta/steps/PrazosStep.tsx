@@ -7,8 +7,8 @@ import { atualizarPrazoDeExecucao } from '../prazoExecucao';
  *
  * Porte de `app/page.tsx:1009-1017`.
  *
- * O prazo efetivo conta os dias úteis da permanência. A integração acrescenta
- * custo no levantamento sem alterar os prazos de execução ou permanência.
+ * O prazo efetivo conta os dias úteis da permanência, descontando a integração.
+ * Os dias de integração são cobrados pela jornada normal no levantamento.
  */
 
 type AnyRecord = Record<string, unknown>;
@@ -86,7 +86,7 @@ export function PrazosStep({
                 ? 'Período em dias corridos do levantamento. Para alterar a duração dos serviços, edite o levantamento vinculado.'
                 : 'Informe os dias corridos da permanência. A integração não altera este prazo.'
               : campo === 'execution'
-                ? 'Dias de segunda a sexta, considerando início na segunda-feira. A integração não altera este prazo.'
+                ? 'Dias de segunda a sexta, considerando início na segunda-feira, menos os dias de integração.'
                 : campo === 'integration'
                   ? integracaoDoLevantamento
                     ? 'Importado automaticamente. Para alterar a integração, edite as fases de mão de obra do levantamento vinculado.'
