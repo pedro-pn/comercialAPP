@@ -7,6 +7,7 @@ import { valorNumericoDoPrazo } from '../../../../../shared/comercial/dist/model
 
 import {
   recalcularItensDePreco,
+  formatarCnpj,
   type ItemDePreco,
   type LinhaResponsabilidade
 } from './etapas';
@@ -75,7 +76,7 @@ export function snapshotDaPropostaSalva(
     // Propostas anteriores guardavam apenas a diária da equipe.
     standbyTeamQuantity: payload.standbyTeamQuantity ?? '1',
     client: proposta.clientName?.trim() || payload.client || '',
-    cnpj: proposta.cnpj?.trim() || payload.cnpj || '',
+    cnpj: formatarCnpj(String(proposta.cnpj?.trim() || payload.cnpj || '')),
     contact: proposta.contact?.trim() || payload.contact || '',
     email: proposta.email?.trim() || payload.email || '',
     site: proposta.site?.trim() || payload.site || '',

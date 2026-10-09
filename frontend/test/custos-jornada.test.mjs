@@ -47,18 +47,18 @@ test('o cargo novo recebe os dias calculados da fase e o campo individual contin
   elements(table).find(node => node.type === 'button' && String(node.props.children).includes('Adicionar cargo'))
     .props.onClick();
   const alocacao = fase.assignments.at(-1);
-  assert.equal(jornadaDaAlocacao(alocacao, fase).days[0].days, 8);
+  assert.equal(jornadaDaAlocacao(alocacao, fase).days[0].days, 13);
   const card = JornadaCard({ alocacao, fase, calculado: {}, erroSe() {}, erroDe() {},
     onEditar: patch => Object.assign(alocacao, patch), onAplicarATodaEquipe() {} });
   const field = elements(card).find(node => node.props.label === 'Dias trabalhados');
-  assert.equal(field.props.value, 8);
+  assert.equal(field.props.value, 13);
   assert.ok(!field.props.disabled && !field.props.readOnly);
   field.props.onChange(9);
   assert.equal(alocacao.workSchedule.days[0].daysMode, 'manual');
   draft = sincronizarDiasTrabalhadosDoLevantamento({ ...draft,
     laborContexts: [{ ...fase, durationDays: 20 }] });
   fase = draft.laborContexts[0];
-  assert.equal(jornadaDaAlocacao(fase.assignments[0], fase).days[0].days, 10);
+  assert.equal(jornadaDaAlocacao(fase.assignments[0], fase).days[0].days, 15);
   assert.equal(jornadaDaAlocacao(fase.assignments.at(-1), fase).days[0].days, 9);
   const reopened = normalizeCostEstimatePayload(JSON.parse(JSON.stringify(draft)));
   assert.equal(jornadaDaAlocacao(reopened.laborContexts[0].assignments.at(-1), reopened.laborContexts[0]).days[0].days, 9);
@@ -71,7 +71,7 @@ test('editar horas não congela os dias automáticos e alterar dias preserva a e
   const alocacao = fase.assignments[0];
   alocacao.workSchedule = atualizarDiaDaJornada(jornadaDaAlocacao(alocacao, fase), 'weekday', { normalHoursPerDay: 6 });
   const updated = sincronizarDiasTrabalhadosDoLevantamento({ ...draft, laborContexts: [{ ...fase, durationDays: 11 }] });
-  assert.equal(updated.laborContexts[0].assignments[0].workSchedule.days[0].days, 4);
+  assert.equal(updated.laborContexts[0].assignments[0].workSchedule.days[0].days, 9);
   assert.equal(updated.laborContexts[0].assignments[0].workSchedule.days[0].normalHoursPerDay, 6);
   assert.equal(sincronizarDiasTrabalhadosDoLevantamento(updated), updated);
 });
@@ -84,9 +84,10 @@ test('a jornada da fase apresenta a integração junto aos dias corridos e aos c
   assert.match(markup.match(new RegExp(`<input id="${id}"[^>]*>`))[0], /value="5"/);
   const worked = markup.match(/<label for="([^"]+)">Dias trabalhados/)[1];
   const input = markup.match(new RegExp(`<input id="${worked}"[^>]*>`))[0];
-  assert.match(input, /value="8"/);
+  assert.match(input, /value="13"/);
   assert.doesNotMatch(input, /readonly|disabled/i);
-  assert.match(markup, /Prazo total da fase, incluindo a integração/);
+  assert.match(markup, /integração acrescenta somente custo/);
+  assert.match(markup, /sem alterar os dias corridos ou trabalhados/);
 });
 
 test('fases antigas com 22 dias passam ao cálculo automático e jornadas individuais antigas são preservadas', () => {
@@ -124,7 +125,7 @@ test('dias corridos e integração recalculam a equipe em qualquer ordem de pree
         laborContexts: [{ ...draft.laborContexts[0], ...patch }] });
       fase = draft.laborContexts[0];
       const weekdays = Array.from({ length: fase.durationDays }, (_, day) => day % 7 < 5).filter(Boolean).length;
-      const expected = weekdays - Number(fase.integrationDays);
+      const expected = weekdays;
       assert.equal(fase.workingDays, expected);
       for (const alocacao of fase.assignments) {
         assert.equal(jornadaDaAlocacao(alocacao, fase).days[0].days, expected);
@@ -139,7 +140,7 @@ test('dias corridos e integração recalculam a equipe em qualquer ordem de pree
   }
 });
 
-test('dias manuais podem voltar ao cálculo da fase e passam a descontar a integração', () => {
+test('dias manuais podem voltar ao cálculo da fase sem descontar a integração', () => {
   const draft = estimate();
   const fase = draft.laborContexts[0];
   const alocacao = fase.assignments[0];
@@ -150,7 +151,7 @@ test('dias manuais podem voltar ao cálculo da fase e passam a descontar a integ
     .props.onClick();
   assert.equal(alocacao.workSchedule.days[0].daysMode, 'automatic');
   const updated = sincronizarDiasTrabalhadosDoLevantamento(draft);
-  assert.equal(updated.laborContexts[0].assignments[0].workSchedule.days[0].days, 8);
+  assert.equal(updated.laborContexts[0].assignments[0].workSchedule.days[0].days, 13);
   const semIntegracao = sincronizarDiasTrabalhadosDoLevantamento({ ...updated,
     laborContexts: [{ ...updated.laborContexts[0], integrationDays: 0 }] });
   assert.equal(semIntegracao.laborContexts[0].assignments[0].workSchedule.days[0].days, 13);

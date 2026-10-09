@@ -23,7 +23,7 @@ const release = { id: 'liberacao', snapshot: {
   email: 'prisma@example.invalid', department: 'Engenharia', site: 'Obra do Prisma', description: 'Serviço liberado'
 } };
 const clientFields = {
-  client: release.snapshot.legalName, cnpj: release.snapshot.taxId, contact: release.snapshot.contactName,
+  client: release.snapshot.legalName, cnpj: '11.222.333/0001-81', contact: release.snapshot.contactName,
   email: release.snapshot.email, department: release.snapshot.department, site: release.snapshot.site,
   title: release.snapshot.description
 };
@@ -67,6 +67,44 @@ test('campos editados prevalecem e dados ausentes no Prisma não são inventados
   const incomplete = preencherClientePrisma({ department: '', email: '' }, { ...release.snapshot, department: '', email: '' });
   assert.equal(incomplete.department, '');
   assert.equal(incomplete.email, '');
+});
+
+test('CNPJ vindo sem máscara ganha pontuação ao preencher, associar e reabrir', () => {
+  const form = { cnpj: release.snapshot.taxId, contact: 'Contato editado', email: 'editado@example.invalid' };
+  const filled = preencherClientePrisma(form, release.snapshot);
+  assert.equal(filled.cnpj, clientFields.cnpj);
+  assert.equal(filled.contact, form.contact);
+  assert.equal(filled.email, form.email);
+  const saved = { cnpj: release.snapshot.taxId, contact: release.snapshot.contactName, email: release.snapshot.email };
+  assert.equal(aplicarClienteDaProposta({}, saved).cnpj, clientFields.cnpj);
+  assert.equal(snapshotDaPropostaSalva(saved).cnpj, clientFields.cnpj);
+  assert.equal(snapshotDaPropostaSalva({ payload: { cnpj: release.snapshot.taxId } }).cnpj, clientFields.cnpj);
+});
+
+test('resposta antiga do vínculo completa contato e e-mail diretamente da liberação selecionada', () => {
+  const saved = { clientName: clientFields.client, cnpj: release.snapshot.taxId, contact: '', email: '',
+    payload: { client: clientFields.client, cnpj: release.snapshot.taxId, contact: '', email: '' } };
+  const filled = aplicarClienteDaProposta({ contact: '', email: '', title: 'Título negociado' }, saved, release.snapshot);
+  assert.equal(filled.contact, clientFields.contact);
+  assert.equal(filled.email, clientFields.email);
+  assert.equal(filled.cnpj, clientFields.cnpj);
+  assert.equal(filled.title, 'Título negociado');
+  assert.equal(input(filled).payload.contact, clientFields.contact);
+  assert.equal(input(filled).email, clientFields.email);
+});
+
+test('contatos devolvidos pela criação são aplicados sem apagar edições feitas durante o salvamento', () => {
+  const saved = { clientName: clientFields.client, cnpj: release.snapshot.taxId, contact: clientFields.contact,
+    email: clientFields.email, payload: { title: 'Título salvo', prices: [] } };
+  const typed = { cnpj: clientFields.cnpj, contact: 'Contato digitado', email: 'digitado@example.invalid',
+    title: 'Título editado', prices: [{ value: 'R$ 12.500,00' }] };
+  const filled = aplicarClienteDaProposta(typed, saved);
+  assert.equal(filled.contact, typed.contact);
+  assert.equal(filled.email, typed.email);
+  assert.equal(filled.title, typed.title);
+  assert.equal(filled.prices, typed.prices);
+  assert.equal(aplicarClienteDaProposta({ cnpj: clientFields.cnpj }, saved).contact, clientFields.contact);
+  assert.equal(aplicarClienteDaProposta({ cnpj: clientFields.cnpj }, saved).email, clientFields.email);
 });
 
 test('CNPJ de outro cliente ou inválido impede misturar cadastros', () => {

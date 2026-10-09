@@ -173,7 +173,7 @@ export type LaborContext = {
   durationDays: number;
   workingDays?: number;
   workingDaysMode?: "automatic" | "manual";
-  /** Dias de integração incluídos no período da fase e descontados dos dias trabalhados. */
+  /** Diárias adicionais de mão de obra, sem alterar a duração ou os dias de execução. */
   integrationDays?: number;
   hoursPerDay: number;
   workCondition: WorkCondition | "";
@@ -518,6 +518,9 @@ export type LaborAssignmentResult = LaborAssignment & {
   dailyNormalCost: number;
   monthlyLoadedCost: number;
   normalCost: number;
+  /** Custo e horas normais da integração, separados da jornada de execução. */
+  integrationHours?: number;
+  integrationCost?: number;
   extra70Cost: number;
   extra100Cost: number;
   /** Horas e custo de percentuais explícitos diferentes de 70% e 100%. */
@@ -555,6 +558,7 @@ export type LaborContextResult = {
   baseLaborCost: number;
   burdenCost: number;
   laborCost: number;
+  integrationCost?: number;
   expenseCost: number;
   total: number;
   assignments: LaborAssignmentResult[];
@@ -1274,7 +1278,7 @@ function normalizeLaborContext(value: unknown, index: number, assumptions: CostE
     description: textValue(source.description),
     startOffsetDays: nonNegative(source.startOffsetDays),
     durationDays,
-    workingDays: source.workingDaysMode === "automatic" ? workingDaysFromCalendar(durationDays, nonNegative(source.integrationDays))
+    workingDays: source.workingDaysMode === "automatic" ? workingDaysFromCalendar(durationDays)
       : source.workingDays === undefined ? undefined : nonNegative(source.workingDays),
     ...(source.workingDaysMode === undefined ? {} : {
       workingDaysMode: enumValue(source.workingDaysMode, ["automatic", "manual"] as const, "manual"),
@@ -1314,7 +1318,7 @@ function normalizeLaborContext(value: unknown, index: number, assumptions: CostE
     return { ...assignment, workSchedule: { ...assignment.workSchedule,
       days: assignment.workSchedule.days.map(day => day.daysMode !== "automatic" ? day : {
         ...day,
-        days: day.dayType === "weekday" ? context.workingDays ?? workingDaysFromCalendar(durationDays, context.integrationDays)
+        days: day.dayType === "weekday" ? context.workingDays ?? workingDaysFromCalendar(durationDays)
           : day.dayType === "saturday" ? context.saturdayCount : context.sundayCount,
       }),
     } };
@@ -2741,9 +2745,9 @@ export function businessDaysFromCalendar(calendarDays: number): number {
   return Math.floor(days / 7) * 5 + Math.min(days % 7, 5);
 }
 
-/** Dias de segunda a sexta, com início na segunda-feira, menos os dias de integração. */
-export function workingDaysFromCalendar(calendarDays: number, integrationDays = 0): number {
-  return Math.max(0, businessDaysFromCalendar(calendarDays) - nonNegative(integrationDays));
+/** Dias de execução de segunda a sexta; a integração acrescenta somente custo. */
+export function workingDaysFromCalendar(calendarDays: number): number {
+  return businessDaysFromCalendar(calendarDays);
 }
 
 /** Common offshore preset: up to 21 consecutive 12-hour days, starting on Monday. */
@@ -2777,6 +2781,7 @@ function calculateContext(context: LaborContext, assumptions: CostEstimateAssump
       : context.durationDays
     : context.workingDays;
   const months = workingDays / assumptions.workdaysPerMonth;
+  const integrationDays = nonNegative(context.integrationDays);
   const overtimeCalendarMonths = Math.max(1, Math.ceil(context.durationDays / 30));
   const assignments = context.assignments.map<LaborAssignmentResult>((assignment) => {
     const allocatedQuantity = assignment.quantity * assignment.allocationPercent / 100;
@@ -2859,7 +2864,11 @@ function calculateContext(context: LaborContext, assumptions: CostEstimateAssump
         const hours = allocatedQuantity * day.days * day.extraHoursPerDay;
         return sum + hours * breakdown.extraBaseHourlyCost * (1 + day.overtimePercent / 100);
       }, 0) ?? 0);
-      const baseLaborCost = normalCost + extra70Cost + extra100Cost + customExtraCost;
+      const integrationHours = allocatedQuantity * integrationDays * (
+        scheduleDays?.find(day => day.dayType === "weekday")?.normalHoursPerDay ?? context.hoursPerDay
+      );
+      const integrationCost = roundMoney(integrationHours * rates.normalHourlyCost);
+      const baseLaborCost = normalCost + extra70Cost + extra100Cost + customExtraCost + integrationCost;
       return {
         ...assignment,
         allocatedQuantity: roundMeasure(allocatedQuantity),
@@ -2877,6 +2886,7 @@ function calculateContext(context: LaborContext, assumptions: CostEstimateAssump
         dailyNormalCost: roundMoney(rates.normalHourlyCost * context.hoursPerDay),
         monthlyLoadedCost: rates.monthlyCost,
         normalCost,
+        ...(integrationDays > 0 ? { integrationHours: roundMeasure(integrationHours), integrationCost } : {}),
         extra70Cost,
         extra100Cost,
         ...(scheduleDays ? {
@@ -2893,10 +2903,20 @@ function calculateContext(context: LaborContext, assumptions: CostEstimateAssump
     const shiftPremium = assignment.shift === "night" ? percentRate(assignment.nightPremiumPercent ?? 35) : 0;
     const effectiveMonthlySalary = (assignment.monthlySalary + assignment.adjustment) * (1 + shiftPremium);
     const rate = assignment.burdenRateOverride ?? burdenRate(months);
-    const baseLaborCost = employeeMonths * effectiveMonthlySalary;
-    const burdenCost = baseLaborCost * rate;
-    const total = baseLaborCost + burdenCost;
-    const normalHourlyCost = laborHours > 0 ? roundMeasure(total / laborHours) : 0;
+    const executionBaseCost = employeeMonths * effectiveMonthlySalary;
+    const executionBurdenCost = executionBaseCost * rate;
+    const executionCost = executionBaseCost + executionBurdenCost;
+    const integrationBaseCost = allocatedQuantity * integrationDays
+      / assumptions.workdaysPerMonth * effectiveMonthlySalary;
+    const integrationCost = roundMoney(integrationBaseCost * (1 + rate));
+    const integrationHours = allocatedQuantity * integrationDays * (
+      scheduleDays?.find(day => day.dayType === "weekday")?.normalHoursPerDay ?? context.hoursPerDay
+    );
+    // Soma a parcela arredondada sem mudar os centavos da execução já calculada.
+    const baseLaborCost = roundMoney(executionBaseCost) + roundMoney(integrationBaseCost);
+    const burdenCost = roundMoney(executionBurdenCost) + integrationCost - roundMoney(integrationBaseCost);
+    const total = roundMoney(executionCost) + integrationCost;
+    const normalHourlyCost = laborHours > 0 ? roundMeasure(executionCost / laborHours) : 0;
     const monthlyLoadedCost = roundMoney(effectiveMonthlySalary * (1 + rate));
     return {
       ...assignment,
@@ -2914,7 +2934,8 @@ function calculateContext(context: LaborContext, assumptions: CostEstimateAssump
       extra100HourlyCost: 0,
       dailyNormalCost: roundMoney(normalHourlyCost * context.hoursPerDay),
       monthlyLoadedCost,
-      normalCost: roundMoney(total),
+      normalCost: roundMoney(executionCost),
+      ...(integrationDays > 0 ? { integrationHours: roundMeasure(integrationHours), integrationCost } : {}),
       extra70Cost: 0,
       extra100Cost: 0,
       ...(scheduleDays ? {
@@ -3010,6 +3031,9 @@ function calculateContext(context: LaborContext, assumptions: CostEstimateAssump
     baseLaborCost: roundMoney(baseLaborCost),
     burdenCost: roundMoney(burdenCost),
     laborCost: roundMoney(laborCost),
+    ...(integrationDays > 0 ? {
+      integrationCost: roundMoney(assignments.reduce((sum, item) => sum + (item.integrationCost ?? 0), 0)),
+    } : {}),
     expenseCost: roundMoney(expenseCost),
     total: roundMoney(laborCost + expenseCost),
     assignments,
@@ -3495,6 +3519,7 @@ function buildCostLineSeeds(payload: CostEstimatePayloadV2, result: CostEstimate
       if (usesLecLabor) {
         const laborLines = [
           ["normal", "HH normal", assignment.normalHours, assignment.normalCost],
+          ["integration", "HH integração", assignment.integrationHours ?? 0, assignment.integrationCost ?? 0],
           ["extra-70", "HH extra 70%", assignment.extra70Hours, assignment.extra70Cost],
           ["extra-100", "HH extra 100%", assignment.extra100Hours, assignment.extra100Cost],
           [
@@ -3525,7 +3550,16 @@ function buildCostLineSeeds(payload: CostEstimatePayloadV2, result: CostEstimate
         description: `${context.name} — ${assignment.role}`,
         unit: "HH",
         quantity: assignment.laborHours,
-        costValue: assignment.total,
+        costValue: roundMoney(assignment.total - (assignment.integrationCost ?? 0)),
+      });
+      if ((assignment.integrationCost ?? 0) > 0) seeds.push({
+        id: `labor:${context.id}:${assignment.id}:integration`,
+        sourceId: assignment.id,
+        category: "Mão de obra",
+        description: `${context.name} — ${assignment.role} — Integração`,
+        unit: "HH",
+        quantity: assignment.integrationHours ?? 0,
+        costValue: assignment.integrationCost ?? 0,
       });
     });
     context.expenses.forEach((expense) => {
@@ -4340,8 +4374,8 @@ export function validateCostEstimate(value: CostEstimatePayloadV2 | unknown): Co
       add("error", `${path}.durationDays`, "Informe uma quantidade inteira de dias corridos.");
     }
     if (context.integrationDays !== undefined && (!Number.isSafeInteger(context.integrationDays)
-      || context.integrationDays < 0 || context.integrationDays > workingDaysFromCalendar(context.durationDays))) {
-      add("error", `${path}.integrationDays`, "Informe dias inteiros de integração, entre zero e os dias disponíveis da fase após descontar os fins de semana.");
+      || context.integrationDays < 0)) {
+      add("error", `${path}.integrationDays`, "Informe uma quantidade inteira de dias de integração, igual ou maior que zero.");
     }
     if (context.workCondition === "offshore" && context.durationDays > 21) {
       add("error", `${path}.durationDays`, "A escala offshore pode ter no máximo 21 dias consecutivos.");

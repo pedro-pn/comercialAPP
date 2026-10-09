@@ -143,7 +143,8 @@ function linhasEsquema2(payload, result, estimate) {
       'HH 70%', 'TARIFA 70%', 'CUSTO 70%', 'HH 100%', 'TARIFA 100%',
       'CUSTO 100%', 'ENCARGOS (%)', 'CUSTO TOTAL',
       'CENÁRIO DE JORNADA', 'ALVO DA JORNADA', 'COLABORADOR',
-      'HH EXTRA COM PERCENTUAL CONFIGURADO', 'CUSTO EXTRA COM PERCENTUAL CONFIGURADO'
+      'HH EXTRA COM PERCENTUAL CONFIGURADO', 'CUSTO EXTRA COM PERCENTUAL CONFIGURADO',
+      'DIAS DE INTEGRAÇÃO', 'HH INTEGRAÇÃO', 'CUSTO INTEGRAÇÃO'
     ]
   );
 
@@ -184,7 +185,8 @@ function linhasEsquema2(payload, result, estimate) {
           ? 'COLABORADOR'
           : assignment.workSchedule ? 'CARGO' : '',
         assignment.workSchedule?.collaboratorName ?? '',
-        calculado.customExtraHours ?? '', calculado.customExtraCost ?? ''
+        calculado.customExtraHours ?? '', calculado.customExtraCost ?? '',
+        context.integrationDays ?? 0, calculado.integrationHours ?? 0, calculado.integrationCost ?? 0
       ]);
     }
 

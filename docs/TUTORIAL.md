@@ -44,13 +44,17 @@ para localizar o que falta. Confirme explicitamente as opções de escopo quando
 não houver insumos ou logística, conforme solicitado pelo formulário.
 
 Na mão de obra, os dias trabalhados são calculados por
-`5 * floor(dias corridos / 7) + min(dias corridos mod 7, 5) - dias de integração`,
+`5 * floor(dias corridos / 7) + min(dias corridos mod 7, 5)`,
 considerando início na segunda-feira. Cada semana completa tem cinco dias de trabalho,
 e os dias restantes contam até sexta-feira.
-Por exemplo, 17 dias corridos têm 13 dias de segunda a sexta; com 5 de integração,
-resultam em 8 dias trabalhados.
-Os dias de integração já estão incluídos no período total e são descontados dos dias trabalhados.
-Alterar os dias corridos ou a integração atualiza a equipe e os custos. Dias ajustados
+Por exemplo, 17 dias corridos têm 13 dias de segunda a sexta. Informar 5 dias de
+integração mantém os campos em 17 dias corridos e 13 trabalhados e acrescenta
+5 diárias de mão de obra ao custo. Com uma diária de equipe de R$ 1.000, o custo
+de mão de obra passa de R$ 13.000 para R$ 18.000.
+A integração usa as horas normais e a tarifa de cada cargo, respeitando quantidade,
+alocação, turno e condição de trabalho. Não amplia os prazos nem gera horas extras
+ou despesas de permanência adicionais. Seu custo aparece separado na equipe e no QQP.
+Alterar os dias corridos atualiza a equipe; alterar a integração atualiza somente seu custo. Dias ajustados
 manualmente por cargo ou colaborador são preservados; clique em **Usar dias
 calculados da fase** para voltar ao cálculo automático.
 

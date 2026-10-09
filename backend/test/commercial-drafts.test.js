@@ -58,7 +58,7 @@ test('início do levantamento aceita campos vazios e reserva a numeração pelo 
   }
 });
 
-test('servidor recalcula e persiste dias e custos descontando a integração, em qualquer ordem', async () => {
+test('servidor acrescenta o custo da integração e preserva os dias, em qualquer ordem', async () => {
   const user = { id: 'vendedor', name: 'Vendedor', role: 'SELLER' };
   for (const patches of [
     [{ durationDays: 17 }, { integrationDays: 5 }],
@@ -88,15 +88,15 @@ test('servidor recalcula e persiste dias e custos descontando a integração, em
         { payload: edited, expectedUpdatedAt: stored.updatedAt.toISOString() });
       const phase = saved.payload.laborContexts[0];
       const weekdays = Array.from({ length: phase.durationDays }, (_, day) => day % 7 < 5).filter(Boolean).length;
-      const expected = weekdays - phase.integrationDays;
+      const expected = weekdays;
       assert.equal(phase.workingDays, expected);
       assert.equal(phase.assignments[0].workSchedule.days[0].days, expected);
       const result = calculateEstimate(saved.payload);
       assert.equal(result.contextResults[0].assignments[0].normalHours, expected * 8);
       assert.equal(saved.totalCost, result.totalCost);
-      if ('integrationDays' in patch) assert.ok(saved.totalCost < previousCost);
+      if ('integrationDays' in patch) assert.ok(saved.totalCost > previousCost);
     }
-    assert.equal(stored.payload.laborContexts[0].workingDays, 8);
+    assert.equal(stored.payload.laborContexts[0].workingDays, 13);
   }
 });
 

@@ -544,15 +544,15 @@ export function DocumentoPrevia({
                       <tr key={i}>
                         <td>{i + 1}</td>
                         <td>{item.description || 'Item'}</td>
-                        {incluirUnitario && <td>{item.unitValue || 'R$ -'}</td>}
+                        {incluirUnitario && <td className="com-doc-valor">{item.unitValue || 'R$ -'}</td>}
                         <td>{item.quantity || '1'}</td>
-                        <td>{item.value || 'R$ -'}</td>
+                        <td className="com-doc-valor">{item.value || 'R$ -'}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
                 <p className="com-doc-total">
-                  <b>Total geral:</b> {somaDosPrecos(daTabela)}
+                  <b>Total geral:</b> <span className="com-doc-valor">{somaDosPrecos(daTabela)}</span>
                 </p>
               </div>
             );
@@ -578,7 +578,9 @@ export function DocumentoPrevia({
                 <col style={{ width: '21%' }} /><col style={{ width: '21%' }} /></colgroup>
               <thead><tr>{CABECALHO_PRECOS_INFORMATIVOS.map(coluna => <th key={coluna}>{coluna}</th>)}</tr></thead>
               <tbody>{linhas.map((linha, indice) => (
-                <tr key={indice}>{linha.map((celula, coluna) => <td key={coluna}>{celula}</td>)}</tr>
+                <tr key={indice}>{linha.map((celula, coluna) => (
+                  <td key={coluna} className={coluna >= 2 ? 'com-doc-valor' : undefined}>{celula}</td>
+                ))}</tr>
               ))}</tbody>
             </table>
           </Pagina>

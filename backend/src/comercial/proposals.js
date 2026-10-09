@@ -37,6 +37,25 @@ async function validateEstimateLink(db, user, id, proposalCode) {
   return estimate.id;
 }
 
+function completarClientePrisma(proposta, snapshot) {
+  const cliente = {}, campos = {};
+  for (const [coluna, campo, origem] of [
+    ['clientName', 'client', 'legalName'], ['cnpj', 'cnpj', 'taxId'],
+    ['contact', 'contact', 'contactName'], ['email', 'email', 'email'],
+    ['department', 'department', 'department'], ['site', 'site', 'site']
+  ]) {
+    if (String(proposta[coluna] || '').trim()) continue;
+    const valor = String(proposta.payload?.[campo] || '').trim() || String(snapshot[origem] || '').trim();
+    if (!valor) continue;
+    cliente[coluna] = valor;
+    campos[campo] = valor;
+  }
+  if (!String(proposta.payload?.title || '').trim() && snapshot.description?.trim()) {
+    campos.title = snapshot.description.trim();
+  }
+  return { ...cliente, ...(Object.keys(campos).length ? { payload: { ...proposta.payload, ...campos } } : {}) };
+}
+
 function historyItem(item, viewer) {
   const generationId = item.documents?.[0]?.generationId;
   const current = generationId
@@ -174,12 +193,20 @@ export async function createProposal(db, user, data) {
   if (totalValue < 0) throw new HttpError(422, 'Os descontos não podem ultrapassar o total dos itens de preço.');
   try {
     return await db.$transaction(async tx => {
+      let clientePrisma = {};
       if (release) {
         await tx.$queryRaw`SELECT "id" FROM "CrmRelease" WHERE "id" = ${release.id} FOR SHARE`;
         const currentRelease = await releaseForProposal(tx, release.id);
         if (currentRelease.version !== release.version) {
           throw new HttpError(409, 'Liberação atualizada; recarregue antes de criar a proposta.');
         }
+        const cnpj = String(data.cnpj || '').trim() || String(data.payload?.cnpj || '').trim();
+        if (cnpj && cnpj.replace(/\D/g, '') !== currentRelease.snapshot.taxId) {
+          throw new HttpError(409, 'A liberação do Prisma pertence a outro CNPJ.');
+        }
+        // A criação também completa os contatos; não depende de o navegador
+        // ter terminado de aplicar todos os dados da liberação.
+        clientePrisma = completarClientePrisma(data, currentRelease.snapshot);
       }
       const proposal = await tx.proposal.create({
         data: {
@@ -200,6 +227,7 @@ export async function createProposal(db, user, data) {
           estimatorName: user.name,
           payload: data.payload,
           totalValue,
+          ...clientePrisma,
           createdByUserId: user.id,
           nectarOpportunityId: previous?.crm?.opportunityId ?? null,
           nectarPipelineId: previous?.crm?.pipelineId ?? null,
@@ -320,31 +348,13 @@ export async function linkProposalToPrisma(db, user, id, data) {
       if (otherLink) throw new HttpError(409, 'Outra revisão desta proposta está vinculada a outro negócio do Prisma.');
       // Complete os dados do cliente ausentes nas colunas e no snapshot, sem
       // substituir contatos, locais ou conteúdo que já foram preenchidos.
-      const cliente = {};
-      const identificacao = {};
-      for (const [coluna, campo, origem] of [
-        ['clientName', 'client', 'legalName'], ['cnpj', 'cnpj', 'taxId'],
-        ['contact', 'contact', 'contactName'], ['email', 'email', 'email'],
-        ['department', 'department', 'department'], ['site', 'site', 'site']
-      ]) {
-        if (String(existing[coluna] || '').trim()) continue;
-        const valor = String(existing.payload?.[campo] || '').trim() ||
-          String(release.snapshot[origem] || '').trim();
-        if (!valor) continue;
-        cliente[coluna] = valor;
-        identificacao[campo] = valor;
-      }
-      if (!String(existing.payload?.title || '').trim() && release.snapshot.description?.trim()) {
-        identificacao.title = release.snapshot.description.trim();
-      }
       return await tx.proposal.update({
         where: { id, status: 'RASCUNHO', archivedAt: null,
           crmReleaseId: null, updatedAt: existing.updatedAt },
         data: {
           crmReleaseId: release.id, crmClientId: release.clientId,
           crmOpportunityId: release.opportunityId, prismaProjectId: release.prismaProjectId,
-          ...cliente,
-          ...(Object.keys(identificacao).length ? { payload: { ...existing.payload, ...identificacao } } : {}),
+          ...completarClientePrisma(existing, release.snapshot),
           updatedByUserId: user.id, updatedByLabel: user.name,
           updatedAt: new Date(Math.max(Date.now(), existing.updatedAt.getTime() + 1))
         }

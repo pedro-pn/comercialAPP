@@ -238,7 +238,7 @@ export function FaseCard({
               /* Offshore é limitado a 21 dias pelo próprio regime. */
               max={fase.workCondition === 'offshore' ? 21 : undefined}
               onChange={valor => editar({ durationDays: valor })}
-              hint="Prazo total da fase, incluindo a integração e os fins de semana."
+              hint="Prazo da fase em dias corridos, incluindo os fins de semana. A integração acrescenta somente custo."
             />
             <NumberField
               label="Dias de integração"
@@ -247,7 +247,7 @@ export function FaseCard({
               min={0}
               step={1}
               placeholder="0"
-              hint="Já incluídos nos dias corridos da fase. São descontados dos dias trabalhados de cada cargo ou colaborador."
+              hint="Acrescentam diárias de mão de obra pela jornada normal, sem alterar os dias corridos ou trabalhados."
               onChange={valor => editar({ integrationDays: valor })}
             />
             <NumberField

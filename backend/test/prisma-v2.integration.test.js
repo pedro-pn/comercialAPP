@@ -142,10 +142,15 @@ test('Prisma v2: permissões, liberação, criação/revisão, multipart, reenvi
     assert.equal(prepared.data.snapshot.contact, release.contactName);
     assert.equal(prepared.data.snapshot.email, release.email);
     assert.equal(prepared.data.snapshot.department, release.department);
-    const secondResult = await request('/api/comercial/propostas', { ...input, crmReleaseId: undefined, revisionNumber: 1 });
+    const secondResult = await request('/api/comercial/propostas', { ...input, crmReleaseId: undefined, revisionNumber: 1,
+      contact: '', email: '', payload: { ...input.payload, contact: '', email: '' } });
     assert.equal(secondResult.status, 201, JSON.stringify(secondResult.data));
     const second = secondResult.data;
     assert.equal(second.crmReleaseId, releaseId);
+    assert.equal(second.contact, release.contactName);
+    assert.equal(second.email, release.email);
+    assert.equal(second.payload.contact, release.contactName);
+    assert.equal(second.payload.email, release.email);
     await db.proposal.update({ where: { id: second.id }, data: { status: 'FINALIZADA', finalizedAt: new Date() } });
 
     // Receptor HTTP verifica o multipart efetivamente serializado pelo fetch.

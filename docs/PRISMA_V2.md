@@ -69,9 +69,13 @@ No Prisma, o usuário com permissão de edição libera o negócio na seção **
 
 No ComercialAPP, a tela **Negócios liberados pelo Prisma** mostra as liberações ativas e inicia a proposta com seus dados. Uma revisão herda o vínculo da proposta anterior. Liberações revogadas deixam de autorizar novas propostas; os documentos anteriores permanecem no histórico.
 
+Ao criar a proposta pela liberação, o servidor também completa os campos vazios do cliente, incluindo contato e e-mail, nas colunas e no snapshot. A tela aplica esses campos retornados pelo salvamento sem substituir o que foi digitado enquanto a requisição estava em andamento. O CNPJ é apresentado com máscara tanto ao importar os dados quanto ao reabrir a proposta.
+
 Uma proposta que já estava em preenchimento pode ser associada pela ação **Vincular ao negócio do Prisma**, no topo da edição. A proposta precisa estar salva e em rascunho. Com CNPJ preenchido, o diálogo lista liberações ativas desse CNPJ. Sem CNPJ, permite selecionar entre os negócios liberados e avisa que os dados do cliente ausentes serão preenchidos com o cadastro do negócio escolhido. Um CNPJ parcialmente preenchido deve ser corrigido na etapa Cliente. O diálogo salva as edições pendentes antes de confirmar. A associação preserva o número, a revisão, o levantamento, o conteúdo e os documentos existentes; completa os campos vazios de nome, CNPJ, contato, e-mail, departamento e local, também no snapshot da proposta. A descrição preenche o título apenas quando ele está vazio. Dados já preenchidos prevalecem, e campos não enviados pelo Prisma continuam vazios. Propostas finalizadas precisam ser reabertas pela ação **Editar proposta**.
 
 Ao reabrir um rascunho já vinculado, o formulário consulta a liberação ativa e recupera os dados do cliente que ainda estão vazios. Esses dados entram no salvamento normal da proposta. A consulta não substitui edições já feitas nem preenche dados de outro CNPJ.
+
+Na confirmação do vínculo, os campos ainda ausentes na resposta da proposta são completados diretamente com a liberação selecionada, sem aguardar uma segunda consulta. Valores já preenchidos continuam preservados.
 
 O vínculo é aplicado somente à revisão selecionada, que deve ser a mais recente. Novas revisões herdam essa associação. Um vínculo existente não pode ser trocado, nem pode ser associada uma proposta com envio ou decisão comercial já registrados. O servidor revalida a versão da proposta e da liberação, a autoria/permissão e o CNPJ. A associação não envia PDFs; o envio segue o fluxo de finalização.
 
