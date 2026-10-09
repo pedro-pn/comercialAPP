@@ -1083,6 +1083,10 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     const proposta = await vincularPropostaAoPrisma(id, liberacao, propostaSalvaRef.current.updatedAt);
     propostaSalvaRef.current = { id: proposta.id, updatedAt: proposta.updatedAt || '', status: proposta.status };
     setVersaoCarregada(proposta.updatedAt || '');
+    // O vínculo também pode completar a identificação de um rascunho vazio.
+    // Atualizar o formulário impede o próximo autosave de gravar vazios por cima.
+    setForm(atual => ({ ...atual,
+      client: proposta.clientName ?? atual.client, cnpj: proposta.cnpj ?? atual.cnpj }));
     setCrmReleaseId(proposta.crmReleaseId || '');
     setRecado(`Proposta ${codigoExibido} vinculada ao negócio ${liberacao.snapshot.description} do Prisma.`);
     fecharVinculoPrisma();

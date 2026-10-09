@@ -376,6 +376,7 @@ export interface PropostaSalva {
   sharepointFolder?: string | null;
   integrationError?: string | null;
   clientName?: string;
+  cnpj?: string;
   contact?: string;
   email?: string;
   site?: string;
@@ -484,9 +485,9 @@ export interface LiberacaoPrisma {
   };
 }
 
-export async function listarLiberacoesPrisma(cnpj: string) {
+export async function listarLiberacoesPrisma(cnpj?: string) {
   const { data } = await apiClient.get<{ items: LiberacaoPrisma[] }>('/comercial/liberacoes', {
-    params: { cnpj }
+    params: cnpj ? { cnpj } : undefined
   });
   return data.items;
 }

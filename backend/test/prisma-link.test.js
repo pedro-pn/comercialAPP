@@ -93,12 +93,68 @@ test('associação respeita autoria, estado, envio e decisões da proposta', asy
   }
 });
 
+test('rascunho 4640 sem cliente e CNPJ recebe apenas a identificação do negócio selecionado', async () => {
+  for (const cnpj of ['', '   ']) {
+    const f = fixture({ proposal: { proposalCode: '4640', clientName: '', cnpj,
+      payload: { client: '', cnpj: '', title: 'Serviço em preenchimento',
+        prices: [{ value: 'R$ 12.500,00' }], scope: [{ description: 'Escopo negociado' }] } } });
+    const original = structuredClone(f.current());
+    const input = f.input();
+    const result = await linkProposalToPrisma(f.db, author, original.id, input);
+    assert.deepEqual(result, { ...original,
+      clientName: f.release.snapshot.legalName, cnpj: taxId,
+      payload: { ...original.payload, client: f.release.snapshot.legalName, cnpj: taxId },
+      crmReleaseId: releaseId, crmClientId: f.release.clientId,
+      crmOpportunityId: f.release.opportunityId, prismaProjectId: f.release.prismaProjectId,
+      updatedByUserId: author.id, updatedByLabel: author.name, updatedAt: result.updatedAt });
+    assert.deepEqual(await linkProposalToPrisma(f.db, author, original.id, input), result);
+    assert.equal(f.writes(), 1);
+  }
+});
+
+test('CNPJ ausente pode ser completado sem substituir o nome e os dados já preenchidos', async () => {
+  const f = fixture({ proposal: { cnpj: '' } });
+  const original = structuredClone(f.current());
+  const result = await linkProposalToPrisma(f.db, author, original.id, f.input());
+  assert.equal(result.cnpj, taxId);
+  assert.equal(result.clientName, original.clientName);
+  assert.deepEqual(result.payload, { ...original.payload, cnpj: taxId });
+  for (const field of ['contact', 'email', 'site', 'totalValue', 'costEstimateId', 'documents', 'attachments']) {
+    assert.deepEqual(result[field], original[field]);
+  }
+});
+
+test('identificação salva só no payload continua protegida pelo CNPJ e preserva o nome original', async () => {
+  const f = fixture({ proposal: { clientName: '', cnpj: '',
+    payload: { client: 'Nome já preenchido', cnpj: '11.222.333/0001-81', scope: 'Escopo existente' } } });
+  const originalPayload = structuredClone(f.current().payload);
+  const result = await linkProposalToPrisma(f.db, author, 'proposta', f.input());
+  assert.equal(result.clientName, originalPayload.client);
+  assert.equal(result.cnpj, originalPayload.cnpj);
+  assert.deepEqual(result.payload, originalPayload);
+  const other = fixture({ proposal: { cnpj: '', payload: { cnpj: '99888777000166' } } });
+  await assert.rejects(linkProposalToPrisma(other.db, author, 'proposta', other.input()), { status: 409 });
+  assert.equal(other.writes(), 0);
+});
+
+test('falha na liberação não preenche a identificação nem associa o rascunho vazio', async () => {
+  for (const release of [{ status: 'REVOKED' }, { version: 1 }]) {
+    const f = fixture({ proposal: { clientName: '', cnpj: '' }, release });
+    const original = structuredClone(f.current());
+    await assert.rejects(linkProposalToPrisma(f.db, author, 'proposta', {
+      ...f.input(), expectedReleaseVersion: 2
+    }), { status: 409 });
+    assert.deepEqual(f.current(), original);
+    assert.equal(f.writes(), 0);
+  }
+});
+
 test('somente liberação ativa do mesmo CNPJ e da versão selecionada pode ser vinculada', async () => {
   for (const [options, input, status] of [
     [{ release: { status: 'REVOKED' } }, {}, 409],
     [{ release: { snapshot: { taxId: '99888777000166' } } }, {}, 409],
-    [{ proposal: { cnpj: '' } }, {}, 422],
     [{ proposal: { cnpj: '123' } }, {}, 422],
+    [{ proposal: { cnpj: './-' } }, {}, 422],
     [{}, { crmReleaseId: otherReleaseId }, 409],
     [{}, { expectedReleaseVersion: 1 }, 409],
     [{ newer: { id: 'revisao-mais-recente' } }, {}, 409],
@@ -138,7 +194,7 @@ test('versão antiga e gravação concorrente não sobrescrevem a proposta', asy
 });
 
 test('rota de vínculo exige sessão, origem, versão e corpo restrito', async t => {
-  const f = fixture();
+  const f = fixture({ proposal: { proposalCode: '4640', clientName: '', cnpj: '' } });
   const viewer = { id: 'consulta', role: 'VIEWER' };
   const users = [author, viewer, { id: 'outro', role: 'SELLER' }];
   const server = createApp({ commercialDb: f.db,
@@ -164,7 +220,11 @@ test('rota de vínculo exige sessão, origem, versão e corpo restrito', async t
   const response = await request(author);
   assert.equal(response.status, 200);
   const result = await response.json();
-  assert.equal(result.proposalCode, '4638');
+  assert.equal(result.proposalCode, '4640');
   assert.equal(result.crmReleaseId, releaseId);
+  assert.equal(result.clientName, f.release.snapshot.legalName);
+  assert.equal(result.cnpj, taxId);
+  assert.equal(result.payload.client, result.clientName);
+  assert.equal(result.payload.cnpj, result.cnpj);
   assert.equal(result.payload.title, 'Serviço salvo');
 });
