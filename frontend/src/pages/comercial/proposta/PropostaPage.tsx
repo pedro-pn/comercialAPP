@@ -1,4 +1,3 @@
-import {apiClient} from '../../../api/client';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { fillScopeFromDimensioning } from '../../../../../shared/comercial/dist/dimensioning-scope.js';
@@ -23,6 +22,7 @@ import {
   mensagemDeErro,
   obterLevantamento,
   obterProposta,
+  obterLiberacaoPrisma,
   reabrirProposta,
   reservarProximoNumero,
   registrarRevisaoLegada,
@@ -103,6 +103,8 @@ import { RevisaoStep } from './steps/RevisaoStep';
 import { FinalizacaoLocalPanel } from './FinalizacaoLocalPanel';
 import { PropostaDocumentosPage } from './PropostaDocumentosPage';
 import { useDocumentosDaProposta } from './useDocumentosDaProposta';
+import { aplicarClienteDaProposta, preencherClientePrisma } from './clientePrisma';
+import { useClientePrisma } from './useClientePrisma';
 import { TecnicaStep } from './steps/TecnicaStep';
 import { TutorialDoModulo } from '../TutorialDoModulo';
 import { ROTEIRO_DA_PROPOSTA } from '../roteiroDoTutorial';
@@ -333,13 +335,10 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     if (!liberacaoId || propostaId || modo !== 'new' || !modelo) return;
     let vivo = true;
     setLiberacaoCarregada('');
-    apiClient.get(`/comercial/liberacoes/${encodeURIComponent(liberacaoId)}`)
-      .then(({ data }) => {
+    obterLiberacaoPrisma(liberacaoId)
+      .then(liberacao => {
         if (!vivo) return;
-        const v = data.snapshot;
-        setForm(atual => ({ ...atual, client: v.legalName, cnpj: v.taxId,
-          contact: v.contactName, email: v.email, department: v.department,
-          site: v.site, title: v.description }));
+        setForm(atual => preencherClientePrisma(atual, liberacao.snapshot));
         setLiberacaoCarregada(liberacaoId);
         setRecado('Dados do negócio liberado pelo Prisma carregados.');
       })
@@ -532,6 +531,13 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     onPendencia: encaminharPendenciaDaFinalizacao,
     onStatus: setStatusProposta
   });
+
+  // Executa após a hidratação e a preparação do autosave: os campos recuperados
+  // são uma alteração a salvar, inclusive antes de emitir os documentos.
+  useClientePrisma({ propostaId, crmReleaseId,
+    habilitado: propostaProntaParaSalvar && !salvando && !ocupadoLocal && !saindo && !mudandoEtapa &&
+      !finalizacao.finalizando && !rascunho.oferta && !conflitoDeEdicao,
+    setForm, setRecado });
 
   const ehVendedor = Boolean(user?.moduleRoles.includes('comercial:seller'));
 
@@ -1083,10 +1089,8 @@ export function PropostaPage({ somenteRascunho = false }: { somenteRascunho?: bo
     const proposta = await vincularPropostaAoPrisma(id, liberacao, propostaSalvaRef.current.updatedAt);
     propostaSalvaRef.current = { id: proposta.id, updatedAt: proposta.updatedAt || '', status: proposta.status };
     setVersaoCarregada(proposta.updatedAt || '');
-    // O vínculo também pode completar a identificação de um rascunho vazio.
-    // Atualizar o formulário impede o próximo autosave de gravar vazios por cima.
-    setForm(atual => ({ ...atual,
-      client: proposta.clientName ?? atual.client, cnpj: proposta.cnpj ?? atual.cnpj }));
+    // Aplica todos os dados do cliente retornados pelo vínculo antes do autosave.
+    setForm(atual => aplicarClienteDaProposta(atual, proposta));
     setCrmReleaseId(proposta.crmReleaseId || '');
     setRecado(`Proposta ${codigoExibido} vinculada ao negócio ${liberacao.snapshot.description} do Prisma.`);
     fecharVinculoPrisma();

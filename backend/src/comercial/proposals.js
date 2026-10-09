@@ -318,23 +318,33 @@ export async function linkProposalToPrisma(db, user, id, data) {
         crmReleaseId: { not: null, notIn: [release.id] }
       } });
       if (otherLink) throw new HttpError(409, 'Outra revisão desta proposta está vinculada a outro negócio do Prisma.');
-      // O rascunho pode nascer só com dados do levantamento. Complete a
-      // identificação ausente também no snapshot usado nas próximas revisões.
-      const preencherCnpj = !String(existing.cnpj || '').trim();
-      const preencherCliente = !String(existing.clientName || '').trim();
-      const identificacao = {
-        ...(preencherCnpj ? { cnpj: cnpj || release.snapshot.taxId } : {}),
-        ...(preencherCliente ? { client: String(existing.payload?.client || '').trim() || release.snapshot.legalName } : {})
-      };
+      // Complete os dados do cliente ausentes nas colunas e no snapshot, sem
+      // substituir contatos, locais ou conteúdo que já foram preenchidos.
+      const cliente = {};
+      const identificacao = {};
+      for (const [coluna, campo, origem] of [
+        ['clientName', 'client', 'legalName'], ['cnpj', 'cnpj', 'taxId'],
+        ['contact', 'contact', 'contactName'], ['email', 'email', 'email'],
+        ['department', 'department', 'department'], ['site', 'site', 'site']
+      ]) {
+        if (String(existing[coluna] || '').trim()) continue;
+        const valor = String(existing.payload?.[campo] || '').trim() ||
+          String(release.snapshot[origem] || '').trim();
+        if (!valor) continue;
+        cliente[coluna] = valor;
+        identificacao[campo] = valor;
+      }
+      if (!String(existing.payload?.title || '').trim() && release.snapshot.description?.trim()) {
+        identificacao.title = release.snapshot.description.trim();
+      }
       return await tx.proposal.update({
         where: { id, status: 'RASCUNHO', archivedAt: null,
           crmReleaseId: null, updatedAt: existing.updatedAt },
         data: {
           crmReleaseId: release.id, crmClientId: release.clientId,
           crmOpportunityId: release.opportunityId, prismaProjectId: release.prismaProjectId,
-          ...(preencherCnpj ? { cnpj: identificacao.cnpj } : {}),
-          ...(preencherCliente ? { clientName: identificacao.client } : {}),
-          ...(preencherCnpj || preencherCliente ? { payload: { ...existing.payload, ...identificacao } } : {}),
+          ...cliente,
+          ...(Object.keys(identificacao).length ? { payload: { ...existing.payload, ...identificacao } } : {}),
           updatedByUserId: user.id, updatedByLabel: user.name,
           updatedAt: new Date(Math.max(Date.now(), existing.updatedAt.getTime() + 1))
         }

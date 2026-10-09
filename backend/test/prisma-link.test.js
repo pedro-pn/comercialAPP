@@ -29,6 +29,7 @@ function fixture({ proposal: fields = {}, release: releaseFields = {}, newer, ot
   const release = { id: releaseId, status: 'ACTIVE', version: 2,
     clientId: 'cliente-prisma', opportunityId: 'oportunidade-prisma', prismaProjectId: 'missao-prisma',
     snapshot: { taxId, legalName: 'Nome cadastrado no Prisma', contactName: 'Outro contato',
+      email: 'contato-prisma@example.invalid', department: '',
       site: 'Local cadastrado no Prisma', description: 'Solicitação recebida' }, ...releaseFields };
   let writes = 0;
   const db = {
@@ -124,9 +125,44 @@ test('CNPJ ausente pode ser completado sem substituir o nome e os dados já pree
   }
 });
 
+test('vínculo completa todos os campos vazios do cliente nas colunas e no conteúdo salvo', async () => {
+  const f = fixture({ proposal: { proposalCode: '4642', clientName: '', cnpj: '',
+    contact: '', email: '', department: null, site: '',
+    payload: { client: '', cnpj: '', contact: '', email: '', department: '', site: '', title: '',
+      prices: [{ value: 'R$ 12.500,00' }], scope: 'Escopo negociado', payment: 'Condição negociada' } } });
+  f.release.snapshot.department = 'Engenharia';
+  const original = structuredClone(f.current());
+  const result = await linkProposalToPrisma(f.db, author, original.id, f.input());
+  for (const [column, field, source] of [
+    ['clientName', 'client', 'legalName'], ['cnpj', 'cnpj', 'taxId'],
+    ['contact', 'contact', 'contactName'], ['email', 'email', 'email'],
+    ['department', 'department', 'department'], ['site', 'site', 'site']
+  ]) {
+    assert.equal(result[column], f.release.snapshot[source]);
+    assert.equal(result.payload[field], result[column]);
+  }
+  assert.equal(result.payload.title, f.release.snapshot.description);
+  for (const field of ['proposalCode', 'revisionNumber', 'totalValue', 'costEstimateId', 'documents', 'attachments']) {
+    assert.deepEqual(result[field], original[field]);
+  }
+  for (const field of ['prices', 'scope', 'payment']) assert.deepEqual(result.payload[field], original.payload[field]);
+});
+
+test('contato salvo só no payload prevalece e departamento ausente no Prisma continua vazio', async () => {
+  const payload = { contact: 'Contato escolhido', email: 'escolhido@example.invalid', site: 'Local escolhido',
+    title: 'Título negociado', department: '' };
+  const f = fixture({ proposal: { contact: '', email: '', site: '', department: null, payload } });
+  const result = await linkProposalToPrisma(f.db, author, 'proposta', f.input());
+  assert.equal(result.contact, payload.contact);
+  assert.equal(result.email, payload.email);
+  assert.equal(result.site, payload.site);
+  assert.equal(result.department, null);
+  assert.deepEqual(result.payload, payload);
+});
+
 test('identificação salva só no payload continua protegida pelo CNPJ e preserva o nome original', async () => {
   const f = fixture({ proposal: { clientName: '', cnpj: '',
-    payload: { client: 'Nome já preenchido', cnpj: '11.222.333/0001-81', scope: 'Escopo existente' } } });
+    payload: { client: 'Nome já preenchido', cnpj: '11.222.333/0001-81', scope: 'Escopo existente', title: 'Título salvo' } } });
   const originalPayload = structuredClone(f.current().payload);
   const result = await linkProposalToPrisma(f.db, author, 'proposta', f.input());
   assert.equal(result.clientName, originalPayload.client);
@@ -194,7 +230,7 @@ test('versão antiga e gravação concorrente não sobrescrevem a proposta', asy
 });
 
 test('rota de vínculo exige sessão, origem, versão e corpo restrito', async t => {
-  const f = fixture({ proposal: { proposalCode: '4640', clientName: '', cnpj: '' } });
+  const f = fixture({ proposal: { proposalCode: '4640', clientName: '', cnpj: '', contact: '', email: '', site: '' } });
   const viewer = { id: 'consulta', role: 'VIEWER' };
   const users = [author, viewer, { id: 'outro', role: 'SELLER' }];
   const server = createApp({ commercialDb: f.db,
@@ -226,5 +262,11 @@ test('rota de vínculo exige sessão, origem, versão e corpo restrito', async t
   assert.equal(result.cnpj, taxId);
   assert.equal(result.payload.client, result.clientName);
   assert.equal(result.payload.cnpj, result.cnpj);
+  assert.equal(result.contact, f.release.snapshot.contactName);
+  assert.equal(result.email, f.release.snapshot.email);
+  assert.equal(result.site, f.release.snapshot.site);
+  assert.equal(result.payload.contact, result.contact);
+  assert.equal(result.payload.email, result.email);
+  assert.equal(result.payload.site, result.site);
   assert.equal(result.payload.title, 'Serviço salvo');
 });
