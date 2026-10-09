@@ -17,7 +17,9 @@ export function VincularPrismaDialog({ codigo, cliente, cnpj, onVincular, onFech
   const [erro, setErro] = useState('');
   const [consulta, setConsulta] = useState(0);
   const taxId = cnpj.replace(/\D/g, '');
+  const cnpjVazio = !cnpj.trim();
   const cnpjCompleto = taxId.length === 14;
+  const podeConsultar = cnpjVazio || cnpjCompleto;
   const negocio = items.find(item => item.id === selecionada);
 
   useEffect(() => {
@@ -31,13 +33,13 @@ export function VincularPrismaDialog({ codigo, cliente, cnpj, onVincular, onFech
     setItems([]);
     setSelecionada('');
     setErro('');
-    setCarregando(cnpjCompleto);
-    if (cnpjCompleto) listarLiberacoesPrisma(taxId)
+    setCarregando(podeConsultar);
+    if (podeConsultar) listarLiberacoesPrisma(cnpjCompleto ? taxId : undefined)
       .then(items => { if (live) setItems(items); })
       .catch(error => { if (live) setErro(mensagemDeErro(error, 'Não foi possível consultar os negócios do Prisma.')); })
       .finally(() => { if (live) setCarregando(false); });
     return () => { live = false; };
-  }, [taxId, cnpjCompleto, consulta]);
+  }, [taxId, cnpjCompleto, podeConsultar, consulta]);
 
   function fechar() {
     if (!salvando) onFechar();
@@ -63,14 +65,18 @@ export function VincularPrismaDialog({ codigo, cliente, cnpj, onVincular, onFech
     <span className="com-eyebrow">PRISMA CRM</span>
     <h1 id="com-prisma-vinculo-titulo">Vincular proposta {codigo}</h1>
     <p id="com-prisma-vinculo-descricao">
-      Escolha um negócio liberado para <strong>{cliente || 'o cliente desta proposta'}</strong>.
+      {cliente ? <>Escolha um negócio liberado para <strong>{cliente}</strong>.</>
+        : 'Escolha o negócio liberado que corresponde a esta proposta.'}
       {' '}O número, a revisão e o conteúdo da proposta serão mantidos.
     </p>
     <p>As edições pendentes serão salvas antes de confirmar o vínculo.</p>
-    {!cnpjCompleto && <p role="alert">Preencha o CNPJ da proposta antes de vincular ao Prisma.</p>}
+    {cnpjVazio && <p>{!cliente.trim() ? 'O nome do cliente e o CNPJ serão preenchidos'
+      : 'O CNPJ será preenchido'} com os dados do negócio selecionado. Confira o cliente antes de confirmar.</p>}
+    {!podeConsultar && <p role="alert">Complete ou corrija o CNPJ na etapa Cliente antes de vincular ao Prisma.</p>}
     {carregando && <p role="status">Carregando negócios liberados…</p>}
-    {!carregando && cnpjCompleto && !items.length && !erro &&
-      <p>Nenhum negócio ativo liberado para o CNPJ desta proposta. Confira a liberação no Prisma.</p>}
+    {!carregando && podeConsultar && !items.length && !erro &&
+      <p>{cnpjCompleto ? 'Nenhum negócio ativo liberado para o CNPJ desta proposta.'
+        : 'Nenhum negócio ativo liberado pelo Prisma.'} Confira a liberação no Prisma.</p>}
     {items.length > 0 && <div className="field-group">
       <label htmlFor="com-prisma-negocio">Negócio liberado pelo Prisma</label>
       <select id="com-prisma-negocio" value={selecionada} disabled={carregando || salvando}
@@ -92,7 +98,7 @@ export function VincularPrismaDialog({ codigo, cliente, cnpj, onVincular, onFech
       <button type="button" className="com-btn com-btn-fantasma" disabled={salvando}
         onClick={fechar}>Cancelar</button>
       <button type="button" className="com-btn com-btn-fantasma"
-        disabled={carregando || salvando || !cnpjCompleto}
+        disabled={carregando || salvando || !podeConsultar}
         onClick={() => setConsulta(atual => atual + 1)}>Atualizar negócios</button>
       <button type="button" className="com-btn com-btn-primario"
         disabled={!negocio || carregando || salvando} onClick={() => void confirmar()}>

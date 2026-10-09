@@ -14,6 +14,15 @@ const result = await build({
   } }]
 });
 const require = createRequire(import.meta.url);
+const snapshotBundle = await build({
+  entryPoints: [fileURLToPath(new URL('../src/pages/comercial/proposta/salvamento.ts', import.meta.url))],
+  bundle: true, write: false, platform: 'node', format: 'cjs', packages: 'external'
+});
+const snapshotModule = { exports: {} };
+runInNewContext(snapshotBundle.outputFiles[0].text, {
+  module: snapshotModule, exports: snapshotModule.exports, require
+});
+const { snapshotDaPropostaSalva, entradaDaProposta } = snapshotModule.exports;
 const release = { id: 'liberacao', opportunityId: 'negocio', version: 1,
   snapshot: { taxId: '11222333000181', legalName: 'Cliente sintético',
     contactName: 'Contato', site: 'Obra sintética', description: 'Serviço sintético' } };
@@ -23,7 +32,8 @@ async function flush() {
 }
 
 /** Exercita as ações do diálogo com consultas controladas, sem um servidor ou navegador. */
-function mount({ list = async () => [release], onVincular = async () => {}, cnpj = '11.222.333/0001-81' } = {}) {
+function mount({ list = async () => [release], onVincular = async () => {}, cnpj = '11.222.333/0001-81',
+  cliente = 'Cliente sintético' } = {}) {
   const queries = [], slots = [];
   let cursor = 0, effects = [], tree, scheduled = false, closes = 0;
   const sameDeps = (a, b) => a?.length === b?.length && a.every((item, index) => Object.is(item, b[index]));
@@ -63,7 +73,7 @@ function mount({ list = async () => [release], onVincular = async () => {}, cnpj
   function render() {
     cursor = 0;
     effects = [];
-    tree = module.exports.VincularPrismaDialog({ codigo: '4638', cliente: 'Cliente sintético', cnpj,
+    tree = module.exports.VincularPrismaDialog({ codigo: '4640', cliente, cnpj,
       onVincular, onFechar: () => { closes++; } });
     for (const effect of effects) effect();
   }
@@ -80,7 +90,7 @@ function mount({ list = async () => [release], onVincular = async () => {}, cnpj
   };
 }
 
-test('consulta o CNPJ normalizado e exige escolha explícita antes de confirmar a proposta 4638', async () => {
+test('consulta o CNPJ normalizado e exige escolha explícita antes de confirmar o vínculo', async () => {
   const linked = [];
   const dialog = mount({ onVincular: async item => { linked.push(item); } });
   await flush();
@@ -96,14 +106,44 @@ test('consulta o CNPJ normalizado e exige escolha explícita antes de confirmar 
   assert.equal(linked[0], release);
 });
 
-test('CNPJ incompleto e cancelamento não associam a proposta nem consultam outros clientes', async () => {
-  const dialog = mount({ cnpj: '' });
+test('rascunho 4640 sem cliente e CNPJ permite escolher o negócio liberado com confirmação explícita', async () => {
+  for (const cnpj of ['', '   ']) {
+    const linked = [];
+    const dialog = mount({ cnpj, cliente: '', onVincular: async item => { linked.push(item); } });
+    await flush();
+    assert.equal(dialog.queries.length, 1);
+    assert.equal(dialog.queries[0], undefined);
+    assert.equal(dialog.button('Confirmar vínculo').props.disabled, true);
+    assert.equal(dialog.nodes().filter(node => node.type === 'option').length, 2);
+    assert.ok(!dialog.nodes().some(node => node.props?.role === 'alert'));
+    assert.ok(dialog.nodes().some(node => node.type === 'p' &&
+      node.props.children?.includes('O nome do cliente e o CNPJ serão preenchidos')));
+    dialog.select(release.id);
+    await flush();
+    assert.equal(dialog.button('Confirmar vínculo').props.disabled, false);
+    await dialog.button('Confirmar vínculo').props.onClick();
+    await flush();
+    assert.equal(linked.length, 1);
+    assert.equal(linked[0], release);
+  }
+});
+
+test('CNPJ incompleto continua bloqueado e cancelar um rascunho vazio não cria vínculo', async () => {
+  for (const cnpj of ['123', './-', '11.222.333/0001']) {
+    const dialog = mount({ cnpj });
+    await flush();
+    assert.equal(dialog.queries.length, 0);
+    assert.equal(dialog.button('Confirmar vínculo').props.disabled, true);
+    assert.ok(dialog.nodes().some(node => node.props?.role === 'alert'));
+  }
+  const linked = [];
+  const dialog = mount({ cnpj: '', onVincular: async item => { linked.push(item); } });
   await flush();
-  assert.equal(dialog.queries.length, 0);
-  assert.equal(dialog.button('Confirmar vínculo').props.disabled, true);
-  assert.ok(dialog.nodes().some(node => node.props?.role === 'alert'));
+  dialog.select(release.id);
+  await flush();
   dialog.button('Cancelar').props.onClick();
   assert.equal(dialog.closes, 1);
+  assert.equal(linked.length, 0);
 });
 
 test('versão desatualizada pode ser recarregada sem confirmar o vínculo anterior', async () => {
@@ -145,4 +185,33 @@ test('durante a associação o diálogo bloqueia confirmação, atualização e 
   assert.equal(dialog.closes, 0);
   finish();
   await flush();
+});
+
+test('cliente e CNPJ salvos apenas no payload reaparecem e filtram as liberações do cliente correto', async () => {
+  const payload = { client: release.snapshot.legalName, cnpj: '11.222.333/0001-81', title: 'Escopo salvo' };
+  for (const vazio of ['', '   ', null]) {
+    const form = snapshotDaPropostaSalva({ clientName: vazio, cnpj: vazio, payload });
+    assert.equal(form.client, payload.client);
+    assert.equal(form.cnpj, payload.cnpj);
+    const dialog = mount({ cliente: form.client, cnpj: form.cnpj });
+    await flush();
+    assert.deepEqual(dialog.queries, [release.snapshot.taxId]);
+  }
+});
+
+test('reabrir e salvar o rascunho associado mantém a identificação preenchida e seu conteúdo', () => {
+  const proposta = { clientName: release.snapshot.legalName, cnpj: release.snapshot.taxId,
+    payload: { client: release.snapshot.legalName, cnpj: release.snapshot.taxId,
+      title: 'Escopo negociado', prices: [{ value: 'R$ 12.500,00' }] } };
+  const form = snapshotDaPropostaSalva(proposta);
+  const entrada = entradaDaProposta({ form, codigo: '4640', orcamentista: 'Vendedor', modelo: 'padrao',
+    itensEscopo: [], blocos: [], categorias: [], responsabilidades: [],
+    precos: proposta.payload.prices, incluirUnitario: true, servicosTecnicos: [], complementoRelatorios: '' }, 'levantamento');
+  assert.equal(entrada.clientName, release.snapshot.legalName);
+  assert.equal(entrada.cnpj, release.snapshot.taxId);
+  assert.equal(entrada.payload.client, entrada.clientName);
+  assert.equal(entrada.payload.cnpj, entrada.cnpj);
+  assert.equal(entrada.payload.title, proposta.payload.title);
+  assert.equal(entrada.costEstimateId, 'levantamento');
+  assert.equal(entrada.proposalCode, '4640');
 });

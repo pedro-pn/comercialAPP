@@ -106,7 +106,8 @@ test('Prisma v2: permissões, liberação, criação/revisão, multipart, reenvi
       payload: { prices: [{ value: 'R$ 1.250,00' }] } };
     assert.equal((await request('/api/comercial/propostas', { ...input, sellerUserId: user.id })).status, 400);
     const { crmReleaseId: requestedReleaseId, ...existingDraft } = input;
-    let first = await request('/api/comercial/propostas', existingDraft);
+    let first = await request('/api/comercial/propostas', { ...existingDraft, clientName: '', cnpj: '',
+      payload: { ...existingDraft.payload, client: '', cnpj: '' } });
     assert.equal(first.status, 201, JSON.stringify(first.data));
     first = first.data;
     assert.equal(first.crmReleaseId, null);
@@ -120,7 +121,9 @@ test('Prisma v2: permissões, liberação, criação/revisão, multipart, reenvi
     first = linked.data;
     assert.equal(first.id, savedDraft.id);
     assert.equal(first.proposalCode, savedDraft.proposalCode);
-    assert.deepEqual(first.payload, savedDraft.payload);
+    assert.equal(first.clientName, release.legalName);
+    assert.equal(first.cnpj, release.taxId);
+    assert.deepEqual(first.payload, { ...savedDraft.payload, client: release.legalName, cnpj: release.taxId });
     assert.deepEqual((await request(`/api/comercial/propostas/${first.id}/vincular-prisma`, association)).data, first);
     assert.equal(first.sellerConsultantId, consultant.id);
     assert.equal(first.crmReleaseId, releaseId);
